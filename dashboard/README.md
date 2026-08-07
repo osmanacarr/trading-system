@@ -35,6 +35,26 @@ Gercek veri gormek icin repo kokunde bir kez paper trading calistirin:
 python -m paper_trading.runner --strategy donchian
 ```
 
+## Sorun giderme: "Sistem gunlugu bir trade gosteriyor ama acik pozisyonlar 0 diyor"
+
+Bu, `/api/positions`'un state.db'yi okuyamadigi (native modul/bundling
+sorunu) halde eskiden sessizce `{"positions":[]}` donmesinden kaynaklanan
+bilinen bir hataydi - `state.db` OKUNAMADIGINDA da, gercekten pozisyon
+YOKKEN de ayni bos sonuc donuyordu. Artik `readOpenPositions()` (bkz.
+`lib/readers.ts`) bu iki durumu ayirt ediyor: dosya hic yoksa (mesru "ilk
+trade oncesi") `error: null`, dosya var ama acilamiyorsa `error: "<mesaj>"`
+doner. Ust cubukta "⚠ pozisyon verisi okunamadi" rozeti ve Acik Pozisyonlar
+panelinde ayri bir hata mesaji gorurseniz:
+
+1. `/api/positions`'u dogrudan acip `error` alanini okuyun - gercek native
+   modul hata mesaji orada.
+2. Vercel Project Settings → Functions'ta ilgili fonksiyonun loglarini
+   kontrol edin (`console.error("[readOpenPositions] ...")` orada gorunur).
+3. `next.config.ts`'teki `outputFileTracingIncludes` altinda
+   `node_modules/better-sqlite3/prebuilds/**/*` satirinin hala orada
+   oldugunu dogrulayin - better-sqlite3'un platform-bazli dinamik require'i
+   @vercel/nft'in statik izlemesini bazen atlatiyor, bu satir bunun icin.
+
 ## Bilinen sinirlamalar (bilincli tasarim kararlari)
 
 - **Guncel fiyat / anlik P&L (acik pozisyonlar tablosunda)**: bu surum

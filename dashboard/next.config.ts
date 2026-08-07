@@ -15,7 +15,21 @@ const REPO_ROOT = path.join(__dirname, "..");
 const nextConfig: NextConfig = {
   outputFileTracingRoot: REPO_ROOT,
   outputFileTracingIncludes: {
-    "/api/**": ["../paper_trading/logs/**", "../paper_trading/data/**"],
+    // paper_trading/logs ve data: yukarida aciklandigi gibi, monorepo disi.
+    // better-sqlite3'un prebuilds/build/Release altindaki NATIVE (.node)
+    // ikilisi: better-sqlite3/lib/binding.js bunu process.platform/arch'a
+    // gore DINAMIK olarak require ediyor - @vercel/nft'in statik analizi bu
+    // tur dinamik require'lari bazen tam cozemiyor (bkz. Next.js "output"
+    // dokumaninin "Common include patterns for native/runtime assets"
+    // notu). Acikca dahil etmek, bu yuzden state.db okumasinin (digerlerinin
+    // aksine native modul gerektiren TEK route) production'da sessizce
+    // bos donmesine karsi somut bir onlem.
+    "/api/**": [
+      "../paper_trading/logs/**",
+      "../paper_trading/data/**",
+      "node_modules/better-sqlite3/prebuilds/**/*",
+      "node_modules/better-sqlite3/build/Release/**/*",
+    ],
   },
 };
 

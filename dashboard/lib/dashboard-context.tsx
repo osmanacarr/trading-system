@@ -12,6 +12,7 @@ export interface DashboardData {
   trades: TradeRecord[];
   equity: EquitySnapshot[];
   positions: OpenPosition[];
+  positionsError: string | null;
   stats: StrategyStats;
   riskBudget: RiskBudget;
   correlation: CorrelationWarning;

@@ -4,7 +4,7 @@ import { computeCorrelationWarning } from "@/lib/derive";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const positions = readOpenPositions();
+  const { positions, error } = readOpenPositions();
   const warning = computeCorrelationWarning(positions);
-  return Response.json({ warning });
+  return Response.json({ warning, positionsError: error });
 }

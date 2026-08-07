@@ -58,6 +58,7 @@ export function StatusBar() {
         <span className="label-xs text-[10px] hidden sm:inline">paper trading</span>
         <Badge tone="cyan">{summary?.strategy ?? "donchian"}</Badge>
         {summary?.error && <Badge tone="amber">⚠ anomali</Badge>}
+        {data?.positionsError && <Badge tone="amber">⚠ pozisyon verisi okunamadi</Badge>}
       </div>
 
       <div className="flex items-baseline gap-2.5">

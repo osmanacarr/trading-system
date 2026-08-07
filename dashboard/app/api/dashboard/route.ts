@@ -17,7 +17,7 @@ export async function GET() {
   const summary = readJson<Summary>(SUMMARY_JSON_PATH);
   const trades = readJsonl<TradeRecord>(TRADES_JSONL_PATH);
   const equity = readJsonl<EquitySnapshot>(EQUITY_JSONL_PATH);
-  const positions = readOpenPositions();
+  const { positions, error: positionsError } = readOpenPositions();
 
   const stats = computeStrategyStats(trades);
   const riskBudget = computeRiskBudget(trades);
@@ -40,6 +40,7 @@ export async function GET() {
     trades,
     equity,
     positions,
+    positionsError,
     stats,
     riskBudget,
     correlation,

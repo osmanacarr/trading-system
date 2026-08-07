@@ -9,10 +9,13 @@ export function CorrelationWarningPanel() {
   const { data } = useDashboard();
   const warning = data?.correlation;
   const positions = data?.positions ?? [];
+  const positionsError = data?.positionsError ?? null;
 
   return (
     <Panel title="portfoy korelasyon uyarisi">
-      {positions.length === 0 ? (
+      {positionsError ? (
+        <EmptyState title="degerlendirilemedi" hint="pozisyon verisi okunamadi (bkz. strateji ligi paneli)" />
+      ) : positions.length === 0 ? (
         <EmptyState title="acik pozisyon yok" hint="korelasyon riski degerlendirilemez" />
       ) : !warning?.triggered ? (
         <div className="flex h-full flex-col items-center justify-center gap-1.5 px-4 py-6 text-center">

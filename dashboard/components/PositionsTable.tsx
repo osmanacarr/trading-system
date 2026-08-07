@@ -27,6 +27,16 @@ function stopDistancePct(pos: OpenPosition): number {
 export function PositionsTable() {
   const { data, selectedSymbol, setSelectedSymbol } = useDashboard();
   const positions = data?.positions ?? [];
+  const positionsError = data?.positionsError ?? null;
+  // summary.json (runner.py'nin kendi yazdigi open_positions sayisi) ile
+  // state.db'den okunan liste uyusmuyorsa - positionsError null olsa bile -
+  // bu, state.db'nin BASKA bir nedenle (ornegin gelecekte farkli bir
+  // native-modul/bundling sorunu) sessizce eksik okundugunun isaretidir.
+  // "Sistem Gunlugu'nde GIRIS var ama Acik Pozisyonlar 0 pozisyon diyor"
+  // celiskisi tam olarak boyle ortaya cikmisti (bkz. ilgili konusma) -
+  // bu kontrol ayni sinif hatanin sessizce tekrarlanmasini engeller.
+  const expectedCount = data?.summary?.open_positions ?? null;
+  const mismatch = !positionsError && expectedCount !== null && expectedCount !== positions.length;
   const [sortKey, setSortKey] = useState<SortKey>("symbol");
   const [sortDir, setSortDir] = useState<1 | -1>(1);
 
@@ -55,9 +65,26 @@ export function PositionsTable() {
   return (
     <Panel
       title="strateji ligi / acik pozisyonlar"
-      right={<span className="label-xs text-[9px]">{positions.length} pozisyon</span>}
+      right={
+        <span className="flex items-center gap-1.5">
+          {(positionsError || mismatch) && (
+            <Badge tone="amber">⚠ {positionsError ? "okuma hatasi" : "tutarsizlik"}</Badge>
+          )}
+          <span className="label-xs text-[9px]">{positions.length} pozisyon</span>
+        </span>
+      }
     >
-      {positions.length === 0 ? (
+      {positionsError ? (
+        <EmptyState
+          title="pozisyon verisi okunamadi"
+          hint={`state.db acilamadi/okunamadi - bu bir "acik pozisyon yok" degil, bir okuma hatasi (${positionsError})`}
+        />
+      ) : mismatch ? (
+        <EmptyState
+          title="veri tutarsizligi"
+          hint={`summary.json ${expectedCount} acik pozisyon diyor ama state.db'den ${positions.length} okundu - sayfa yenilendiginde duzelmezse dashboard/README "Vercel'e deploy" adimlarini kontrol edin`}
+        />
+      ) : positions.length === 0 ? (
         <EmptyState title="aktif pozisyon yok, sinyal bekleniyor" />
       ) : (
         <div className="overflow-x-auto scroll-thin">

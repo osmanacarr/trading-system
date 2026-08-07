@@ -1,0 +1,304 @@
+"""paper_trading/runner.py icin sentetik veri + ag gerektirmeyen testler."""
+
+from __future__ import annotations
+
+import datetime as dt
+
+import pandas as pd
+import pytest
+
+from paper_trading.logger import PaperTradingLogger
+from paper_trading.runner import run_once
+from paper_trading.state import PaperTradingState
+from tests.conftest import append_bars, make_flat_range_df
+
+
+@pytest.fixture
+def state(tmp_path):
+    s = PaperTradingState(db_path=tmp_path / "state.db", initial_capital=10_000.0)
+    yield s
+    s.close()
+
+
+@pytest.fixture
+def trade_logger(tmp_path):
+    return PaperTradingLogger(log_dir=tmp_path / "logs")
+
+
+def _breakout_df(n_base: int = 70) -> pd.DataFrame:
+    base = make_flat_range_df(n=n_base, price=100.0, half_range=1.0, volume=1000.0)
+    breakout = {"Open": 101.0, "High": 116.0, "Low": 100.5, "Close": 115.0, "Volume": 6000.0}
+    return append_bars(base, [breakout])
+
+
+def _down_move_df(n_base: int = 70) -> pd.DataFrame:
+    base = make_flat_range_df(n=n_base, price=100.0, half_range=1.0, volume=1000.0)
+    down_bar = {"Open": 100.0, "High": 100.5, "Low": 90.0, "Close": 91.0, "Volume": 1000.0}
+    return append_bars(base, [down_bar])
+
+
+def _no_signal_df(n_base: int = 70) -> pd.DataFrame:
+    return make_flat_range_df(n=n_base, price=100.0, half_range=1.0, volume=1000.0)
+
+
+def _make_fetch_fn(dataframes: dict):
+    def fetch_fn(ticker, start=None, end=None):
+        if ticker not in dataframes:
+            raise RuntimeError(f"bilinmeyen sembol: {ticker}")
+        return dataframes[ticker].copy()
+
+    return fetch_fn
+
+
+def test_entry_opens_position(state, trade_logger):
+    df = _breakout_df()
+    run_date = df.index[-1].date()
+    fetch_fn = _make_fetch_fn({"FAKE-USD": df})
+
+    summary = run_once(
+        strategy="donchian", run_date=run_date, dry_run=False,
+        state=state, trade_logger=trade_logger, fetch_fn=fetch_fn,
+        markets={"crypto": ["FAKE-USD"]}, verbose=False,
+    )
+
+    assert summary["results"][0].action == "entry_long"
+    pos = state.get_position("FAKE-USD")
+    assert pos is not None
+    assert pos.direction == 1
+    assert pos.strategy == "donchian"
+
+    trades = trade_logger.read_trades()
+    assert len(trades) == 1
+    assert trades.iloc[0]["event_type"] == "entry"
+
+
+def test_stop_exit_closes_position(state, trade_logger):
+    state.open_position(
+        "FAKE-USD", "donchian", direction=1, entry_date=dt.date(2019, 1, 1),
+        entry_price=100.0, stop_price=95.0, size=10.0,
+    )
+    starting_equity = state.get_equity()
+
+    df = _down_move_df()
+    run_date = df.index[-1].date()
+    fetch_fn = _make_fetch_fn({"FAKE-USD": df})
+
+    summary = run_once(
+        strategy="donchian", run_date=run_date, dry_run=False,
+        state=state, trade_logger=trade_logger, fetch_fn=fetch_fn,
+        markets={"crypto": ["FAKE-USD"]}, verbose=False,
+    )
+
+    assert summary["results"][0].action == "exit"
+    assert summary["results"][0].detail == "stop"
+    assert state.get_position("FAKE-USD") is None
+    assert state.get_equity() < starting_equity  # stop kaybi
+
+    trades = trade_logger.read_trades()
+    assert len(trades) == 1
+    assert trades.iloc[0]["event_type"] == "exit"
+    assert trades.iloc[0]["exit_reason"] == "stop"
+    assert trades.iloc[0]["pnl"] < 0
+
+
+def test_idempotency_same_day_double_run(state, trade_logger):
+    df = _breakout_df()
+    run_date = df.index[-1].date()
+    fetch_fn = _make_fetch_fn({"FAKE-USD": df})
+
+    run_once(
+        strategy="donchian", run_date=run_date, state=state, trade_logger=trade_logger,
+        fetch_fn=fetch_fn, markets={"crypto": ["FAKE-USD"]}, verbose=False,
+    )
+    summary2 = run_once(
+        strategy="donchian", run_date=run_date, state=state, trade_logger=trade_logger,
+        fetch_fn=fetch_fn, markets={"crypto": ["FAKE-USD"]}, verbose=False,
+    )
+
+    assert summary2["results"][0].action == "skip_already_processed"
+    # Ikinci calistirma sinyali TEKRAR islememeli: hala tek pozisyon, tek trade kaydi
+    assert len(state.list_open_positions()) == 1
+    trades = trade_logger.read_trades()
+    assert len(trades) == 1
+
+
+def test_fetch_failure_skips_symbol_and_continues(state, trade_logger):
+    good_df = _breakout_df()
+    run_date = good_df.index[-1].date()
+
+    def flaky_fetch(ticker, start=None, end=None):
+        if ticker == "BAD-USD":
+            raise RuntimeError("gecici ag hatasi")
+        return good_df.copy()
+
+    summary = run_once(
+        strategy="donchian", run_date=run_date, state=state, trade_logger=trade_logger,
+        fetch_fn=flaky_fetch, markets={"crypto": ["BAD-USD", "GOOD-USD"]}, verbose=False,
+        fetch_max_attempts=2, fetch_base_delay=0.0, fetch_sleep_fn=lambda s: None,
+    )
+
+    results_by_symbol = {r.symbol: r for r in summary["results"]}
+    assert results_by_symbol["BAD-USD"].action == "skip_fetch_error"
+    assert results_by_symbol["GOOD-USD"].action == "entry_long"
+    # BAD-USD icin state/pozisyon degismemis olmali, GOOD-USD icin acilmis olmali
+    assert state.get_position("BAD-USD") is None
+    assert state.get_position("GOOD-USD") is not None
+
+
+def test_multi_symbol_multi_position(state, trade_logger):
+    df_a = _breakout_df()
+    df_b = _breakout_df()
+    run_date = df_a.index[-1].date()
+    fetch_fn = _make_fetch_fn({"SYM-A": df_a, "SYM-B": df_b})
+
+    run_once(
+        strategy="donchian", run_date=run_date, state=state, trade_logger=trade_logger,
+        fetch_fn=fetch_fn, markets={"crypto": ["SYM-A", "SYM-B"]}, verbose=False,
+    )
+
+    open_symbols = {p.symbol for p in state.list_open_positions()}
+    assert open_symbols == {"SYM-A", "SYM-B"}
+
+
+def test_bist_weekend_is_skipped_without_fetching(state, trade_logger):
+    saturday = dt.date(2024, 1, 6)
+    assert saturday.weekday() == 5
+
+    def fetch_fn(ticker, start=None, end=None):
+        raise AssertionError("hafta sonu BIST icin fetch cagrilmamali")
+
+    summary = run_once(
+        strategy="donchian", run_date=saturday, state=state, trade_logger=trade_logger,
+        fetch_fn=fetch_fn, markets={"bist": ["THYAO.IS"]}, verbose=False,
+    )
+    assert summary["results"][0].action == "skip_weekend"
+
+
+def test_crypto_runs_on_weekend(state, trade_logger):
+    df = _breakout_df()
+    # veri setini bilerek bir Cumartesi'ye "tasi" - kripto hafta sonu da calismali
+    saturday = dt.date(2024, 1, 6)
+    df.index = pd.date_range(end=saturday, periods=len(df), freq="D")
+    fetch_fn = _make_fetch_fn({"BTC-USD": df})
+
+    summary = run_once(
+        strategy="donchian", run_date=saturday, state=state, trade_logger=trade_logger,
+        fetch_fn=fetch_fn, markets={"crypto": ["BTC-USD"]}, verbose=False,
+    )
+    assert summary["results"][0].action != "skip_weekend"
+
+
+def test_dry_run_makes_no_state_or_log_changes(state, trade_logger):
+    df = _breakout_df()
+    run_date = df.index[-1].date()
+    fetch_fn = _make_fetch_fn({"FAKE-USD": df})
+
+    run_once(
+        strategy="donchian", run_date=run_date, dry_run=True,
+        state=state, trade_logger=trade_logger, fetch_fn=fetch_fn,
+        markets={"crypto": ["FAKE-USD"]}, verbose=False,
+    )
+
+    assert state.get_position("FAKE-USD") is None
+    assert state.get_equity() == 10_000.0
+    assert state.get_last_processed_date("FAKE-USD") is None
+    assert not trade_logger.trades_jsonl_path.exists()
+    assert not trade_logger.equity_jsonl_path.exists()
+
+
+def test_state_and_idempotency_persist_across_separate_runner_instances(tmp_path):
+    """Bir 'calistirma' (state+logger kapatilir) sonrasi YENI orneklerle
+    tekrar calistirildiginda hem pozisyon hem de idempotency korunmali -
+    programi kapatip acmanin runner uzerindeki karsiligi."""
+    db_path = tmp_path / "state.db"
+    log_dir = tmp_path / "logs"
+
+    df = _breakout_df()
+    run_date = df.index[-1].date()
+    fetch_fn = _make_fetch_fn({"FAKE-USD": df})
+
+    state1 = PaperTradingState(db_path=db_path, initial_capital=10_000.0)
+    logger1 = PaperTradingLogger(log_dir=log_dir)
+    run_once(
+        strategy="donchian", run_date=run_date, state=state1, trade_logger=logger1,
+        fetch_fn=fetch_fn, markets={"crypto": ["FAKE-USD"]}, verbose=False,
+    )
+    state1.close()
+
+    state2 = PaperTradingState(db_path=db_path, initial_capital=10_000.0)
+    logger2 = PaperTradingLogger(log_dir=log_dir)
+    summary2 = run_once(
+        strategy="donchian", run_date=run_date, state=state2, trade_logger=logger2,
+        fetch_fn=fetch_fn, markets={"crypto": ["FAKE-USD"]}, verbose=False,
+    )
+
+    assert summary2["results"][0].action == "skip_already_processed"
+    pos = state2.get_position("FAKE-USD")
+    assert pos is not None
+    assert pos.direction == 1
+    state2.close()
+
+
+def test_no_signal_when_flat_range(state, trade_logger):
+    df = _no_signal_df()
+    run_date = df.index[-1].date()
+    fetch_fn = _make_fetch_fn({"FAKE-USD": df})
+
+    summary = run_once(
+        strategy="donchian", run_date=run_date, state=state, trade_logger=trade_logger,
+        fetch_fn=fetch_fn, markets={"crypto": ["FAKE-USD"]}, verbose=False,
+    )
+    assert summary["results"][0].action == "no_signal"
+    assert state.get_position("FAKE-USD") is None
+
+
+def test_dry_run_with_no_existing_db_creates_no_file(tmp_path, trade_logger):
+    """--dry-run, henuz hic state.db yokken diske HICBIR SEY yazmamali
+    (bellek-ici fallback kullanilmali)."""
+    db_path = tmp_path / "state.db"
+    assert not db_path.exists()
+
+    df = _breakout_df()
+    run_date = df.index[-1].date()
+    fetch_fn = _make_fetch_fn({"FAKE-USD": df})
+    dry_state = PaperTradingState(db_path=db_path, initial_capital=10_000.0, read_only=True)
+
+    summary = run_once(
+        strategy="donchian", run_date=run_date, dry_run=True,
+        state=dry_state, trade_logger=trade_logger, fetch_fn=fetch_fn,
+        markets={"crypto": ["FAKE-USD"]}, verbose=False,
+    )
+
+    assert summary["results"][0].action == "entry_long"  # ne yapilacagi dogru hesaplanmis
+    dry_state.close()
+    assert not db_path.exists()  # ama diske hicbir sey yazilmamis
+
+
+def test_real_run_creates_timestamped_backup(state, trade_logger):
+    df = _no_signal_df()
+    run_date = df.index[-1].date()
+    fetch_fn = _make_fetch_fn({"FAKE-USD": df})
+    backups_dir = state.db_path.parent / "backups"
+
+    assert not backups_dir.exists()
+    run_once(
+        strategy="donchian", run_date=run_date, dry_run=False,
+        state=state, trade_logger=trade_logger, fetch_fn=fetch_fn,
+        markets={"crypto": ["FAKE-USD"]}, verbose=False,
+    )
+    assert backups_dir.exists()
+    assert len(list(backups_dir.glob("*.db"))) == 1
+
+
+def test_dry_run_does_not_create_backup(state, trade_logger):
+    df = _no_signal_df()
+    run_date = df.index[-1].date()
+    fetch_fn = _make_fetch_fn({"FAKE-USD": df})
+    backups_dir = state.db_path.parent / "backups"
+
+    run_once(
+        strategy="donchian", run_date=run_date, dry_run=True,
+        state=state, trade_logger=trade_logger, fetch_fn=fetch_fn,
+        markets={"crypto": ["FAKE-USD"]}, verbose=False,
+    )
+    assert not backups_dir.exists()

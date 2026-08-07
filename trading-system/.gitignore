@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# Yerel SQLite yedekleri: state.db'nin kendisi ve git commit gecmisi zaten
+# kalici/izlenebilir bir kayit tutuyor (bkz. .github/workflows/paper_trading.yml
+# yorumu); state.py'nin her calistirmada aldigi zaman damgali yerel
+# yedekler (backup()) commit'lenmez, aksi halde repo her calistirmada
+# gereksiz yere buyur.
+paper_trading/data/backups/
+
+# paper_trading/data/state.db VE paper_trading/logs/ BILINCLI OLARAK
+# gitignore edilMEMISTIR: GitHub Actions workflow'u bunlari otomatik
+# commit'leyip pushlayarak state'in Actions run'lari arasinda kalici
+# olmasini sagliyor (bkz. README "Faz 4: Otomatik calisma").

@@ -1,0 +1,72 @@
+name: Paper Trading Daily
+
+# Bu workflow, trading-system/ dizininin REPO KOKU oldugunu varsayar
+# (yani `git init` bu dizinde yapildi / bu dizin repo'ya push edildi).
+# Farkli bir kok kullanacaksaniz her adimdaki yollari ve/veya bir
+# `working-directory: trading-system` eklemeyi unutmayin.
+#
+# Neden IKI cron ve tek is (job)? paper_trading.runner --strategy X komutu
+# TUM evreni (BIST + kripto) tek seferde isler ve IDEMPOTENT'tir (bkz.
+# paper_trading/state.py: sembol basina "son islenen bar tarihi"). Bu
+# yuzden ayni komutu hem BIST kapanisindan sonra hem de kripto icin ayri
+# bir saatte calistirmak GUVENLIDIR: bir sembolun o gunku bari zaten
+# islenmisse ("skip_already_processed") ikinci calistirma o sembol icin
+# hicbir sey yapmaz. Yani BIST calistirmasi kriptoyu da (henuz o gunku bar
+# olusmamissa islemez / olusmussa bir kez isler), kripto calistirmasi
+# BIST'i de (zaten islenmisse atlar) kapsar - iki ayri workflow/job yerine
+# tek bir job'u iki farkli saatte tetiklemek yeterli ve daha basit.
+on:
+  schedule:
+    # BIST kapanisi sonrasi: TR saatiyle ~19:00 -> UTC 16:00, sadece hafta ici
+    - cron: "0 16 * * 1-5"
+    # Kripto icin gunluk: UTC gece yarisi (BTC-USD gunluk barinin kapanisina yakin)
+    - cron: "0 0 * * *"
+  workflow_dispatch: {} # Actions sekmesinden elle tetikleme imkani
+
+# GITHUB_TOKEN'in state/log degisikliklerini repoya geri push'layabilmesi
+# icin YAZMA izni sart - varsayilan (bazi organizasyonlarda) salt-okunurdur.
+# Repo Settings > Actions > General > Workflow permissions'ta da
+# "Read and write permissions" secili olmali (bkz. README "Kurulum").
+permissions:
+  contents: write
+
+# Ayni state.db uzerinde CAKISAN calistirmalari onlemek icin seri kuyruk:
+# BIST ve kripto tetikleyicileri ayni dakikaya denk gelirse (orn. elle
+# tetikleme + zamanlanmis calistirma cakismasi) ikinci calistirma birinci
+# bitene kadar bekler, iptal edilmez.
+concurrency:
+  group: paper-trading-state
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repo checkout
+        uses: actions/checkout@v4
+
+      - name: Python kur
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Bagimliliklari kur
+        run: pip install -r requirements.txt
+
+      - name: Testleri calistir (guvenlik onlemi - basarisizsa dur, state'e dokunma)
+        run: python -m pytest -q
+
+      - name: Paper trading calistir (Donchian, tum evren)
+        run: python -m paper_trading.runner --strategy donchian
+
+      - name: State ve log degisikliklerini commit'le ve pushla
+        run: |
+          git config user.name "paper-trading-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add paper_trading/data/state.db paper_trading/logs
+          if git diff --cached --quiet; then
+            echo "Degisiklik yok (islem/equity guncellemesi olmadi), commit atlaniyor."
+          else
+            git commit -m "paper trading: otomatik calistirma $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push
+          fi

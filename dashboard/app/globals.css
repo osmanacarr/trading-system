@@ -1,0 +1,113 @@
+@import "tailwindcss";
+
+@theme {
+  /* Zemin: koyu lacivert/siyah gradyan uclari */
+  --color-term-bg-0: #0a0e14;
+  --color-term-bg-1: #12161f;
+
+  /* Panel yuzeyleri */
+  --color-term-panel: #10141b;
+  --color-term-panel-head: #151a24;
+  --color-term-border: #1e2530;
+  --color-term-border-soft: #171d28;
+
+  /* Metin */
+  --color-term-text: #ced6e0;
+  --color-term-text-dim: #6b7688;
+  --color-term-text-faint: #4a5464;
+
+  /* Renk disiplini: bunlarin DISINDA baska hicbir renk semantik amacla kullanilmaz */
+  --color-term-green: #00d68f;
+  --color-term-green-dim: #00d68f33;
+  --color-term-red: #ff4757;
+  --color-term-red-dim: #ff475733;
+  --color-term-amber: #ffa940;
+  --color-term-amber-dim: #ffa94033;
+  --color-term-cyan: #22d3ee;
+  --color-term-cyan-dim: #22d3ee33;
+
+  --font-mono: var(--font-mono);
+  --font-sans: var(--font-sans);
+
+  --animate-flash-green: flash-green 700ms ease-out;
+  --animate-flash-red: flash-red 700ms ease-out;
+  --animate-pulse-value: pulse-value 900ms ease-out;
+  --animate-slide-in: slide-in 420ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-ticker: ticker 45s linear infinite;
+  --animate-blink-dot: blink-dot 2.4s ease-in-out infinite;
+}
+
+@keyframes flash-green {
+  0% { background-color: var(--color-term-green-dim); }
+  100% { background-color: transparent; }
+}
+@keyframes flash-red {
+  0% { background-color: var(--color-term-red-dim); }
+  100% { background-color: transparent; }
+}
+@keyframes pulse-value {
+  0% { transform: scale(1); opacity: 1; }
+  30% { transform: scale(1.06); opacity: 0.85; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes slide-in {
+  0% { transform: translateX(-8px); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+@keyframes ticker {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+@keyframes blink-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(ellipse 1200px 800px at 15% -10%, #141a26 0%, transparent 60%),
+    radial-gradient(ellipse 1000px 700px at 100% 0%, #10151f 0%, transparent 55%),
+    linear-gradient(180deg, var(--color-term-bg-1) 0%, var(--color-term-bg-0) 100%);
+  color: var(--color-term-text);
+  font-feature-settings: "tnum" 1, "cv01" 1;
+}
+
+::selection {
+  background: var(--color-term-cyan-dim);
+  color: var(--color-term-cyan);
+}
+
+/* Terminal-tarzi ince scrollbar */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-term-border) transparent;
+}
+.scroll-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--color-term-border);
+  border-radius: 3px;
+}
+.scroll-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@layer utilities {
+  .label-xs {
+    font-family: var(--font-sans);
+    font-weight: 300;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-term-text-dim);
+  }
+  .mono-tabular {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+}

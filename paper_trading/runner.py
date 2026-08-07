@@ -61,6 +61,7 @@ from config import (
 )
 from data.adjust import adjust_jumps
 from data.fetch import fetch_ohlcv
+from notifications.telegram import send_telegram_message
 from paper_trading.logger import PaperTradingLogger
 from paper_trading.state import PaperTradingState, PositionRecord
 from signals import donchian, price_action
@@ -78,6 +79,34 @@ MARKETS: dict[str, list[str]] = {
 }
 
 FetchFn = Callable[..., pd.DataFrame]
+
+
+def _format_entry_telegram_message(
+    symbol: str, direction: int, entry_price: float, stop_price: float, signal_date: dt.date
+) -> str:
+    """GIRIS bildirimi metnini olusturur (orn. "🔴 GIRIS: EREGL.IS SHORT @ 38.66
+    | Stop: 41.72 (+7.9%) | 2026-08-07"). Emoji yon renginde: LONG=yesil,
+    SHORT=kirmizi (dashboard'daki ayni renk disipliniyle tutarli)."""
+    emoji = "🟢" if direction == 1 else "🔴"
+    yon = "LONG" if direction == 1 else "SHORT"
+    stop_pct = abs(stop_price - entry_price) / entry_price * 100
+    return (
+        f"{emoji} GIRIS: {symbol} {yon} @ {entry_price:.2f} | "
+        f"Stop: {stop_price:.2f} ({stop_pct:+.1f}%) | {signal_date.isoformat()}"
+    )
+
+
+def _format_exit_telegram_message(
+    symbol: str, direction: int, exit_price: float, r_multiple: float, exit_reason: str, signal_date: dt.date
+) -> str:
+    """CIKIS bildirimi metnini olusturur. Emoji kar/zarar renginde: R>=0 yesil,
+    R<0 kirmizi (yon degil, sonuc onemli)."""
+    emoji = "🟢" if r_multiple >= 0 else "🔴"
+    yon = "LONG" if direction == 1 else "SHORT"
+    return (
+        f"{emoji} CIKIS: {symbol} {yon} @ {exit_price:.2f} | "
+        f"R: {r_multiple:+.2f} ({exit_reason}) | {signal_date.isoformat()}"
+    )
 
 
 @dataclass
@@ -265,6 +294,11 @@ def process_symbol(
                         "equity_after": new_equity,
                     }
                 )
+                send_telegram_message(
+                    _format_exit_telegram_message(
+                        symbol, direction, trade["exit_price"], trade["r_multiple"], reason, signal_date
+                    )
+                )
         else:
             action = "hold"
     else:
@@ -310,6 +344,9 @@ def process_symbol(
                             "size": size,
                             "equity_after": new_equity,
                         }
+                    )
+                    send_telegram_message(
+                        _format_entry_telegram_message(symbol, direction, entry_price, stop_price, signal_date)
                     )
 
     if not dry_run:

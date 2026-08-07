@@ -14,6 +14,7 @@ const PANEL_TARGETS: { id: string; label: string }[] = [
   { id: "panel-positions", label: "acik pozisyonlar" },
   { id: "panel-trade-history", label: "islem gecmisi" },
   { id: "panel-confidence", label: "istatistiksel guven" },
+  { id: "panel-system-vs-real", label: "sistem vs gercek" },
   { id: "panel-live-vs-backtest", label: "canli vs backtest sapma" },
   { id: "panel-r-histogram", label: "r-katsayisi dagilimi" },
   { id: "panel-confidence-over-time", label: "istatistiksel guven (zaman icinde)" },

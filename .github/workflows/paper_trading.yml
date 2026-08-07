@@ -23,6 +23,11 @@ on:
     - cron: "0 0 * * *"
   workflow_dispatch: {} # Actions sekmesinden elle tetikleme imkani
 
+# TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID (asagida "Paper trading calistir"
+# adiminda) OPSIYONELDIR: repo Secrets'ta tanimli degilse env degiskenleri
+# bos string olur, notifications/telegram.py bunu sessizce atlar (runner
+# durmaz) - kurulum icin bkz. README "Telegram bot nasil kurulur".
+#
 # GITHUB_TOKEN'in state/log degisikliklerini repoya geri push'layabilmesi
 # icin YAZMA izni sart - varsayilan (bazi organizasyonlarda) salt-okunurdur.
 # Repo Settings > Actions > General > Workflow permissions'ta da
@@ -57,6 +62,9 @@ jobs:
         run: python -m pytest -q
 
       - name: Paper trading calistir (Donchian, tum evren)
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python -m paper_trading.runner --strategy donchian
 
       - name: State ve log degisikliklerini commit'le ve pushla

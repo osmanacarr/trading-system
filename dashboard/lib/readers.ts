@@ -2,8 +2,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
-import { STATE_DB_PATH } from "./paths";
-import type { OpenPosition } from "./types";
+import { MANUAL_LOG_PATH, STATE_DB_PATH } from "./paths";
+import type { ManualEntryRecord, OpenPosition } from "./types";
 
 /** JSONL dosyasini okur; dosya yoksa (henuz ilk calistirma olmamis) bos dizi doner. */
 export function readJsonl<T>(filePath: string): T[] {
@@ -93,5 +93,53 @@ export function readOpenPositions(): PositionsResult {
   } finally {
     db?.close();
     if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+}
+
+export interface AppendManualEntryInput {
+  symbol: string;
+  signal_date: string;
+  system_entry_price: number | null;
+  user_entry_price: number;
+  user_size: number;
+  note: string;
+}
+
+export interface AppendManualEntryResult {
+  ok: boolean;
+  error: string | null;
+  entry: ManualEntryRecord | null;
+}
+
+/**
+ * Bir manuel islem kaydini paper_trading/logs/manual_trades.jsonl'e
+ * (JSONL, append) ekler - paper_trading/manual_log.py'nin record_manual_entry()
+ * fonksiyonuyla AYNI semaya yazar (iki taraf da MANUAL_LOG_COLUMNS'a uymali).
+ *
+ * ONEMLI SINIRLAMA: bu, GERCEK bir dosya sistemi YAZMASIdir - state.db
+ * OKUMASININ aksine /tmp'ye kopyalayip-geri-yazma gibi bir cozum burada
+ * ISE YARAMAZ (yazilan veri kalici olmasi gerekiyor, /tmp'ye yazip
+ * birakmak veriyi bir sonraki cold start'ta kaybeder). Vercel'in
+ * serverless fonksiyon dizini READ-ONLY oldugundan, bu fonksiyon
+ * PRODUCTION'DA (Vercel) BEKLENEN SEKILDE basarisiz olur - hata
+ * YUTULMAZ, acikca {ok:false, error:"..."} doner ki UI kullaniciya
+ * "bu ortamda kalici kayit desteklenmiyor" diyebilsin (sessizce
+ * basariliymis gibi davranmaz). Kalici kayit icin: yerel `npm run dev`
+ * veya kendi sunucunuzda (salt-okunur olmayan bir dosya sisteminde)
+ * calistirin - bkz. dashboard/README.md.
+ */
+export function appendManualEntry(input: AppendManualEntryInput): AppendManualEntryResult {
+  const entry: ManualEntryRecord = {
+    ...input,
+    marked_at: new Date().toISOString(),
+  };
+  try {
+    fs.mkdirSync(path.dirname(MANUAL_LOG_PATH), { recursive: true });
+    fs.appendFileSync(MANUAL_LOG_PATH, JSON.stringify(entry) + "\n", "utf-8");
+    return { ok: true, error: null, entry };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[appendManualEntry] manual_trades.jsonl yazilamadi:", message);
+    return { ok: false, error: message, entry: null };
   }
 }

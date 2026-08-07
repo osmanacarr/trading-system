@@ -206,9 +206,11 @@ commit geçmişinin kendisi zaten her çalıştırma için geri dönülebilir bi
 
 ### Kurulum gereksinimleri (workflow'u aktif etmeden önce)
 
-- **Secret gerekmiyor:** yfinance kimlik doğrulaması istemiyor, `GITHUB_TOKEN`
-  GitHub tarafından her çalıştırmada otomatik sağlanıyor — ek bir secret
-  eklemenize gerek yok.
+- **Zorunlu secret gerekmiyor:** yfinance kimlik doğrulaması istemiyor,
+  `GITHUB_TOKEN` GitHub tarafından her çalıştırmada otomatik sağlanıyor.
+  Telegram bildirimleri için **opsiyonel** iki secret eklenebilir (aşağıda
+  "Telegram bot bildirimleri" bölümüne bakın) — eklenmezse runner normal
+  çalışmaya devam eder, sadece bildirim adımı sessizce atlanır.
 - **`GITHUB_TOKEN` yazma izni:** Workflow dosyasında `permissions: contents: write`
   var, ama bu bazı organizasyon/repo ayarlarında YETMEYEBİLİR — repo
   **Settings → Actions → General → Workflow permissions**'ta "**Read and
@@ -228,6 +230,67 @@ commit geçmişinin kendisi zaten her çalıştırma için geri dönülebilir bi
 - **Repo GitHub'a push edilmiş olmalı:** Bu workflow yalnızca repo GitHub'da
   barındığında ve Actions çalıştığında aktif olur — yerel makinede otomatik
   tetiklenmez.
+
+### Telegram bot bildirimleri (opsiyonel)
+
+Her gerçek GİRİŞ/ÇIKIŞ işleminde (`no_signal`/`hold`/`skip_*` durumlarında
+DEĞİL — bkz. `paper_trading/runner.py`, `notifications/telegram.py`), ekip
+Telegram grubuna otomatik bir mesaj gider: `🔴 GIRIS: EREGL.IS SHORT @ 38.66
+| Stop: 41.72 (+7.9%) | 2026-08-07` gibi. Kurulum tamamen opsiyoneldir —
+aşağıdaki secret'lar tanımlı değilse bildirim adımı sessizce atlanır, paper
+trading normal çalışmaya devam eder.
+
+**1. BotFather ile bot oluşturun**
+
+1. Telegram'da [@BotFather](https://t.me/BotFather) ile bir sohbet açın.
+2. `/newbot` komutunu gönderin, botunuza bir isim ve kullanıcı adı verin
+   (kullanıcı adı `bot` ile bitmelidir, örn. `bbtrade_alerts_bot`).
+3. BotFather size bir **token** verecek (örn.
+   `123456789:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw`) — bu, aşağıdaki
+   `TELEGRAM_BOT_TOKEN` secret'ı olacak. Kimseyle paylaşmayın.
+
+**2. Botu gruba ekleyin**
+
+1. Bildirimlerin gitmesini istediğiniz Telegram grubunu açın (yoksa yeni bir
+   grup oluşturun).
+2. Grup üyelerine botunuzu (kullanıcı adıyla arayıp) ekleyin.
+3. Botun mesaj gönderebilmesi için grup ayarlarında kısıtlı değilse ek bir
+   işlem gerekmez (varsayılan olarak üyeler mesaj gönderebilir).
+
+**3. Grubun chat ID'sini bulun**
+
+En kolay yöntem:
+
+1. Bota (veya gruba) herhangi bir mesaj gönderin (örn. "test").
+2. Tarayıcıda şu adresi açın (TOKEN'ı kendi bot token'ınızla değiştirin):
+   `https://api.telegram.org/bot<TOKEN>/getUpdates`
+3. Dönen JSON'da `"chat":{"id": -1001234567890, ...}` gibi bir alan
+   arayın — gruplar için bu ID genellikle **negatif** bir sayıdır. Bu değer
+   `TELEGRAM_CHAT_ID` secret'ı olacak.
+
+**4. GitHub Secrets'a ekleyin**
+
+1. Repo sayfasında **Settings → Secrets and variables → Actions** açın.
+2. **New repository secret** ile ikisini ayrı ayrı ekleyin:
+   - `TELEGRAM_BOT_TOKEN` — 3. adımda BotFather'dan aldığınız token.
+   - `TELEGRAM_CHAT_ID` — 3. adımda bulduğunuz chat ID (negatifse `-` işaretiyle birlikte).
+3. Kod içinde bu değerler **hiçbir yerde hardcode edilmez** — workflow bunları
+   `secrets.TELEGRAM_BOT_TOKEN` / `secrets.TELEGRAM_CHAT_ID` üzerinden
+   environment değişkeni olarak `paper_trading.runner`'a geçirir (bkz.
+   `.github/workflows/paper_trading.yml`, "Paper trading calistir" adımı).
+
+**5. Doğrulama**
+
+Workflow'u elle tetikleyin (`workflow_dispatch` / "Run workflow") ve o gün
+gerçek bir giriş/çıkış sinyali varsa Telegram grubunuzda mesajı görmelisiniz.
+Sinyal yoksa (çoğu gün böyle olur — trend-takip stratejileri seyrek işlem
+yapar) test etmek için `--date` parametresiyle geçmişte sinyal ürettiğiniz
+bilinen bir tarihi yerel makinenizde `--dry-run` OLMADAN deneyebilirsiniz
+(dikkat: bu gerçek state/log yazar).
+
+Bağlantı/token hatası olursa (`notifications/telegram.py` içinde
+loglanır) workflow **KIRMIZI OLMAZ** — runner çalışmaya devam eder, sadece
+o bildirim atlanmış olur.
 
 ### Otomatik çalışma nasıl doğrulanır
 

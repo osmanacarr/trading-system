@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import type { EquitySnapshot, OpenPosition, Summary, TradeRecord } from "./types";
+import type { EquitySnapshot, ManualEntryRecord, OpenPosition, Summary, TradeRecord } from "./types";
 import type { CorrelationWarning, RiskBudget, StrategyStats } from "./derive";
 import type { BACKTEST_BASELINE } from "./backtestBaseline";
 import type { DataIntegrityStatus } from "./integrity";
@@ -13,6 +13,7 @@ export interface DashboardData {
   equity: EquitySnapshot[];
   positions: OpenPosition[];
   positionsError: string | null;
+  manualEntries: ManualEntryRecord[];
   stats: StrategyStats;
   riskBudget: RiskBudget;
   correlation: CorrelationWarning;
@@ -26,10 +27,14 @@ interface DashboardContextValue {
   loading: boolean;
   error: string | null;
   lastFetchedAt: Date | null;
+  refetch: () => Promise<void>;
   selectedSymbol: string | null;
   setSelectedSymbol: (symbol: string | null) => void;
   commandPaletteOpen: boolean;
   setCommandPaletteOpen: (open: boolean) => void;
+  /** "Bu sinyali aldim" formunun acik oldugu trade (bkz. SystemLog + ManualEntryModal). */
+  markingTrade: TradeRecord | null;
+  setMarkingTrade: (trade: TradeRecord | null) => void;
 }
 
 const DashboardContext = createContext<DashboardContextValue | null>(null);
@@ -43,6 +48,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [lastFetchedAt, setLastFetchedAt] = useState<Date | null>(null);
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [markingTrade, setMarkingTrade] = useState<TradeRecord | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -67,7 +73,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     function onKeydown(e: KeyboardEvent) {
-      if (e.key === "/" ) {
+      if (e.key === "/") {
         const target = e.target as HTMLElement | null;
         const isTyping =
           target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
@@ -90,10 +96,13 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         loading,
         error,
         lastFetchedAt,
+        refetch: fetchData,
         selectedSymbol,
         setSelectedSymbol,
         commandPaletteOpen,
         setCommandPaletteOpen,
+        markingTrade,
+        setMarkingTrade,
       }}
     >
       {children}

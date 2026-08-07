@@ -109,6 +109,12 @@ PAPER_TRADING_DATA_DIR: Path = PROJECT_ROOT / "paper_trading" / "data"
 PAPER_TRADING_STATE_DB_PATH: Path = PAPER_TRADING_DATA_DIR / "state.db"
 PAPER_TRADING_LOG_DIR: Path = PROJECT_ROOT / "paper_trading" / "logs"
 
+# Kullanicinin sistem sinyaline karsi GERCEKTEN (kendi hesabindan, manuel)
+# actigi islemlerin kaydi - bkz. paper_trading/manual_log.py. Sistemin kendi
+# (sanal) trades.jsonl'inden bagimsiz, sadece dashboard'da "sistem onerisi
+# vs gercek giris" karsilastirmasi icin.
+PAPER_TRADING_MANUAL_LOG_PATH: Path = PAPER_TRADING_LOG_DIR / "manual_trades.jsonl"
+
 # Veri cekme hatalarina karsi yeniden deneme (rate limit / gecici ag hatasi)
 FETCH_MAX_ATTEMPTS: int = 3
 FETCH_RETRY_BASE_DELAY_SECONDS: float = 1.0  # exponential backoff: 1s, 2s, 4s, ...

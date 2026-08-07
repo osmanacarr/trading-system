@@ -50,3 +50,16 @@ export interface OpenPosition {
 }
 
 export type Market = "bist" | "crypto";
+
+// paper_trading/manual_log.py MANUAL_LOG_COLUMNS ile birebir ayni alanlar.
+// Kullanicinin sistem sinyaline karsi GERCEKTEN actigi (kendi hesabindan,
+// manuel) islemin kaydi - sistemin sanal trades.jsonl'inden bagimsiz.
+export interface ManualEntryRecord {
+  symbol: string;
+  signal_date: string; // ISO YYYY-MM-DD, trades.jsonl'deki "date" ile eslesir
+  system_entry_price: number | null;
+  user_entry_price: number;
+  user_size: number;
+  note: string;
+  marked_at: string; // ISO datetime (UTC)
+}

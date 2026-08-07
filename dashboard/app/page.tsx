@@ -8,6 +8,8 @@ import { TradeHistoryPanel } from "@/components/TradeHistoryPanel";
 import { StatisticalConfidenceCard } from "@/components/StatisticalConfidenceCard";
 import { TickerTape } from "@/components/TickerTape";
 import { CommandPalette } from "@/components/CommandPalette";
+import { ManualEntryModal } from "@/components/ManualEntryModal";
+import { SystemVsRealPanel } from "@/components/SystemVsRealPanel";
 import { LiveVsBacktestPanel } from "@/components/analytics/LiveVsBacktestPanel";
 import { RHistogramPanel } from "@/components/analytics/RHistogramPanel";
 import { ConfidenceOverTimePanel } from "@/components/analytics/ConfidenceOverTimePanel";
@@ -52,6 +54,11 @@ export default function Home() {
             </div>
           </div>
 
+          {/* Manuel islem takibi: sistemin onerisi vs kullanicinin gercekte actigi islem */}
+          <div id="panel-system-vs-real">
+            <SystemVsRealPanel />
+          </div>
+
           {/* Ozgun arastirma panelleri - ana panellerle esit oncelikte (bkz. gorev tanimi) */}
           <div>
             <p className="label-xs px-1 pb-1.5 text-[10px]">arastirma panelleri — canli/backtest karsilastirma ve risk analitigi</p>
@@ -80,6 +87,7 @@ export default function Home() {
 
         <TickerTape />
         <CommandPalette />
+        <ManualEntryModal />
       </div>
     </DashboardProvider>
   );

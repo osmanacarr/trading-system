@@ -12,7 +12,17 @@ function tradeKey(t: TradeRecord, i: number): string {
   return `${t.date}-${t.symbol}-${t.event_type}-${i}`;
 }
 
-function LogLine({ trade, isNew }: { trade: TradeRecord; isNew: boolean }) {
+function LogLine({
+  trade,
+  isNew,
+  isMarked,
+  onMark,
+}: {
+  trade: TradeRecord;
+  isNew: boolean;
+  isMarked: boolean;
+  onMark: () => void;
+}) {
   const dir = trade.direction === 1 ? "LONG" : "SHORT";
   const isEntry = trade.event_type === "entry";
   return (
@@ -22,7 +32,7 @@ function LogLine({ trade, isNew }: { trade: TradeRecord; isNew: boolean }) {
         isNew && "animate-slide-in"
       )}
     >
-      <div className="flex items-center gap-1.5 min-w-0">
+      <div className="flex min-w-0 items-center gap-1.5">
         <span className="mono-tabular text-term-text-faint">{trade.date}</span>
         <span className={clsx("font-semibold", isEntry ? "text-term-cyan" : "text-term-text-dim")}>
           {isEntry ? "GIRIS" : "CIKIS"}
@@ -33,18 +43,34 @@ function LogLine({ trade, isNew }: { trade: TradeRecord; isNew: boolean }) {
           <span className="text-[10px] text-term-text-faint">({trade.exit_reason})</span>
         )}
       </div>
-      {!isEntry && (
-        <span className={clsx("mono-tabular shrink-0", (trade.r_multiple ?? 0) >= 0 ? "text-term-green" : "text-term-red")}>
-          {formatR(trade.r_multiple)}
-        </span>
-      )}
+      <div className="flex shrink-0 items-center gap-2">
+        {isEntry &&
+          (isMarked ? (
+            <span className="text-[9px] text-term-green" title="Manuel olarak isaretlendi">
+              ✓ isaretlendi
+            </span>
+          ) : (
+            <button
+              onClick={onMark}
+              className="rounded-sm border border-term-border px-1.5 py-0.5 text-[9px] text-term-text-faint transition-colors hover:border-term-cyan/40 hover:text-term-cyan"
+            >
+              bu sinyali aldim
+            </button>
+          ))}
+        {!isEntry && (
+          <span className={clsx("mono-tabular", (trade.r_multiple ?? 0) >= 0 ? "text-term-green" : "text-term-red")}>
+            {formatR(trade.r_multiple)}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
 
 export function SystemLog() {
-  const { data } = useDashboard();
+  const { data, setMarkingTrade } = useDashboard();
   const trades = data?.trades ?? [];
+  const manualEntries = data?.manualEntries ?? [];
   const prevCountRef = useRef(0);
   const [newKeys, setNewKeys] = useState<Set<string>>(new Set());
 
@@ -61,6 +87,10 @@ export function SystemLog() {
 
   const reversed = [...trades].map((t, i) => ({ trade: t, key: tradeKey(t, i) })).reverse();
 
+  function isMarked(trade: TradeRecord): boolean {
+    return manualEntries.some((m) => m.symbol === trade.symbol && m.signal_date === trade.date);
+  }
+
   return (
     <Panel title="sistem gunlugu" className="flex-1 min-h-0" bodyClassName="h-full overflow-y-auto scroll-thin">
       {reversed.length === 0 ? (
@@ -68,7 +98,13 @@ export function SystemLog() {
       ) : (
         <div>
           {reversed.map(({ trade, key }) => (
-            <LogLine key={key} trade={trade} isNew={newKeys.has(key)} />
+            <LogLine
+              key={key}
+              trade={trade}
+              isNew={newKeys.has(key)}
+              isMarked={isMarked(trade)}
+              onMark={() => setMarkingTrade(trade)}
+            />
           ))}
         </div>
       )}

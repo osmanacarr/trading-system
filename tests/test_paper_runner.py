@@ -7,6 +7,7 @@ import datetime as dt
 import pandas as pd
 import pytest
 
+import paper_trading.runner as runner_module
 from paper_trading.logger import PaperTradingLogger
 from paper_trading.runner import run_once
 from paper_trading.state import PaperTradingState
@@ -39,6 +40,20 @@ def _down_move_df(n_base: int = 70) -> pd.DataFrame:
 
 def _no_signal_df(n_base: int = 70) -> pd.DataFrame:
     return make_flat_range_df(n=n_base, price=100.0, half_range=1.0, volume=1000.0)
+
+
+def _hold_far_from_stop_df(n_base: int = 70) -> pd.DataFrame:
+    """Pozisyon acik kalir (stop tetiklenmez) ve fiyat stop'tan uzaktir."""
+    base = make_flat_range_df(n=n_base, price=100.0, half_range=1.0, volume=1000.0)
+    bar = {"Open": 99.8, "High": 100.5, "Low": 99.0, "Close": 99.9, "Volume": 1000.0}
+    return append_bars(base, [bar])
+
+
+def _hold_near_stop_df(n_base: int = 70) -> pd.DataFrame:
+    """Pozisyon acik kalir (stop tetiklenmez) ama fiyat stop'a cok yakindir."""
+    base = make_flat_range_df(n=n_base, price=100.0, half_range=1.0, volume=1000.0)
+    bar = {"Open": 99.95, "High": 100.1, "Low": 99.85, "Close": 99.9, "Volume": 1000.0}
+    return append_bars(base, [bar])
 
 
 def _make_fetch_fn(dataframes: dict):
@@ -302,3 +317,76 @@ def test_dry_run_does_not_create_backup(state, trade_logger):
         markets={"crypto": ["FAKE-USD"]}, verbose=False,
     )
     assert not backups_dir.exists()
+
+
+def test_stop_proximity_warning_not_sent_when_far_from_stop(state, trade_logger, monkeypatch):
+    sent_messages = []
+    monkeypatch.setattr(runner_module, "send_telegram_message", lambda text: sent_messages.append(text))
+
+    state.open_position(
+        "FAKE-USD", "donchian", direction=1, entry_date=dt.date(2019, 1, 1),
+        entry_price=100.0, stop_price=90.0, size=1.0,
+    )
+    df = _hold_far_from_stop_df()
+    run_date = df.index[-1].date()
+    fetch_fn = _make_fetch_fn({"FAKE-USD": df})
+
+    summary = run_once(
+        strategy="price_action", run_date=run_date, dry_run=False,
+        state=state, trade_logger=trade_logger, fetch_fn=fetch_fn,
+        markets={"crypto": ["FAKE-USD"]}, verbose=False,
+    )
+
+    assert summary["results"][0].action == "hold"
+    assert sent_messages == []
+    assert state.get_stop_warning_date("FAKE-USD") is None
+
+
+def test_stop_proximity_warning_sent_when_near_stop(state, trade_logger, monkeypatch):
+    sent_messages = []
+    monkeypatch.setattr(runner_module, "send_telegram_message", lambda text: sent_messages.append(text))
+
+    state.open_position(
+        "FAKE-USD", "donchian", direction=1, entry_date=dt.date(2019, 1, 1),
+        entry_price=101.0, stop_price=99.8, size=1.0,
+    )
+    df = _hold_near_stop_df()
+    run_date = df.index[-1].date()
+    fetch_fn = _make_fetch_fn({"FAKE-USD": df})
+
+    summary = run_once(
+        strategy="price_action", run_date=run_date, dry_run=False,
+        state=state, trade_logger=trade_logger, fetch_fn=fetch_fn,
+        markets={"crypto": ["FAKE-USD"]}, verbose=False,
+    )
+
+    assert summary["results"][0].action == "hold"
+    assert len(sent_messages) == 1
+    assert "FAKE-USD" in sent_messages[0]
+    assert "stop'a yaklasiyor" in sent_messages[0]
+    assert state.get_stop_warning_date("FAKE-USD") == run_date
+
+
+def test_stop_proximity_warning_not_repeated_same_day(state, trade_logger, monkeypatch):
+    sent_messages = []
+    monkeypatch.setattr(runner_module, "send_telegram_message", lambda text: sent_messages.append(text))
+
+    state.open_position(
+        "FAKE-USD", "donchian", direction=1, entry_date=dt.date(2019, 1, 1),
+        entry_price=101.0, stop_price=99.8, size=1.0,
+    )
+    df = _hold_near_stop_df()
+    run_date = df.index[-1].date()
+    fetch_fn = _make_fetch_fn({"FAKE-USD": df})
+
+    # Bugun zaten uyarilmis durumu simule et (ayni pozisyon icin idempotency)
+    state.set_stop_warning_date("FAKE-USD", run_date)
+
+    summary = run_once(
+        strategy="price_action", run_date=run_date, dry_run=False,
+        state=state, trade_logger=trade_logger, fetch_fn=fetch_fn,
+        markets={"crypto": ["FAKE-USD"]}, verbose=False,
+    )
+
+    assert summary["results"][0].action == "hold"
+    assert sent_messages == []

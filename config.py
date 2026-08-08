@@ -123,3 +123,8 @@ FETCH_RETRY_BASE_DELAY_SECONDS: float = 1.0  # exponential backoff: 1s, 2s, 4s, 
 # geriye dogru cekilecek takvim gunu sayisi (hafta sonu/tatil kaybini telafi
 # etmek icin MIN_BARS_REQUIRED'in oldukca uzerinde).
 PAPER_TRADING_LOOKBACK_DAYS: int = 400
+
+# Acik bir pozisyonda guncel fiyatin stop'a olan mesafesi, orijinal
+# giris-stop mesafesinin bu oranin altina duserse Telegram'a erken uyari
+# mesaji gonderilir (karar/islem degistirmez, sadece bilgilendirme).
+STOP_PROXIMITY_WARNING_PCT: float = 0.20

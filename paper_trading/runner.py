@@ -58,6 +58,7 @@ from config import (
     PAPER_TRADING_LOOKBACK_DAYS,
     RISK_PER_TRADE,
     SLIPPAGE_PCT,
+    STOP_PROXIMITY_WARNING_PCT,
 )
 from data.adjust import adjust_jumps
 from data.fetch import fetch_ohlcv
@@ -106,6 +107,20 @@ def _format_exit_telegram_message(
     return (
         f"{emoji} CIKIS: {symbol} {yon} @ {exit_price:.2f} | "
         f"R: {r_multiple:+.2f} ({exit_reason}) | {signal_date.isoformat()}"
+    )
+
+
+def _format_stop_proximity_telegram_message(
+    symbol: str, direction: int, current_price: float, stop_price: float
+) -> str:
+    """Stop'a yaklasma uyari metnini olusturur (orn. "⚠️ EREGL.IS SHORT stop'a
+    yaklasiyor: guncel 40.95, stop 41.71 (mesafe %1.8)"). Karar/islem
+    degistirmez, yalnizca erken bilgilendirme."""
+    yon = "LONG" if direction == 1 else "SHORT"
+    distance_pct = abs(current_price - stop_price) / current_price * 100
+    return (
+        f"⚠️ {symbol} {yon} stop'a yaklasiyor: guncel {current_price:.2f}, "
+        f"stop {stop_price:.2f} (mesafe %{distance_pct:.1f})"
     )
 
 
@@ -301,6 +316,18 @@ def process_symbol(
                 )
         else:
             action = "hold"
+            if not dry_run:
+                initial_risk = abs(position.entry_price - position.stop_price)
+                distance_to_stop = abs(last_close - position.stop_price)
+                if initial_risk > 0 and distance_to_stop < STOP_PROXIMITY_WARNING_PCT * initial_risk:
+                    already_warned = state.get_stop_warning_date(symbol)
+                    if already_warned is None or already_warned < signal_date:
+                        send_telegram_message(
+                            _format_stop_proximity_telegram_message(
+                                symbol, direction, last_close, position.stop_price
+                            )
+                        )
+                        state.set_stop_warning_date(symbol, signal_date)
     else:
         direction = 1 if bool(last_signal["entry_long"]) else (-1 if bool(last_signal["entry_short"]) else 0)
         entry_price: float | None = None

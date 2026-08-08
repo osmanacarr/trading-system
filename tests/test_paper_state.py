@@ -100,6 +100,26 @@ def test_last_processed_date_roundtrip(db_path):
     state.close()
 
 
+def test_stop_warning_date_roundtrip(db_path):
+    state = PaperTradingState(db_path=db_path)
+    assert state.get_stop_warning_date("EREGL.IS") is None
+    state.set_stop_warning_date("EREGL.IS", dt.date(2024, 3, 5))
+    assert state.get_stop_warning_date("EREGL.IS") == dt.date(2024, 3, 5)
+    # ayni sembol icin ikinci kez set etmek (UPSERT) guncellemeli
+    state.set_stop_warning_date("EREGL.IS", dt.date(2024, 3, 6))
+    assert state.get_stop_warning_date("EREGL.IS") == dt.date(2024, 3, 6)
+    state.close()
+
+
+def test_close_position_clears_stop_warning_date(db_path):
+    state = PaperTradingState(db_path=db_path)
+    state.open_position("BTC-USD", "donchian", 1, dt.date(2024, 1, 1), 50000.0, 48000.0, 0.01)
+    state.set_stop_warning_date("BTC-USD", dt.date(2024, 1, 5))
+    state.close_position("BTC-USD")
+    assert state.get_stop_warning_date("BTC-USD") is None
+    state.close()
+
+
 def test_state_persists_across_instances(db_path):
     """Programi 'kapatip acinca' (yeni bir PaperTradingState orneginde) pozisyon korunmali."""
     state1 = PaperTradingState(db_path=db_path, initial_capital=10_000.0)

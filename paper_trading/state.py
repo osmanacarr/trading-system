@@ -45,6 +45,11 @@ CREATE TABLE IF NOT EXISTS symbol_run_state (
     symbol TEXT PRIMARY KEY,
     last_processed_date TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS stop_warnings (
+    symbol TEXT PRIMARY KEY,
+    warned_date TEXT NOT NULL
+);
 """
 
 
@@ -189,6 +194,7 @@ class PaperTradingState:
             PositionNotFoundError: symbol icin acik pozisyon yoksa.
         """
         cur = self._conn.execute("DELETE FROM positions WHERE symbol = ?", (symbol,))
+        self._conn.execute("DELETE FROM stop_warnings WHERE symbol = ?", (symbol,))
         self._conn.commit()
         if cur.rowcount == 0:
             raise PositionNotFoundError(f"{symbol} icin acik pozisyon bulunamadi")
@@ -209,6 +215,26 @@ class PaperTradingState:
         self._conn.execute(
             "INSERT INTO symbol_run_state (symbol, last_processed_date) VALUES (?, ?) "
             "ON CONFLICT(symbol) DO UPDATE SET last_processed_date = excluded.last_processed_date",
+            (symbol, date_value.isoformat()),
+        )
+        self._conn.commit()
+
+    # -- Stop'a yaklasma uyarisi idempotency: sembol basina son uyarilan tarih --
+
+    def get_stop_warning_date(self, symbol: str) -> dt.date | None:
+        """Bu sembol icin en son stop-yaklasma uyarisinin gonderildigi tarihi dondurur (yoksa None)."""
+        row = self._conn.execute(
+            "SELECT warned_date FROM stop_warnings WHERE symbol = ?", (symbol,)
+        ).fetchone()
+        if row is None:
+            return None
+        return dt.date.fromisoformat(row[0])
+
+    def set_stop_warning_date(self, symbol: str, date_value: dt.date) -> None:
+        """Bu sembol icin son stop-yaklasma uyarisi tarihini kalici olarak kaydeder."""
+        self._conn.execute(
+            "INSERT INTO stop_warnings (symbol, warned_date) VALUES (?, ?) "
+            "ON CONFLICT(symbol) DO UPDATE SET warned_date = excluded.warned_date",
             (symbol, date_value.isoformat()),
         )
         self._conn.commit()

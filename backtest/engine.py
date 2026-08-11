@@ -62,6 +62,8 @@ TRADE_COLUMNS: list[str] = [
     "pnl",
     "r_multiple",
     "exit_reason",
+    "mae_r",
+    "mfe_r",
 ]
 
 
@@ -76,9 +78,28 @@ class OpenPosition:
     stop_price: float
     size: float
     initial_risk: float = field(init=False)
+    # MAE/MFE (quant2.md - blotter paketindeki "trade kapanmadan once ne
+    # kadar aleyhte/lehte gitti" analizi): pozisyon acikken gorulen en kotu/
+    # en iyi ANLIK fiyat sapmasi (R-oncesi, ham fiyat birimi). Giris barinin
+    # kendisi SAYILMAZ (pozisyon o barin KAPANISINDA acilir, o gunun
+    # High/Low'u pozisyon acikken gorulmedi) - bkz. update_excursion cagri
+    # noktalari.
+    max_adverse_price: float = field(init=False, default=0.0)
+    max_favorable_price: float = field(init=False, default=0.0)
 
     def __post_init__(self) -> None:
         self.initial_risk = abs(self.entry_price - self.stop_price)
+
+    def update_excursion(self, high: float, low: float) -> None:
+        """Bu barin High/Low'una gore en kotu/en iyi ANLIK sapmayi gunceller."""
+        if self.direction == 1:
+            adverse = self.entry_price - low
+            favorable = high - self.entry_price
+        else:
+            adverse = high - self.entry_price
+            favorable = self.entry_price - low
+        self.max_adverse_price = max(self.max_adverse_price, adverse)
+        self.max_favorable_price = max(self.max_favorable_price, favorable)
 
 
 def compute_atr(df: pd.DataFrame, period: int = DONCHIAN_ATR_PERIOD) -> pd.Series:
@@ -259,6 +280,8 @@ def close_position(
     exit_commission = commission_pct * fill_price * pos.size
     net_pnl = gross_pnl - exit_commission
     r_multiple = ((fill_price - pos.entry_price) * pos.direction) / pos.initial_risk if pos.initial_risk > 0 else 0.0
+    mae_r = pos.max_adverse_price / pos.initial_risk if pos.initial_risk > 0 else 0.0
+    mfe_r = pos.max_favorable_price / pos.initial_risk if pos.initial_risk > 0 else 0.0
 
     trade = {
         "entry_date": pos.entry_date,
@@ -271,6 +294,8 @@ def close_position(
         "pnl": net_pnl,
         "r_multiple": r_multiple,
         "exit_reason": exit_reason,
+        "mae_r": mae_r,
+        "mfe_r": mfe_r,
     }
     return trade, net_pnl
 
@@ -318,6 +343,9 @@ def run_donchian_backtest(
     for t in df.index:
         row = df.loc[t]
         sig = signals.loc[t]
+
+        if pos is not None and pos.entry_date != t:
+            pos.update_excursion(row["High"], row["Low"])
 
         if pos is not None:
             trailing_level = sig["exit_long_level"] if pos.direction == 1 else sig["exit_short_level"]
@@ -390,6 +418,9 @@ def run_price_action_backtest(
     for t in df.index:
         row = df.loc[t]
         sig = signals.loc[t]
+
+        if pos is not None and pos.entry_date != t:
+            pos.update_excursion(row["High"], row["Low"])
 
         if pos is not None:
             exit_result = resolve_intrabar_exit(

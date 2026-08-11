@@ -20,3 +20,9 @@ export const MANUAL_LOG_PATH = path.join(PAPER_TRADING_LOG_DIR, "manual_trades.j
 // bu dosya SADECE OKUNUR - hicbir API route buraya yazmaz.
 export const GOZCU_DATA_DIR = path.join(REPO_ROOT, "gozcu", "data");
 export const GOZCU_SNAPSHOT_PATH = path.join(GOZCU_DATA_DIR, "snapshot.json");
+
+// Arastirma ozeti (/research sayfasi) - config.py: RESEARCH_SUMMARY_PATH ile
+// BIREBIR ayni yol. research/publish_summary.py (periyodik CLI/GitHub
+// Actions) tarafindan yazilir, bu dosya SADECE OKUNUR.
+export const RESEARCH_DATA_DIR = path.join(REPO_ROOT, "research", "data");
+export const RESEARCH_SUMMARY_PATH = path.join(RESEARCH_DATA_DIR, "research_summary.json");

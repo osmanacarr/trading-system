@@ -199,3 +199,117 @@ GOZCU_VOLATILITY_REGIME_EXTREME_PCT: float = 0.04
 # esigi gecen bir sembol icin GUNDE BIR KEZ bilgi mesaji gonderilir. Bu bir
 # al-sat sinyali DEGILDIR.
 GOZCU_ALERT_SCORE_THRESHOLD: float = 8.0
+
+# ---------------------------------------------------------------------------
+# Faktor kutuphanesi (research/factors.py) - Modul 1
+# ---------------------------------------------------------------------------
+
+RESEARCH_EMA_PERIOD: int = 20
+RESEARCH_RSI_PERIOD: int = 14
+RESEARCH_MACD_FAST: int = 12
+RESEARCH_MACD_SLOW: int = 26
+RESEARCH_MACD_SIGNAL: int = 9
+RESEARCH_STOCH_K_PERIOD: int = 14
+RESEARCH_STOCH_D_PERIOD: int = 3
+
+# gozcu.metrics.volume_zscore ile ayni formul/varsayilan; burada BAGIMSIZ
+# (vektorize) bir implementasyon var cunku GOZCU'nun mimarisi diger
+# modullere bagimli olmamasini gerektiriyor (bkz. research/factors.py
+# modul docstring'i).
+RESEARCH_VOLUME_ZSCORE_LOOKBACK: int = 20
+RESEARCH_VOLUME_RATIO_LOOKBACK: int = 20  # gunluk bar RVOL vekili
+
+# Order-flow vekilleri (trade2.md / "trade 3.md" - gercek tick/L2 verisi
+# YOK, bunlar GUNLUK OHLCV'den turetilen yaklasiklamalar):
+RESEARCH_CVD_PIVOT_WINDOW: int = 10  # CVD/fiyat diverjansi icin pivot onay penceresi
+RESEARCH_POC_LOOKBACK: int = 60  # Volume Profile POC icin trailing bar sayisi
+RESEARCH_POC_N_BINS: int = 24  # POC histogram bin sayisi
+RESEARCH_VALUE_AREA_PCT: float = 0.70  # trade2.md'de gecen standart deger
+
+# Absorption sezgiseli SPEKULATIF bir yaklasiklamadir, dogrulanmis bir
+# sinyal degildir (bkz. research/factors.py).
+RESEARCH_ABSORPTION_RANGE_LOOKBACK: int = 20
+RESEARCH_ABSORPTION_VOLUME_LOOKBACK: int = 20
+
+# ---------------------------------------------------------------------------
+# Faktor gecmisi biriktirme (research/factor_history.py) - Modul 2
+# ---------------------------------------------------------------------------
+
+RESEARCH_DATA_DIR: Path = PROJECT_ROOT / "research" / "data"
+RESEARCH_FACTOR_HISTORY_PATH: Path = RESEARCH_DATA_DIR / "factor_history.parquet"
+
+# ---------------------------------------------------------------------------
+# Alpha dogrulama / IC / walk-forward / rule-burden (validation/
+# alpha_evaluation.py, validation/walk_forward.py) - Modul 3 + 8
+# ---------------------------------------------------------------------------
+
+RESEARCH_IC_HORIZON_DAYS: int = 5  # IC icin "ileri getiri" ufku (N gun sonra)
+RESEARCH_MIN_IC_SAMPLE_SIZE: int = 5  # bir tarihte cross-sectional IC icin min sembol sayisi
+
+# quant2.md - "rule burden": ardisik olarak eklenen filtre/kural sayisi bu
+# esigi gecerse overfitting riski uyarisi tetiklenir (KOR bir kisitlama
+# DEGIL, sadece bir bayrak/log - bkz. validation/alpha_evaluation.py).
+MAX_FILTER_COUNT: int = 4
+
+# quant.md/quant2.md - trade istatistiklerinde agregatlarin yanilticili
+# olabilecegi minimum islem sayisi esigi (bkz. backtest/metrics.py summarize).
+MIN_TRADES_FOR_RELIABLE_STATS: int = 30
+
+# quant.md - "profit factor 1.2-2.6 makul, >5-10 asiri optimize edilmis
+# olabilir" sezgiseli (SERT bir kural degil, bir kirmizi bayrak esigi).
+PROFIT_FACTOR_OVERFIT_WARNING_THRESHOLD: float = 5.0
+
+# ---------------------------------------------------------------------------
+# Volatilite rejimi tespiti (research/regime.py) - Modul 4
+# ---------------------------------------------------------------------------
+
+# gozcu.metrics.atr_percentile ile AYNI varsayilan ATR periyodu/lookback -
+# burada TAM ZAMAN SERISI (rolling) versiyonu icin bagimsiz implementasyon
+# (bkz. research/regime.py modul docstring'i, ayni gerekce research/
+# factors.py::compute_volume_zscore icin de gecerliydi).
+RESEARCH_REGIME_ATR_PERIOD: int = 14
+RESEARCH_REGIME_ATR_LOOKBACK: int = 252
+RESEARCH_REGIME_LOW_PCT: float = 33.0  # bu yuzdelik dilimin ALTI -> "dusuk" rejim
+RESEARCH_REGIME_HIGH_PCT: float = 67.0  # bu yuzdelik dilimin USTU -> "yuksek" rejim
+
+# ---------------------------------------------------------------------------
+# Model kombinasyonu / ensemble (research/ensemble.py) - Modul 5
+# ---------------------------------------------------------------------------
+
+# quant2.md - "you'll develop a supposedly new model but then you'll just
+# find out that it's actually not that different from other stuff": bu
+# esigi ASAN korelasyona sahip faktor ciftleri "redundant" (cesitlendirme
+# saglamiyor) olarak isaretlenir.
+RESEARCH_FACTOR_CORRELATION_REDUNDANCY_THRESHOLD: float = 0.8
+
+# detect_decay() "decayed=True" donerse, o faktorun ensemble agirligi bu
+# oranda AZALTILIR (0.3 = agirlik %30 kesilir) - quant2.md'nin "decay ==
+# stratejiyi kapat degil, daha az guven" ilkesine uygun KADEMELI ceza.
+RESEARCH_ENSEMBLE_DECAY_PENALTY: float = 0.3
+
+# ---------------------------------------------------------------------------
+# Risk-kisitli portfoy optimizasyonu (risk/portfolio.py) - Modul 6
+# ---------------------------------------------------------------------------
+
+# quant2.md - "we wouldn't use more than 100 percent of our available
+# capital": brut maruziyet (sum(|w_i|)) bu esigi ASAMAZ.
+RISK_MAX_GROSS_LEVERAGE: float = 1.0
+
+# quant2.md - "we can't be more than 15 percent short any one thing and we
+# can't be more than 30 percent long any one thing" (ornek deger) - bu
+# depoda TEK BIR simetrik esik kullanilir (basitlik icin).
+RISK_MAX_POSITION_SIZE: float = 0.2
+
+# quant2.md - sektor maruziyeti kisiti: bir sektordeki NET agirlik
+# (|sum(w_i in sektor)|) bu esigi asamaz. Sembol->sektor eslemesi bu
+# depoda YOK (guvenilir bir kaynak olmadan UYDURULMAYACAK) - cagiran kod
+# kendi sector_map'ini saglamalidir (bkz. risk/portfolio.py).
+RISK_MAX_SECTOR_EXPOSURE: float = 0.4
+
+# ---------------------------------------------------------------------------
+# Dashboard /research ozet yayinlama (research/publish_summary.py)
+# ---------------------------------------------------------------------------
+
+# paper_trading/logger.py::summary.json ile AYNI desen: Python periyodik
+# yazar, dashboard SADECE okur (bkz. gozcu/scanner.py mimari prensibi).
+RESEARCH_SUMMARY_PATH: Path = RESEARCH_DATA_DIR / "research_summary.json"

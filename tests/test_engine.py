@@ -6,6 +6,9 @@ import numpy as np
 import pandas as pd
 
 from backtest.engine import (
+    TRADE_COLUMNS,
+    OpenPosition,
+    close_position,
     compute_atr,
     compute_position_size,
     run_donchian_backtest,
@@ -13,7 +16,7 @@ from backtest.engine import (
 )
 from config import DONCHIAN_ATR_STOP_MULT, SLIPPAGE_PCT
 from signals import donchian, price_action
-from tests.conftest import append_bars, make_flat_range_df
+from tests.conftest import append_bars, build_donchian_trailing_exit_df, make_flat_range_df
 
 
 def test_compute_atr_converges_to_constant_true_range():
@@ -45,20 +48,8 @@ def test_compute_position_size_zero_risk_distance_returns_zero():
     assert size == 0.0
 
 
-def _build_donchian_trailing_exit_df() -> pd.DataFrame:
-    """Kirilim + trend + trailing-exit tetikleyen ters donus iceren sentetik seri."""
-    base = make_flat_range_df(n=25, price=100.0, half_range=1.0, volume=1000.0)
-    breakout = {"Open": 101.0, "High": 116.0, "Low": 100.5, "Close": 115.0, "Volume": 6000.0}
-    uptrend = [
-        {"Open": 115.0 + 3 * i + 2, "High": 115.0 + 3 * i + 4, "Low": 115.0 + 3 * i, "Close": 115.0 + 3 * i + 3, "Volume": 1200.0}
-        for i in range(12)
-    ]
-    reversal = {"Open": 140.0, "High": 141.0, "Low": 115.0, "Close": 116.0, "Volume": 1000.0}
-    return append_bars(base, [breakout] + uptrend + [reversal])
-
-
 def test_donchian_backtest_end_to_end_trailing_exit():
-    df = _build_donchian_trailing_exit_df()
+    df = build_donchian_trailing_exit_df()
     signals = donchian.generate_signals(df)
     trades, equity_curve = run_donchian_backtest(df, signals)
 
@@ -126,3 +117,57 @@ def test_price_action_backtest_target_hit():
     assert trade["exit_reason"] == "target"
     assert trade["pnl"] > 0
     assert trade["r_multiple"] > 0
+
+
+def test_trade_columns_include_mae_mfe():
+    assert "mae_r" in TRADE_COLUMNS and "mfe_r" in TRADE_COLUMNS
+
+
+def test_donchian_backtest_trailing_exit_trade_has_nonnegative_mae_mfe():
+    df = build_donchian_trailing_exit_df()
+    signals = donchian.generate_signals(df)
+    trades, _equity_curve = run_donchian_backtest(df, signals)
+    trade = trades.iloc[0]
+    assert trade["mae_r"] >= 0
+    assert trade["mfe_r"] >= 0
+    # fiyat giristen cikisa kadar buyuk olcude yukari gitti -> MFE, MAE'den belirgin buyuk olmali
+    assert trade["mfe_r"] > trade["mae_r"]
+
+
+def test_donchian_backtest_no_signal_trades_df_has_mae_mfe_columns():
+    df = make_flat_range_df(n=40, price=100.0, half_range=1.0, volume=1000.0)
+    signals = donchian.generate_signals(df)
+    trades, _equity_curve = run_donchian_backtest(df, signals)
+    assert list(trades.columns) == TRADE_COLUMNS
+
+
+def test_open_position_update_excursion_long():
+    pos = OpenPosition(direction=1, entry_date=pd.Timestamp("2020-01-01"), entry_price=100.0, stop_price=95.0, size=10.0)
+    pos.update_excursion(high=103.0, low=98.0)
+    assert np.isclose(pos.max_favorable_price, 3.0)  # 103-100
+    assert np.isclose(pos.max_adverse_price, 2.0)  # 100-98
+    pos.update_excursion(high=101.0, low=90.0)  # daha derin bir dip, daha zayif bir tepe
+    assert np.isclose(pos.max_adverse_price, 10.0)  # 100-90 > onceki 2 -> guncellenir
+    assert np.isclose(pos.max_favorable_price, 3.0)  # 101-100=1 < onceki 3 -> DEGISMEZ (max korunur)
+
+
+def test_open_position_update_excursion_short():
+    pos = OpenPosition(direction=-1, entry_date=pd.Timestamp("2020-01-01"), entry_price=100.0, stop_price=105.0, size=10.0)
+    pos.update_excursion(high=104.0, low=97.0)
+    assert np.isclose(pos.max_adverse_price, 4.0)  # 104-100
+    assert np.isclose(pos.max_favorable_price, 3.0)  # 100-97
+
+
+def test_close_position_computes_mae_mfe_r():
+    pos = OpenPosition(direction=1, entry_date=pd.Timestamp("2020-01-01"), entry_price=100.0, stop_price=95.0, size=10.0)
+    pos.update_excursion(high=106.0, low=97.0)  # mfe_price=6, mae_price=3; initial_risk=5
+    trade, _net_pnl = close_position(
+        pos,
+        exit_date=pd.Timestamp("2020-01-03"),
+        raw_exit_price=104.0,
+        exit_reason="target",
+        commission_pct=0.0,
+        slippage_pct=0.0,
+    )
+    assert np.isclose(trade["mfe_r"], 6.0 / 5.0)
+    assert np.isclose(trade["mae_r"], 3.0 / 5.0)

@@ -93,6 +93,13 @@ export function StatusBar() {
         >
           <span className="label-xs text-[9px]">GÖZCÜ</span>
         </Link>
+        <Link
+          href="/research"
+          className="flex items-center gap-1 rounded-sm border border-term-border px-1.5 py-0.5 text-term-text-faint transition-colors hover:border-term-cyan/40 hover:text-term-cyan"
+          title="ARAŞTIRMA: faktör IC tablosu, rejim, ensemble ağırlıkları, attribution"
+        >
+          <span className="label-xs text-[9px]">ARAŞTIRMA</span>
+        </Link>
         <button
           onClick={() => setCommandPaletteOpen(true)}
           className="flex items-center gap-1 rounded-sm border border-term-border px-1.5 py-0.5 text-term-text-faint transition-colors hover:border-term-cyan/40 hover:text-term-cyan"

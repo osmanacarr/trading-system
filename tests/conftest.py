@@ -51,3 +51,20 @@ def append_bars(
     dates = pd.date_range(start, periods=len(bars), freq="B")
     extra = pd.DataFrame(bars, index=dates)
     return pd.concat([base, extra])[["Open", "High", "Low", "Close", "Volume"]]
+
+
+def build_donchian_trailing_exit_df() -> pd.DataFrame:
+    """Kirilim + trend + trailing-exit tetikleyen ters donus iceren sentetik seri.
+
+    tests/test_engine.py ve tests/test_regime.py TARAFINDAN PAYLASILIR
+    (ayni "en az bir Donchian islemi ureten" senaryoyu iki yerde
+    YENIDEN YAZMAMAK icin buraya tasindi).
+    """
+    base = make_flat_range_df(n=25, price=100.0, half_range=1.0, volume=1000.0)
+    breakout = {"Open": 101.0, "High": 116.0, "Low": 100.5, "Close": 115.0, "Volume": 6000.0}
+    uptrend = [
+        {"Open": 115.0 + 3 * i + 2, "High": 115.0 + 3 * i + 4, "Low": 115.0 + 3 * i, "Close": 115.0 + 3 * i + 3, "Volume": 1200.0}
+        for i in range(12)
+    ]
+    reversal = {"Open": 140.0, "High": 141.0, "Low": 115.0, "Close": 116.0, "Volume": 1000.0}
+    return append_bars(base, [breakout] + uptrend + [reversal])

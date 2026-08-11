@@ -19,3 +19,8 @@ paper_trading/data/backups/
 # Windows klasor ozellestirme metadata'si (Explorer tarafindan otomatik
 # olusturulur) - repo icerigiyle ilgisi yok.
 desktop.ini
+
+# Yerel gizli anahtarlar (GITHUB_TOKEN, VERCEL_TOKEN vb.) - asla commit'lenmemeli.
+.env
+.env.local
+.env.*.local

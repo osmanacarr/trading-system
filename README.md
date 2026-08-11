@@ -94,7 +94,8 @@ buna göre kuruldu.
 trading-system/
 ├── .github/
 │   └── workflows/
-│       └── paper_trading.yml  # gunluk otomatik paper trading (bkz. "Zamanlama")
+│       ├── paper_trading.yml  # gunluk otomatik paper trading (bkz. "Zamanlama")
+│       └── gozcu_scan.yml     # 5 dakikada bir GOZCU taramasi (bkz. "GOZCU")
 ├── .gitignore
 ├── data/
 │   ├── fetch.py          # yfinance OHLCV çekme (fetch_ohlcv, fetch_universe)
@@ -119,16 +120,28 @@ trading-system/
 │   ├── report.py          # haftalik markdown ozet raporu
 │   ├── data/state.db      # (calisma zamaninda olusur) SQLite veritabani
 │   └── logs/               # (calisma zamaninda olusur) trades/equity/summary
-├── config.py              # BIST_TICKERS, CRYPTO_TICKERS, tüm strateji + paper trading parametreleri
-├── tests/                 # her modül için sentetik veriyle pytest testleri (71 test)
+├── gozcu/                  # GOZCU - canli izleme paneli (paper trading'den BAGIMSIZ, bkz. "GOZCU")
+│   ├── universe.py         # BIST/NASDAQ-100 evrenlerini Wikipedia'dan dinamik ceker
+│   ├── data_fetch.py       # toplu (batched) yfinance veri cekme
+│   ├── metrics.py          # RVOL, hacim z-skoru, VWAP, 52h yakinlik, ATR yuzdelik dilimi, ...
+│   ├── scoring.py          # kompozit "Dikkat Skoru" + siralama
+│   ├── psychology.py       # breadth bazli piyasa psikolojisi gauge'u
+│   ├── correlation.py      # referans endekse gore ortalama korelasyon
+│   ├── alerts.py           # gunde-bir-kez Telegram "dikkat" uyarisi (idempotent)
+│   ├── market_hours.py     # BIST/NASDAQ acik-saat kontrolu (zoneinfo, DST-farkinda)
+│   ├── scanner.py          # orkestratör + CLI (python -m gozcu.scanner --market all)
+│   └── data/snapshot.json  # (calisma zamaninda olusur) tek kaynak - dashboard SADECE bunu okur
+├── config.py              # BIST_TICKERS, CRYPTO_TICKERS, tüm strateji + paper trading + GOZCU parametreleri
+├── tests/                 # her modül için sentetik veriyle pytest testleri
 ├── requirements.txt
 └── README.md
 ```
 
 ## Doğrulama durumu
 
-- `python -m pytest -q` → **71/71 test geçiyor** (44 backtest/veri/sinyal/istatistik +
-  27 paper trading; tamamı sentetik/deterministik veri, ağ bağlantısı gerektirmez).
+- `python -m pytest -q` → **157/157 test geçiyor** (92 backtest/veri/sinyal/istatistik/
+  paper trading + 65 GÖZCÜ; tamamı sentetik/deterministik veri veya mock'lanmış
+  yfinance/Telegram çağrılarıyla, gerçek ağ bağlantısı gerektirmez).
 - Donchian + BIST canlı veriyle uçtan uca doğrulandı (2019-01-01 -> bugün, 13 sembol,
   ATR(20)): havuzlanmış 594 işlem, t-stat ≈ 4.29 (anlamlı), Sharpe %95 GA ≈ [0.42, 0.59] —
   Faz 3.5 SS4.1'deki tahmini rakamlarla (t≈2.6, tek sembol) aynı yönde ve daha
@@ -327,6 +340,106 @@ o bildirim atlanmış olur.
 çalıştırmalar arasında KALICI olmalı (aynı makine/disk, ya da GitHub Actions'ta
 yukarıdaki gibi commit-back). State kaybolursa açık pozisyonlar ve idempotency
 geçmişi de kaybolur (bkz. "Bilinen riskler").
+
+## GÖZCÜ — NASDAQ + BIST canlı izleme paneli
+
+`gozcu/` + `dashboard/app/gozcu`, `paper_trading/`'den **tamamen bağımsız**
+bir gözetleme katmanıdır: hiçbir sinyal/pozisyon üretmez, sadece dikkat
+çeken piyasa hareketlerini (hacim patlaması, momentum mumu, aşırı oynaklık)
+gösterir. Dashboard'da sağ üstteki **GÖZCÜ** bağlantısından veya doğrudan
+`/gozcu` adresinden erişilir.
+
+### Mimari kararı — neden her saniye güncellenmiyor
+
+Yüzlerce sembolü (BIST + NASDAQ-100 evreni) her açık dashboard sekmesi kendi
+başına tarasaydı hem yfinance/Yahoo rate-limit'ine hızla takılırdık hem de
+gereksiz yük oluşurdu. Bunun yerine üç katmanlı bir ayrım var:
+
+1. **`gozcu/scanner.py`** — GitHub Actions'ta periyodik çalışan, TEK
+   kaynaktan (Actions runner'ı) yfinance'e giden bağımsız bir script. Tüm
+   evreni tarar, metrik/skor/psikoloji/korelasyon hesaplar, sonucu tek bir
+   JSON'a (`gozcu/data/snapshot.json`) atomik olarak yazar.
+2. **`dashboard/app/api/gozcu/route.ts`** — **SADECE** bu snapshot.json'ı
+   okur, kendi başına yfinance'e hiçbir zaman gitmez. Kaç kullanıcı sekmesi
+   açarsa açsın tek kaynak taranmış olur.
+3. **Client (`dashboard/lib/gozcu-context.tsx`)** — bu API'yi 45 saniyede
+   bir polleyerek (gerçek veri ~5 dakikada bir yenilendiği için daha sık
+   pollemek anlamsız) "son güncelleme: X dakika önce" bilgisini açıkça
+   gösterir — sahte "her saniye canlı" hissi VERİLMEZ. Sekme arka plana
+   alınırsa (`document.visibilitychange`) polling durur.
+
+**Zamanlama / DST notu:** GitHub Actions cron'u UTC'dir ve yaz/kış saatini
+kendisi kaydırmaz (TR'de DST yok, ABD/NASDAQ'ta var). Bunu cron'da iki ayrı
+satırla yönetmek yerine, `.github/workflows/gozcu_scan.yml` GENİŞ bir UTC
+penceresinde (`06:00-21:00`, hafta içi, 5 dakikada bir — GitHub Actions'ın
+pratik minimum cron aralığı) tetiklenir; `gozcu/market_hours.py` (Python
+`zoneinfo`, DST-farkında) HANGİ piyasa(lar)ın GERÇEKTEN açık olduğunu
+kontrol edip sadece onları tarar. Piyasa kapalıyken boşuna yfinance'e
+gidilmez; o piyasaya ait önceki (açık seanstan kalan) veri snapshot'ta
+korunur, sadece "piyasa kapalı" bayrağı güncellenir — "piyasa kapalı" ile
+"veri bayat/hatalı" durumu kullanıcıya karışmasın diye.
+
+### Evrenler
+
+- **BIST**: Wikipedia'nın Borsa İstanbul'a kote şirketleri listeleyen
+  tablosundan (`List_of_companies_listed_on_the_Borsa_Istanbul`) dinamik
+  çekilir — gerçek "BIST100 endeks bileşenleri" için `pd.read_html` ile
+  parse edilebilir bir kaynak bulunamadığından, bu daha geniş (BIST100'den
+  fazla) ama tek uygun kaynak kullanıldı. Çekme/parse başarısız olursa
+  `config.BIST_TICKERS` (13 likit sembol) yedeğine düşülür.
+- **NASDAQ-100**: Wikipedia `List_of_NASDAQ-100_companies` sayfasından
+  dinamik çekilir; başarısız olursa `config.GOZCU_NASDAQ100_FALLBACK`
+  (~38 büyük isim) yedeğine düşülür.
+
+### Metrikler, skor, psikoloji, korelasyon
+
+`gozcu/metrics.py` her sembol için günlük/haftalık %değişim, RVOL, hacim
+Z-skoru, momentum mumu (mevcut `signals.donchian.compute_breakout_filters`
+yeniden kullanılır), VWAP + eğimi, 52 haftalık zirve/dip yakınlığı ve ATR
+yüzdelik dilimini (`backtest.engine.compute_atr` yeniden kullanılır) hesaplar.
+`gozcu/scoring.py` bunları ağırlıklı bir "Dikkat Skoru"na birleştirir
+(ağırlıklar `config.py`'de `GOZCU_SCORE_WEIGHT_*`) — **bu bir al-sat
+tavsiyesi DEĞİLDİR**, sadece "en çok hareket eden" sıralamasıdır.
+`gozcu/psychology.py` breadth (% pozitif kapanan) bazlı bir 0-100 gauge
+üretir (oynaklık rejimi bilinçli olarak AYRI bir etiket olarak gösterilir,
+tek sayıya karıştırılmaz). `gozcu/correlation.py` evrenin referans endekse
+(BIST: `XU100.IS`/`^XU100`, NASDAQ: `QQQ`) göre ortalama korelasyonunu
+hesaplar (tam NxN matris yerine, performans için).
+
+### RVOL yaklaşıklığı (bilinçli basitleştirme)
+
+"Son 20 günün aynı saatteki ortalama hacmi" için her sembolde 20 gün geriye
+dönük 5 dakikalık bar çekmek, yüzlerce sembolde Actions'ın ~5 dakikalık
+tarama bütçesini aşar. Bunun yerine `gozcu/metrics.relative_volume()`,
+20 günlük ortalama GÜNLÜK hacmi seans içinde GEÇEN süre oranıyla
+(`gozcu/market_hours.py`'deki `*_elapsed_fraction`) ölçekler — aynı niyeti
+("bugünkü hacim normale kıyasla ne kadar öne çıktı") çok daha ucuz bir
+şekilde yaklaşıklar.
+
+### Telegram uyarısı (opsiyonel)
+
+Bir sembolün dikkat skoru `config.GOZCU_ALERT_SCORE_THRESHOLD` eşiğini
+geçerse, **o sembol için günde bir kez**, mevcut `notifications.telegram`
+ile "[GÖZCÜ] ... bu bir AL sinyali DEĞİLDİR" formatında bilgi mesajı
+gönderilir. İdempotency, paper trading'in `stop_warnings` tablosuyla aynı
+mantıkla (`gozcu/alerts.py`) ama **ayrı** bir dosyada (`gozcu/data/alert_state.json`)
+tutulur — paper trading `state.db`'sine dokunulmaz.
+
+### Kurulum / yapman gerekenler
+
+- **Yeni secret gerekmiyor** — `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` aynı
+  mevcut GitHub Secrets'lar yeniden kullanılıyor (bkz. yukarıdaki "Telegram
+  bot nasıl kurulur").
+- GitHub Actions'ta **Read and write permissions** zaten `paper_trading.yml`
+  için açık olmalı (aynı repo, `.github/workflows/gozcu_scan.yml` de aynı
+  izni kullanır).
+- Cron zamanlaması (`*/5 6-21 * * 1-5`, UTC) onayınla aktif; farklı bir
+  pencere/aralık istersen `.github/workflows/gozcu_scan.yml`'deki `cron:`
+  satırını değiştirmen yeterli.
+- Vercel bu repoya bağlıysa her `gozcu_scan.yml` commit'i otomatik yeni bir
+  deploy tetikler (mevcut `paper_trading.yml` deseniyle aynı) — piyasa açık
+  saatlerinde günde onlarca-yüzlerce deploy anlamına gelir; Hobby planda
+  genelde sorun değildir ama build-minutes kotasını tüketebilir.
 
 ## Bilinen riskler / öneriler
 

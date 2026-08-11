@@ -14,3 +14,9 @@ export const EQUITY_JSONL_PATH = path.join(PAPER_TRADING_LOG_DIR, "equity.jsonl"
 export const SUMMARY_JSON_PATH = path.join(PAPER_TRADING_LOG_DIR, "summary.json");
 // paper_trading/manual_log.py (PAPER_TRADING_MANUAL_LOG_PATH) ile BIREBIR ayni yol.
 export const MANUAL_LOG_PATH = path.join(PAPER_TRADING_LOG_DIR, "manual_trades.jsonl");
+
+// GOZCU (izleme paneli, paper trading'den BAGIMSIZ) - config.py: GOZCU_SNAPSHOT_PATH
+// ile BIREBIR ayni yol. gozcu/scanner.py (GitHub Actions) tarafindan yazilir,
+// bu dosya SADECE OKUNUR - hicbir API route buraya yazmaz.
+export const GOZCU_DATA_DIR = path.join(REPO_ROOT, "gozcu", "data");
+export const GOZCU_SNAPSHOT_PATH = path.join(GOZCU_DATA_DIR, "snapshot.json");

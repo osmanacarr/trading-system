@@ -1,0 +1,69 @@
+name: GOZCU Tarama
+
+# GOZCU, paper trading'den TAMAMEN bagimsiz bir izleme panelidir (al-sat
+# sinyali uretmez). Bu workflow gozcu/scanner.py'yi periyodik calistirip
+# sonucu gozcu/data/snapshot.json'a commit'ler - dashboard SADECE bu
+# dosyayi okur, kendi basina yfinance'e hicbir zaman gitmez (bkz.
+# gozcu/scanner.py modul docstring'i, "Bolum 0" mimari kararu, README
+# "GOZCU mimarisi" bolumu).
+#
+# Zamanlama mantigi: GitHub Actions cron'u UTC'dir ve DST'yi KENDISI
+# kaydirmaz. TR'de DST yok ama ABD/NASDAQ'ta var; bunu cron'da iki ayri
+# satirla (yaz/kis) yonetmek yerine, cron GENIS bir UTC penceresinde
+# (06:00-21:00, hafta ici, 5 dakikada bir - GitHub Actions'in pratik
+# minimum araligi) tetiklenir ve gozcu/scanner.py icindeki
+# gozcu/market_hours.py (zoneinfo, DST-farkinda) HANGI piyasa(lar)in
+# GERCEKTEN acik oldugunu kontrol edip SADECE onlari tarar. Piyasa
+# kapaliyken bosuna yfinance'e gidilmez.
+on:
+  schedule:
+    - cron: "*/5 6-21 * * 1-5"
+  workflow_dispatch: {} # Actions sekmesinden elle tetikleme imkani
+
+# Ayni snapshot.json/alert_state.json uzerinde cakisan calistirmalari
+# onlemek icin seri kuyruk (paper_trading.yml ile ayni desen).
+concurrency:
+  group: gozcu-scan
+  cancel-in-progress: false
+
+# GITHUB_TOKEN'in snapshot degisikliklerini repoya geri push'layabilmesi
+# icin YAZMA izni sart (ayni repo icin paper_trading.yml'de zaten acik
+# olmasi gerekiyor - bkz. README "Kurulum").
+permissions:
+  contents: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repo checkout
+        uses: actions/checkout@v4
+
+      - name: Python kur
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Bagimliliklari kur
+        run: pip install -r requirements.txt
+
+      - name: Testleri calistir (guvenlik onlemi - basarisizsa dur, snapshot'a dokunma)
+        run: python -m pytest -q
+
+      - name: GOZCU taramasi calistir (BIST + NASDAQ, piyasa acik kontrolu script icinde)
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python -m gozcu.scanner --market all
+
+      - name: Snapshot degisikliklerini commit'le ve pushla
+        run: |
+          git config user.name "gozcu-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add gozcu/data/snapshot.json gozcu/data/alert_state.json
+          if git diff --cached --quiet; then
+            echo "Degisiklik yok (her iki piyasa da kapali/veri degismedi), commit atlaniyor."
+          else
+            git commit -m "gozcu: otomatik tarama $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push
+          fi

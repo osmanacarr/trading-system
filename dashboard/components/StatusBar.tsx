@@ -1,6 +1,7 @@
 "use client";
 
 import clsx from "clsx";
+import Link from "next/link";
 import { useDashboard } from "@/lib/dashboard-context";
 import { PAPER_TRADING_INITIAL_CAPITAL } from "@/lib/constants";
 import { formatNumber, formatPercent } from "@/lib/format";
@@ -85,6 +86,13 @@ export function StatusBar() {
         <span className="label-xs text-[9px] hidden md:inline">
           {summary ? `son calisma ${summary.last_updated}` : "henuz calismadi"}
         </span>
+        <Link
+          href="/gozcu"
+          className="flex items-center gap-1 rounded-sm border border-term-border px-1.5 py-0.5 text-term-text-faint transition-colors hover:border-term-amber/40 hover:text-term-amber"
+          title="GÖZCÜ: NASDAQ + BIST canlı izleme paneli (paper trading'den bağımsız, tavsiye değildir)"
+        >
+          <span className="label-xs text-[9px]">GÖZCÜ</span>
+        </Link>
         <button
           onClick={() => setCommandPaletteOpen(true)}
           className="flex items-center gap-1 rounded-sm border border-term-border px-1.5 py-0.5 text-term-text-faint transition-colors hover:border-term-cyan/40 hover:text-term-cyan"

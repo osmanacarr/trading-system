@@ -10,12 +10,20 @@ import { EmptyState } from "../ui/EmptyState";
 export function AttributionSummaryPanel() {
   const { summary } = useResearch();
   const attribution = summary?.attribution;
+  const nTrades = attribution?.n_trades ?? 0;
   const hasData = attribution && (attribution.total_common_return !== 0 || attribution.total_specific_return !== 0);
 
   return (
     <Panel title="attribution — ne kadari beceri, ne kadari piyasa">
       {!hasData ? (
-        <EmptyState title="henuz veri yok" hint="kapanan islem/attribution verisi bekleniyor" />
+        <EmptyState
+          title={nTrades > 0 ? "hesaplanamadi" : "henuz veri yok"}
+          hint={
+            nTrades > 0
+              ? `${nTrades} kapanan islem var ama referans/getiri verisi eslesmedi`
+              : "henuz kapanan (BIST) islem yok — paper trading ilk kapanan islemi bekliyor"
+          }
+        />
       ) : (
         <div className="px-3 py-3">
           <div className="flex h-3 w-full overflow-hidden rounded-sm border border-term-border">

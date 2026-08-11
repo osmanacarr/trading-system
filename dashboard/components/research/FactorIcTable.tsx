@@ -96,6 +96,12 @@ export function FactorIcTable() {
               ))}
             </tbody>
           </table>
+          {rows.every((r) => r.mean_ic === null) && (
+            <p className="px-3 py-2 text-[9px] text-term-text-faint">
+              IC henuz hesaplanamiyor — research/factor_history.py gunluk biriktirme her gun bir satir ekler,
+              anlamli bir kesitsel IC icin birkac gunluk veri birikmesi gerekir
+            </p>
+          )}
         </div>
       )}
     </Panel>

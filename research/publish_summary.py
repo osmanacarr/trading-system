@@ -26,13 +26,16 @@ import pandas as pd
 from config import (
     BIST_TICKERS,
     CRYPTO_TICKERS,
+    GOZCU_BIST_REFERENCE_TICKER,
     MAX_FILTER_COUNT,
     RESEARCH_IC_HORIZON_DAYS,
     RESEARCH_SUMMARY_PATH,
 )
-from data.fetch import fetch_universe
+from data.fetch import fetch_ohlcv, fetch_universe
+from paper_trading.logger import PaperTradingLogger
 from research import ensemble as ensemble_mod
 from research import regime as regime_mod
+from research.attribution import attribute_trades, pair_entry_exit_events, summarize_attribution
 from research.factor_history import load_factor_history
 from validation.alpha_evaluation import check_rule_burden, compute_forward_returns, detect_decay, ic_time_series
 
@@ -111,6 +114,58 @@ def build_ensemble_summary(factor_ic_rows: list[dict], factor_long_df: pd.DataFr
     }
 
 
+def _reference_ticker_for_symbol(symbol: str) -> str | None:
+    """Sembolun referans endeksini dondurur (attribution icin).
+
+    Sadece BIST (".IS" son eki) icin bir referans var (GOZCU_BIST_REFERENCE_TICKER,
+    gozcu/correlation.py ile AYNI sabit). Kripto (orn. BTC-USD) icin bu depoda
+    guvenilir bir referans endeks TANIMLI DEGIL - UYDURULMAYACAK, bu semboller
+    attribution'dan sessizce ATLANIR (bkz. modul docstring'i).
+    """
+    if symbol.endswith(".IS"):
+        return GOZCU_BIST_REFERENCE_TICKER
+    return None
+
+
+def build_attribution_summary(
+    paired_trades: pd.DataFrame,
+    price_data: dict[str, pd.DataFrame],
+    reference_data: dict[str, pd.DataFrame],
+) -> dict:
+    """Sembol basina attribute_trades() cagirip sonuclari birlestirir, sonra summarize_attribution uygular.
+
+    Args:
+        paired_trades: research.attribution.pair_entry_exit_events() ciktisi
+            ("symbol","entry_date","exit_date","direction" kolonlarini icerir).
+        price_data: {sembol: OHLCV DataFrame} (research/factor_history.py
+            icin zaten cekilmis olan AYNI veri - tekrar fetch edilmez).
+        reference_data: {referans_ticker: OHLCV DataFrame} (orn.
+            {"XU100.IS": df}) - _reference_ticker_for_symbol'un dondurdugu
+            anahtarlarla eslesmeli.
+
+    Returns:
+        research.attribution.summarize_attribution() ciktisi. Referansi
+        olmayan (orn. kripto) ya da fiyat verisi eksik semboller sessizce
+        ATLANIR - guvenilir referans/veri olmadan attribution UYDURULMAZ.
+    """
+    if paired_trades.empty:
+        return summarize_attribution(pd.DataFrame(columns=["common_return", "specific_return"]))
+
+    attributed_parts = []
+    for symbol, group in paired_trades.groupby("symbol"):
+        reference_ticker = _reference_ticker_for_symbol(symbol)
+        price_df = price_data.get(symbol)
+        reference_df = reference_data.get(reference_ticker) if reference_ticker else None
+        if price_df is None or price_df.empty or reference_df is None or reference_df.empty:
+            continue
+        attributed_parts.append(attribute_trades(group, price_df, reference_df))
+
+    if not attributed_parts:
+        return summarize_attribution(pd.DataFrame(columns=["common_return", "specific_return"]))
+
+    return summarize_attribution(pd.concat(attributed_parts, ignore_index=True))
+
+
 def write_summary_atomic(summary: dict, path: Path = RESEARCH_SUMMARY_PATH) -> None:
     """Ozeti atomik yazar (tmp dosya + rename) - gozcu/scanner.py::_write_snapshot_atomic ile AYNI desen."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -172,7 +227,20 @@ def run_publish_summary(
         labels = regime_mod.compute_regime_labels(df)
         regime_label_by_symbol[symbol] = labels.iloc[-1] if not labels.empty else None
 
-    summary = assemble_summary(factor_long_df, forward_returns_long_df, regime_label_by_symbol)
+    # Attribution: paper_trading'in KAPANMIS islemlerini (event-log'dan
+    # eslestirilmis) common/specific getiriye ayirir. price_data zaten
+    # ayni evren (BIST+kripto) icin cekildigi icin TEKRAR fetch edilmez -
+    # sadece referans endeks (XU100.IS) icin ek, kucuk bir fetch yapilir.
+    paired_trades = pair_entry_exit_events(PaperTradingLogger().read_trades())
+    reference_data = {GOZCU_BIST_REFERENCE_TICKER: fetch_ohlcv(GOZCU_BIST_REFERENCE_TICKER, start=start)}
+    attribution_summary = build_attribution_summary(paired_trades, price_data, reference_data)
+
+    summary = assemble_summary(
+        factor_long_df,
+        forward_returns_long_df,
+        regime_label_by_symbol,
+        attribution_summary=attribution_summary,
+    )
     write_summary_atomic(summary, path=path)
     return summary
 

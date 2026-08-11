@@ -98,11 +98,18 @@ def test_assemble_summary_combines_all_pieces():
     assert result["rule_burden"]["n_filters"] == 2
 
 
+class _FakeEmptyLogger:
+    def read_trades(self):
+        return pd.DataFrame(columns=["event_type", "date", "symbol", "direction"])
+
+
 def test_run_publish_summary_end_to_end_with_mocked_fetch(monkeypatch, tmp_path):
     df_a = make_flat_range_df(n=30, price=100.0)
     df_b = make_flat_range_df(n=30, price=50.0)
 
     monkeypatch.setattr(publish_summary, "fetch_universe", lambda symbols, start: {"A": df_a, "B": df_b})
+    monkeypatch.setattr(publish_summary, "fetch_ohlcv", lambda ticker, start: pd.DataFrame(columns=["Close"]))
+    monkeypatch.setattr(publish_summary, "PaperTradingLogger", _FakeEmptyLogger)
     monkeypatch.setattr(
         publish_summary,
         "load_factor_history",
@@ -114,5 +121,69 @@ def test_run_publish_summary_end_to_end_with_mocked_fetch(monkeypatch, tmp_path)
 
     assert out_path.exists()
     assert result["regime"]["n_symbols"] == 2
+    assert result["attribution"]["n_trades"] == 0
     loaded = json.loads(out_path.read_text(encoding="utf-8"))
     assert loaded["regime"]["n_symbols"] == 2
+
+
+def test_run_publish_summary_computes_attribution_from_paired_trades(monkeypatch, tmp_path):
+    closes = [100.0, 102.0, 104.0, 103.0, 108.0]
+    df_thyao = _price_df_with_closes(closes)
+    reference_df = _price_df_with_closes([100.0, 101.0, 102.0, 103.0, 104.0])
+
+    class _FakeLogger:
+        def read_trades(self):
+            return pd.DataFrame(
+                [
+                    {"event_type": "entry", "date": df_thyao.index[0].strftime("%Y-%m-%d"), "symbol": "THYAO.IS", "direction": 1},
+                    {"event_type": "exit", "date": df_thyao.index[-1].strftime("%Y-%m-%d"), "symbol": "THYAO.IS", "direction": 1},
+                ]
+            )
+
+    monkeypatch.setattr(publish_summary, "fetch_universe", lambda symbols, start: {"THYAO.IS": df_thyao})
+    monkeypatch.setattr(publish_summary, "fetch_ohlcv", lambda ticker, start: reference_df)
+    monkeypatch.setattr(publish_summary, "PaperTradingLogger", _FakeLogger)
+    monkeypatch.setattr(
+        publish_summary,
+        "load_factor_history",
+        lambda: pd.DataFrame(columns=["date", "symbol", "factor_name", "value"]),
+    )
+
+    out_path = tmp_path / "research_summary.json"
+    result = publish_summary.run_publish_summary(universe=["THYAO.IS"], path=out_path)
+
+    assert result["attribution"]["n_trades"] == 1
+
+
+def _price_df_with_closes(closes: list[float]) -> pd.DataFrame:
+    """Tam OHLCV DataFrame'i (regime hesaplamasi icin High/Low de gerekli, sadece Close degil)."""
+    dates = pd.date_range("2024-01-01", periods=len(closes), freq="B")
+    return pd.DataFrame(
+        {
+            "Open": closes,
+            "High": [c + 1.0 for c in closes],
+            "Low": [c - 1.0 for c in closes],
+            "Close": closes,
+            "Volume": [1000.0] * len(closes),
+        },
+        index=dates,
+    )
+
+
+def test_build_attribution_summary_skips_symbols_without_reference():
+    paired_trades = pd.DataFrame(
+        [{"symbol": "BTC-USD", "entry_date": pd.Timestamp("2024-01-01"), "exit_date": pd.Timestamp("2024-01-05"), "direction": 1}]
+    )
+    price_data = {"BTC-USD": _price_df_with_closes([100.0, 101.0, 102.0, 103.0, 104.0])}
+    result = publish_summary.build_attribution_summary(paired_trades, price_data, reference_data={})
+    assert result["n_trades"] == 0
+
+
+def test_build_attribution_summary_empty_paired_trades():
+    result = publish_summary.build_attribution_summary(pd.DataFrame(), {}, {})
+    assert result["n_trades"] == 0
+
+
+def test_reference_ticker_for_symbol_bist_vs_other():
+    assert publish_summary._reference_ticker_for_symbol("THYAO.IS") is not None
+    assert publish_summary._reference_ticker_for_symbol("BTC-USD") is None

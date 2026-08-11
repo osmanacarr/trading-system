@@ -118,9 +118,71 @@ def test_summarize_attribution_computes_pct_specific():
     assert np.isclose(summary["total_common_return"], 0.03)
     assert np.isclose(summary["total_specific_return"], 0.07)
     assert np.isclose(summary["pct_specific"], 0.07 / 0.10)
+    assert summary["n_trades"] == 2
 
 
 def test_summarize_attribution_missing_columns_returns_zeros():
     trades = pd.DataFrame({"pnl": [100.0]})
     summary = attribution.summarize_attribution(trades)
-    assert summary == {"total_common_return": 0.0, "total_specific_return": 0.0, "pct_specific": 0.0}
+    assert summary == {"total_common_return": 0.0, "total_specific_return": 0.0, "pct_specific": 0.0, "n_trades": 0}
+
+
+def test_pair_entry_exit_events_matches_entry_to_next_exit():
+    events = pd.DataFrame(
+        [
+            {"event_type": "entry", "date": "2020-01-01", "symbol": "THYAO.IS", "direction": 1},
+            {"event_type": "exit", "date": "2020-01-05", "symbol": "THYAO.IS", "direction": 1},
+        ]
+    )
+    paired = attribution.pair_entry_exit_events(events)
+    assert len(paired) == 1
+    row = paired.iloc[0]
+    assert row["symbol"] == "THYAO.IS"
+    assert row["entry_date"] == pd.Timestamp("2020-01-01")
+    assert row["exit_date"] == pd.Timestamp("2020-01-05")
+    assert row["direction"] == 1
+
+
+def test_pair_entry_exit_events_handles_multiple_round_trips_per_symbol():
+    events = pd.DataFrame(
+        [
+            {"event_type": "entry", "date": "2020-01-01", "symbol": "AAA", "direction": 1},
+            {"event_type": "exit", "date": "2020-01-03", "symbol": "AAA", "direction": 1},
+            {"event_type": "entry", "date": "2020-01-10", "symbol": "AAA", "direction": -1},
+            {"event_type": "exit", "date": "2020-01-12", "symbol": "AAA", "direction": -1},
+        ]
+    )
+    paired = attribution.pair_entry_exit_events(events)
+    assert len(paired) == 2
+    assert list(paired["direction"]) == [1, -1]
+
+
+def test_pair_entry_exit_events_ignores_unmatched_open_entry():
+    events = pd.DataFrame(
+        [
+            {"event_type": "entry", "date": "2020-01-01", "symbol": "AAA", "direction": 1},
+            {"event_type": "exit", "date": "2020-01-03", "symbol": "AAA", "direction": 1},
+            {"event_type": "entry", "date": "2020-01-10", "symbol": "AAA", "direction": 1},  # henuz kapanmadi
+        ]
+    )
+    paired = attribution.pair_entry_exit_events(events)
+    assert len(paired) == 1  # sadece tamamlanmis ilk cift
+
+
+def test_pair_entry_exit_events_multiple_symbols_independent():
+    events = pd.DataFrame(
+        [
+            {"event_type": "entry", "date": "2020-01-01", "symbol": "AAA", "direction": 1},
+            {"event_type": "entry", "date": "2020-01-01", "symbol": "BBB", "direction": -1},
+            {"event_type": "exit", "date": "2020-01-05", "symbol": "AAA", "direction": 1},
+            {"event_type": "exit", "date": "2020-01-06", "symbol": "BBB", "direction": -1},
+        ]
+    )
+    paired = attribution.pair_entry_exit_events(events)
+    assert set(paired["symbol"]) == {"AAA", "BBB"}
+
+
+def test_pair_entry_exit_events_empty_input_returns_empty_with_columns():
+    result = attribution.pair_entry_exit_events(pd.DataFrame(columns=["event_type", "date", "symbol", "direction"]))
+    assert result.empty
+    assert list(result.columns) == ["symbol", "entry_date", "exit_date", "direction"]

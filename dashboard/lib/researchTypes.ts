@@ -39,6 +39,7 @@ export interface AttributionSummary {
   total_common_return: number;
   total_specific_return: number;
   pct_specific: number;
+  n_trades: number;
 }
 
 export interface RuleBurdenSummary {

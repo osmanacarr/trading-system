@@ -76,6 +76,28 @@ def test_ic_time_series_reflects_daily_direction_and_filters_thin_dates():
     assert np.isclose(ic_series.loc[dates[1]], -1.0)
 
 
+def test_ic_time_series_excludes_dates_with_all_nan_forward_returns():
+    # bkz. bug fix: forward_return TUMU NaN olan bir tarih (orn. henuz
+    # horizon_days kadar gun gecmemis, "gelecek" bilinmiyor) grup buyuklugu
+    # esigi gecse bile ATLANMALI - sahte bir IC=0.0 uretilmemeli.
+    dates = pd.to_datetime(["2020-01-01", "2020-01-02"])
+    symbols_5 = [f"S{i}" for i in range(5)]
+
+    factor_rows = []
+    return_rows = []
+    for i, sym in enumerate(symbols_5):
+        factor_rows.append({"date": dates[0], "symbol": sym, "factor_name": "f1", "value": float(i)})
+        return_rows.append({"date": dates[0], "symbol": sym, "forward_return": float(i)})
+        factor_rows.append({"date": dates[1], "symbol": sym, "factor_name": "f1", "value": float(i)})
+        return_rows.append({"date": dates[1], "symbol": sym, "forward_return": float("nan")})
+
+    factor_df = pd.DataFrame(factor_rows)
+    returns_df = pd.DataFrame(return_rows)
+
+    ic_series = ae.ic_time_series(factor_df, returns_df, factor_name="f1")
+    assert list(ic_series.index) == [dates[0]]  # dates[1] (tamamen NaN) DAHIL edilmemeli
+
+
 def test_ic_time_series_empty_when_no_overlap():
     factor_df = pd.DataFrame(columns=["date", "symbol", "factor_name", "value"])
     returns_df = pd.DataFrame(columns=["date", "symbol", "forward_return"])

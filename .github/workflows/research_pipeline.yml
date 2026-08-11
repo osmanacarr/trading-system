@@ -1,0 +1,70 @@
+name: Arastirma Hatti (factor history + research summary)
+
+# GOZCU'nun aksine (her 5 dakikada bir, piyasa saatlerinde) bu hat GUNDE
+# BIR calisir: research/factor_history.py GUNLUK bar bazinda calisir (ayni
+# gun icinde tekrar tekrar cagirmak fazladan bilgi uretmez, sadece
+# yfinance'e gereksiz yuk bindirir - bkz. research/factor_history.py modul
+# docstring'i). Bu yuzden GOZCU'nun 5-dakikalik cron'una EKLENMEDI, kendi
+# bagimsiz (gunluk) workflow'u olarak tutuldu.
+#
+# Sira onemli: once research/factor_history.py (factor_history.parquet'e
+# BUGUNKU bari ekler), SONRA research/publish_summary.py (o parquet'i +
+# paper_trading trade log'unu okuyup research_summary.json'i uretir) -
+# ikisi AYNI job'da, ayni checkout uzerinde calistigi icin publish_summary
+# az once yazilan parquet'i git round-trip'i beklemeden dogrudan diskten
+# okur.
+#
+# Zamanlama: 02:30 UTC (her gun) - bu saatte hem BIST (~15:10 UTC kapanis)
+# hem NASDAQ (~20:00-21:00 UTC kapanis, DST'ye gore) kesinlikle kapanmis
+# olur ve paper_trading.yml'nin gece yarisi UTC kripto calistirmasi da
+# 2.5 saat once tamamlanmis olur (attribution icin en taze trade log).
+on:
+  schedule:
+    - cron: "30 2 * * *"
+  workflow_dispatch: {} # Actions sekmesinden elle tetikleme imkani
+
+concurrency:
+  group: research-pipeline
+  cancel-in-progress: false
+
+# GITHUB_TOKEN'in factor_history.parquet/research_summary.json degisikliklerini
+# repoya geri push'layabilmesi icin YAZMA izni sart (gozcu_scan.yml /
+# paper_trading.yml ile AYNI gereksinim).
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repo checkout
+        uses: actions/checkout@v4
+
+      - name: Python kur
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Bagimliliklari kur
+        run: pip install -r requirements.txt
+
+      - name: Testleri calistir (guvenlik onlemi - basarisizsa dur, veriye dokunma)
+        run: python -m pytest -q
+
+      - name: Faktor gecmisini biriktir (bugunku bar, BIST + kripto evreni)
+        run: python -m research.factor_history
+
+      - name: Arastirma ozetini uret (IC/decay, rejim, ensemble, attribution)
+        run: python -m research.publish_summary
+
+      - name: Degisiklikleri commit'le ve pushla
+        run: |
+          git config user.name "research-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add research/data/factor_history.parquet research/data/research_summary.json
+          if git diff --cached --quiet; then
+            echo "Degisiklik yok, commit atlaniyor."
+          else
+            git commit -m "arastirma: otomatik guncelleme $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push
+          fi

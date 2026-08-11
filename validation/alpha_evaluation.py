@@ -142,9 +142,15 @@ def ic_time_series(
 
     ic_by_date: dict = {}
     for date, group in merged.groupby("date"):
-        ic = compute_ic(group["value"], group["forward_return"])
-        if len(group) >= RESEARCH_MIN_IC_SAMPLE_SIZE:
-            ic_by_date[date] = ic
+        # len(group) DEGIL, GECERLI (NaN olmayan) cift sayisi kontrol edilir:
+        # forward_return, en yeni tarihler icin (henuz horizon_days kadar
+        # gun gecmediginden) NaN olabilir - grup buyuklugu esigi gecse bile
+        # TUM ciftler NaN ise compute_ic() 0.0 fallback'ine duser ve bu,
+        # "IC gercekten sifir" ile "IC henuz bilinmiyor" durumlarini
+        # yanlislikla ayni gosterir. Bu yuzden gecerlilik SEPARATE kontrol edilir.
+        valid_count = int((group["value"].notna() & group["forward_return"].notna()).sum())
+        if valid_count >= RESEARCH_MIN_IC_SAMPLE_SIZE:
+            ic_by_date[date] = compute_ic(group["value"], group["forward_return"])
 
     return pd.Series(ic_by_date).sort_index()
 

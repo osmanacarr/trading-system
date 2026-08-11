@@ -146,11 +146,13 @@ def summarize_attribution(trades: pd.DataFrame) -> dict:
             kolonlarini icermeli).
 
     Returns:
-        {"total_common_return","total_specific_return","pct_specific"}.
+        {"total_common_return","total_specific_return","pct_specific","n_trades"}.
         pct_specific = specific / (common+specific); toplam getiri 0 ise 0.0.
+        n_trades: dashboard'un "N islem uzerinden hesaplandi" gibi somut bir
+            ilerleme mesaji gosterebilmesi icin islem sayisi.
     """
     if trades.empty or "common_return" not in trades.columns or "specific_return" not in trades.columns:
-        return {"total_common_return": 0.0, "total_specific_return": 0.0, "pct_specific": 0.0}
+        return {"total_common_return": 0.0, "total_specific_return": 0.0, "pct_specific": 0.0, "n_trades": 0}
 
     total_common = float(trades["common_return"].sum())
     total_specific = float(trades["specific_return"].sum())
@@ -161,4 +163,53 @@ def summarize_attribution(trades: pd.DataFrame) -> dict:
         "total_common_return": total_common,
         "total_specific_return": total_specific,
         "pct_specific": pct_specific,
+        "n_trades": int(len(trades)),
     }
+
+
+def pair_entry_exit_events(events: pd.DataFrame) -> pd.DataFrame:
+    """paper_trading event-log'undaki (entry/exit) satirlari, sembol basina KRONOLOJIK eslestirerek (symbol, entry_date, exit_date, direction) ciftlerine donusturur.
+
+    paper_trading/logger.py'nin TRADE_LOG_COLUMNS semasi olay-bazlidir
+    (her satir bir "entry" ya da "exit" olayi) - attribute_trades() ise
+    entry_date/exit_date CIFTI ister (backtest.engine.TRADE_COLUMNS gibi).
+    Bu fonksiyon aradaki koprudur.
+
+    paper_trading/state.py'nin "sembol basina EN FAZLA 1 acik pozisyon"
+    kurali sayesinde, bir sembolun olaylari KRONOLOJIK sirada her zaman
+    entry->exit->entry->exit... seklinde alternatif gelir - bu yuzden basit
+    sirali eslestirme yeterlidir.
+
+    Args:
+        events: paper_trading.logger.PaperTradingLogger.read_trades()
+            ciktisi ("event_type","date","symbol","direction" kolonlarini
+            icermeli).
+
+    Returns:
+        ["symbol","entry_date","exit_date","direction"] kolonlarina sahip
+        DataFrame - SADECE tamamlanmis (hem entry hem exit'i olan) islemler
+        icerir; henuz kapanmamis (acik) son entry ATLANIR.
+    """
+    columns = ["symbol", "entry_date", "exit_date", "direction"]
+    if events.empty:
+        return pd.DataFrame(columns=columns)
+
+    pairs: list[dict] = []
+    for symbol, group in events.groupby("symbol"):
+        group = group.sort_values("date")
+        pending_entry = None
+        for _, row in group.iterrows():
+            if row["event_type"] == "entry":
+                pending_entry = row
+            elif row["event_type"] == "exit" and pending_entry is not None:
+                pairs.append(
+                    {
+                        "symbol": symbol,
+                        "entry_date": pd.Timestamp(pending_entry["date"]),
+                        "exit_date": pd.Timestamp(row["date"]),
+                        "direction": int(row["direction"]),
+                    }
+                )
+                pending_entry = None
+
+    return pd.DataFrame(pairs, columns=columns)

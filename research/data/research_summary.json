@@ -1,0 +1,158 @@
+{
+  "generated_at": "2026-08-11T20:53:40.524366+00:00",
+  "factor_ic": [
+    {
+      "factor_name": "absorption",
+      "mean_ic": null,
+      "n_dates": 0,
+      "decayed": false,
+      "first_half_mean_ic": null,
+      "second_half_mean_ic": null
+    },
+    {
+      "factor_name": "cvd_divergence",
+      "mean_ic": null,
+      "n_dates": 0,
+      "decayed": false,
+      "first_half_mean_ic": null,
+      "second_half_mean_ic": null
+    },
+    {
+      "factor_name": "cvd_proxy",
+      "mean_ic": null,
+      "n_dates": 0,
+      "decayed": false,
+      "first_half_mean_ic": null,
+      "second_half_mean_ic": null
+    },
+    {
+      "factor_name": "daily_volume_ratio",
+      "mean_ic": null,
+      "n_dates": 0,
+      "decayed": false,
+      "first_half_mean_ic": null,
+      "second_half_mean_ic": null
+    },
+    {
+      "factor_name": "distance_from_poc",
+      "mean_ic": null,
+      "n_dates": 0,
+      "decayed": false,
+      "first_half_mean_ic": null,
+      "second_half_mean_ic": null
+    },
+    {
+      "factor_name": "ema",
+      "mean_ic": null,
+      "n_dates": 0,
+      "decayed": false,
+      "first_half_mean_ic": null,
+      "second_half_mean_ic": null
+    },
+    {
+      "factor_name": "macd_histogram",
+      "mean_ic": null,
+      "n_dates": 0,
+      "decayed": false,
+      "first_half_mean_ic": null,
+      "second_half_mean_ic": null
+    },
+    {
+      "factor_name": "poc",
+      "mean_ic": null,
+      "n_dates": 0,
+      "decayed": false,
+      "first_half_mean_ic": null,
+      "second_half_mean_ic": null
+    },
+    {
+      "factor_name": "rsi",
+      "mean_ic": null,
+      "n_dates": 0,
+      "decayed": false,
+      "first_half_mean_ic": null,
+      "second_half_mean_ic": null
+    },
+    {
+      "factor_name": "stochastic_k",
+      "mean_ic": null,
+      "n_dates": 0,
+      "decayed": false,
+      "first_half_mean_ic": null,
+      "second_half_mean_ic": null
+    },
+    {
+      "factor_name": "volume_zscore",
+      "mean_ic": null,
+      "n_dates": 0,
+      "decayed": false,
+      "first_half_mean_ic": null,
+      "second_half_mean_ic": null
+    }
+  ],
+  "regime": {
+    "counts": {
+      "low": 6,
+      "normal": 2,
+      "high": 6
+    },
+    "majority_label": "low",
+    "n_symbols": 14
+  },
+  "ensemble": {
+    "weights": [],
+    "redundant_pairs": [
+      {
+        "factor_a": "cvd_proxy",
+        "factor_b": "ema",
+        "correlation": -0.999922
+      },
+      {
+        "factor_a": "cvd_proxy",
+        "factor_b": "macd_histogram",
+        "correlation": 0.984873
+      },
+      {
+        "factor_a": "cvd_proxy",
+        "factor_b": "poc",
+        "correlation": -0.999924
+      },
+      {
+        "factor_a": "daily_volume_ratio",
+        "factor_b": "volume_zscore",
+        "correlation": 0.917312
+      },
+      {
+        "factor_a": "distance_from_poc",
+        "factor_b": "rsi",
+        "correlation": 0.948097
+      },
+      {
+        "factor_a": "ema",
+        "factor_b": "macd_histogram",
+        "correlation": -0.984767
+      },
+      {
+        "factor_a": "ema",
+        "factor_b": "poc",
+        "correlation": 0.999999
+      },
+      {
+        "factor_a": "macd_histogram",
+        "factor_b": "poc",
+        "correlation": -0.984915
+      }
+    ]
+  },
+  "attribution": {
+    "total_common_return": 0.0,
+    "total_specific_return": 0.0,
+    "pct_specific": 0.0,
+    "n_trades": 0
+  },
+  "rule_burden": {
+    "n_filters": 0,
+    "max_filters": 4,
+    "overfitting_risk": false
+  }
+}

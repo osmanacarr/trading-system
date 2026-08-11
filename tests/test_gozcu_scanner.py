@@ -88,9 +88,86 @@ def test_scan_market_ranks_attention_list_by_score(monkeypatch):
     )
 
     now = dt.datetime(2024, 1, 1, tzinfo=dt.timezone.utc)
-    result = scanner.scan_market("bist", ["AAA.IS", "BBB.IS"], "XU100.IS", "^XU100", elapsed_fraction=0.5, now=now)
+    result = scanner.scan_market(
+        "bist",
+        ["AAA.IS", "BBB.IS"],
+        "XU100.IS",
+        "^XU100",
+        session_progress_fn=lambda ts: 0.5,
+        now=now,
+        actually_open=True,
+    )
 
+    assert result["market_open"] is True
     assert result["scanned_count"] == 2
     assert result["error_count"] == 0
     assert result["attention_list"][0]["symbol"] == "AAA.IS"  # daha buyuk gunluk degisim -> daha yuksek skor
     assert result["correlation"]["average_correlation"] is None  # referans verisi yok (fetch bos donuyor)
+
+
+def test_compute_symbol_metrics_uses_last_intraday_bar_timestamp_for_session_progress():
+    # KOK NEDEN DUZELTMESI: RVOL, tek bir market-genelinde "su an" (wall-clock)
+    # degeri yerine, HER sembolun kendi son gun-ici barinin zaman damgasindan
+    # hesaplanan seans-ilerleme oranini kullanmali - piyasa kapaliyken (veri
+    # bir onceki TAMAMLANMIS seansa ait oldugunda) "su an" o seansla alakasiz
+    # oldugu icin RVOL'u yanlislikla None yapiyordu (bkz. ilgili hata raporu).
+    dates = pd.date_range("2024-01-01", periods=30, freq="B")
+    daily_df = pd.DataFrame(
+        {"Open": 100.0, "High": 101.0, "Low": 99.0, "Close": 100.0, "Volume": 1000.0},
+        index=dates,
+    )
+    intraday_dates = pd.date_range("2024-01-30 10:00", periods=3, freq="5min", tz="UTC")
+    intraday_df = pd.DataFrame(
+        {"High": [101] * 3, "Low": [99] * 3, "Close": [100] * 3, "Volume": [500, 500, 500]},
+        index=intraday_dates,
+    )
+
+    received_timestamps = []
+
+    def fake_session_progress(ts):
+        received_timestamps.append(ts)
+        return 0.5
+
+    result = scanner._compute_symbol_metrics("AAA", daily_df, intraday_df, fake_session_progress)
+
+    assert received_timestamps == [intraday_dates[-1]]
+    assert result["rvol"] is not None
+
+
+def test_compute_symbol_metrics_empty_intraday_skips_session_progress_call():
+    dates = pd.date_range("2024-01-01", periods=30, freq="B")
+    daily_df = pd.DataFrame(
+        {"Open": 100.0, "High": 101.0, "Low": 99.0, "Close": 100.0, "Volume": 1000.0},
+        index=dates,
+    )
+    calls = []
+
+    def fake_session_progress(ts):
+        calls.append(ts)
+        return 0.5
+
+    result = scanner._compute_symbol_metrics("AAA", daily_df, pd.DataFrame(columns=OHLCV_COLUMNS), fake_session_progress)
+
+    assert calls == []
+    assert result["rvol"] is None
+
+
+def test_scan_market_market_open_reflects_actually_open_flag(monkeypatch):
+    dates = pd.date_range("2024-01-01", periods=30, freq="B")
+    close = 100.0 + np.sin(np.arange(30))  # sabit olmayan seri: korelasyon std=0 uyarisini onler
+    daily_df = pd.DataFrame(
+        {"Open": close, "High": close + 1, "Low": close - 1, "Close": close, "Volume": np.full(30, 1000.0)},
+        index=dates,
+    )
+    monkeypatch.setattr(scanner, "fetch_daily_batch", lambda symbols: {s: daily_df for s in symbols})
+    monkeypatch.setattr(
+        scanner, "fetch_intraday_batch", lambda symbols: {s: pd.DataFrame(columns=OHLCV_COLUMNS) for s in symbols}
+    )
+
+    now = dt.datetime(2024, 1, 1, tzinfo=dt.timezone.utc)
+    # force ile tetiklenen ama piyasa GERCEKTE kapali bir tarama - donen
+    # market_open, tetiklenme sebebinden BAGIMSIZ olarak gercek durumu yansitmali.
+    result = scanner.scan_market(
+        "nasdaq", ["AAA"], "QQQ", None, session_progress_fn=lambda ts: 0.0, now=now, actually_open=False
+    )
+    assert result["market_open"] is False

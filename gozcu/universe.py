@@ -47,16 +47,28 @@ def _fetch_tables(url: str) -> list[pd.DataFrame]:
     return pd.read_html(StringIO(response.text))
 
 
-def _clean_symbol(raw: str) -> str | None:
+def _clean_symbol(raw: str, min_length: int = 1) -> str | None:
     """Bir tablo hucresindeki tek bir sembolu normalize eder.
 
     Wikipedia footnote referanslarini ("AKBNK[1]") temizler, sadece
     harf/rakam/nokta iceren gecerli gorunumlu sembolleri kabul eder.
+
+    Args:
+        min_length: Kabul edilecek minimum sembol uzunlugu. BIST tablosunda
+            Wikipedia'nin alfabetik BOLUM BASLIKLARI ("A", "B", "C", ... Z)
+            bazi satirlarda yanlislikla "Symbol" hucresi gibi parse ediliyor
+            (canli testte gozlemlendi: A.IS, B.IS, ... gibi 18 sahte sembol,
+            365 sembolluk toplam evrende) - min_length=3 (get_bist_universe
+            tarafindan verilir) bunlari eler. Gercek BIST sembolleri en az 3
+            karakterdir; NASDAQ'ta "ON" gibi gecerli 2 harfli tikerlar
+            oldugundan get_nasdaq100_universe varsayilan min_length=1'i kullanir.
     """
     symbol = _FOOTNOTE_RE.sub("", raw).strip().upper()
     if not symbol or not symbol.isascii():
         return None
     if not re.fullmatch(r"[A-Z0-9.]+", symbol):
+        return None
+    if len(symbol) < min_length:
         return None
     return symbol
 
@@ -81,7 +93,7 @@ def get_bist_universe() -> list[str]:
             continue
         for cell in table["Symbol"].dropna():
             for raw in str(cell).split(","):
-                symbol = _clean_symbol(raw)
+                symbol = _clean_symbol(raw, min_length=3)
                 if symbol:
                     symbols.add(f"{symbol}.IS")
 

@@ -30,6 +30,7 @@ import datetime as dt
 import json
 import logging
 from pathlib import Path
+from typing import Callable
 
 import pandas as pd
 
@@ -90,16 +91,34 @@ def _intraday_series_payload(today_intraday_df: pd.DataFrame, vwap_series: pd.Se
     }
 
 
-def _compute_symbol_metrics(symbol: str, daily_df: pd.DataFrame, intraday_df: pd.DataFrame, elapsed_fraction: float) -> dict | None:
+def _compute_symbol_metrics(
+    symbol: str,
+    daily_df: pd.DataFrame,
+    intraday_df: pd.DataFrame,
+    session_progress_fn: Callable[[dt.datetime], float],
+) -> dict | None:
     """Tek bir sembol icin Bolum 2'deki tum metrikleri hesaplar.
 
     Veri yetersizse (gunluk bar yoksa) None doner - cagiran sembolu "hata"
     sayip atlar (tarama bir sembolde takilmaz).
+
+    RVOL icin "seans ilerleme orani" ARTIK sembol basina, o sembolun SON
+    gun-ici barinin KENDI zaman damgasindan hesaplanir (session_progress_fn
+    ile) - tek bir "su an" (wall-clock) degeri TUM piyasa icin kullanilmiyor.
+    Onceki tasarim, piyasa kapaliyken (dolayisiyla gun-ici veri bir onceki
+    TAMAMLANMIS seansa ait oldugunda) "su an"in o tamamlanmis seansla hicbir
+    ilgisi olmadigi icin RVOL'u sistematik olarak None yapiyordu (NASDAQ
+    kapaliyken RVOL sutununun tamamen bos gorunmesi buradan kaynaklaniyordu -
+    bkz. ilgili hata raporu). session_progress_fn == market_hours.bist_
+    elapsed_fraction / nasdaq_elapsed_fraction (asagida run_scan()'da
+    baglanir) - AYNI fonksiyon, sadece "su an" yerine barin kendi zaman
+    damgasiyla cagrilir.
     """
     if daily_df.empty:
         return None
 
     today_intraday = _filter_today(intraday_df)
+    elapsed_fraction = session_progress_fn(today_intraday.index[-1]) if not today_intraday.empty else 0.0
     vwap_series = metrics.compute_vwap(today_intraday)
     vwap_last = vwap_series.iloc[-1] if not vwap_series.empty else None
     last_price = float(daily_df["Close"].dropna().iloc[-1])
@@ -162,10 +181,23 @@ def scan_market(
     symbols: list[str],
     reference_ticker: str,
     reference_ticker_fallback: str | None,
-    elapsed_fraction: float,
+    session_progress_fn: Callable[[dt.datetime], float],
     now: dt.datetime,
+    actually_open: bool,
 ) -> dict:
-    """Tek bir piyasayi (evreni) tarar, Bolum 2-5'teki tum ciktilari uretir."""
+    """Tek bir piyasayi (evreni) tarar, Bolum 2-5'teki tum ciktilari uretir.
+
+    Args:
+        session_progress_fn: Bir zaman damgasi alip o zamana kadar piyasa
+            seansinin ne kadarinin gectigini (0-1) donen fonksiyon (bkz.
+            market_hours.bist_elapsed_fraction / nasdaq_elapsed_fraction).
+            Her sembol icin KENDI son gun-ici barinin zaman damgasiyla
+            cagrilir (bkz. _compute_symbol_metrics).
+        actually_open: Piyasanin GERCEKTEN acik olup olmadigi (force ile
+            zorlanmis bir tarama da olsa dogru deger) - donen "market_open"
+            alani buna esitlenir, boylece zorlanmis/test taramalari
+            piyasayi yanlislikla "acik" gibi gostermez.
+    """
     daily_data = fetch_daily_batch(symbols)
     intraday_data = fetch_intraday_batch(symbols)
 
@@ -178,7 +210,7 @@ def scan_market(
         daily_df = daily_data.get(symbol, pd.DataFrame())
         intraday_df = intraday_data.get(symbol, pd.DataFrame())
         try:
-            computed = _compute_symbol_metrics(symbol, daily_df, intraday_df, elapsed_fraction)
+            computed = _compute_symbol_metrics(symbol, daily_df, intraday_df, session_progress_fn)
         except Exception:
             log.exception("Sembol metrikleri hesaplanamadi: %s", symbol)
             computed = None
@@ -204,7 +236,7 @@ def scan_market(
     avg_correlation = correlation.average_correlation_to_reference(returns_by_symbol, reference_returns)
 
     return {
-        "market_open": True,
+        "market_open": actually_open,
         "scanned_at": now.isoformat(),
         "universe_size": len(symbols),
         "scanned_count": len(per_symbol),
@@ -260,20 +292,22 @@ def run_scan(markets: list[str] | None = None, now: dt.datetime | None = None, f
     today = resolved_now.date()
 
     if "bist" in resolved_markets:
-        if force or market_hours.is_bist_open(resolved_now):
+        bist_really_open = market_hours.is_bist_open(resolved_now)
+        if force or bist_really_open:
             try:
                 payload = scan_market(
                     "bist",
                     universe.get_bist_universe(),
                     GOZCU_BIST_REFERENCE_TICKER,
                     GOZCU_BIST_REFERENCE_TICKER_FALLBACK,
-                    market_hours.bist_elapsed_fraction(resolved_now),
+                    market_hours.bist_elapsed_fraction,
                     resolved_now,
+                    actually_open=bist_really_open,
                 )
             except Exception:
                 log.exception("BIST taramasi basarisiz, onceki snapshot korunuyor")
                 payload = previous_markets.get("bist", _empty_market_payload())
-                payload["market_open"] = True
+                payload["market_open"] = bist_really_open
         else:
             payload = previous_markets.get("bist", _empty_market_payload())
             payload["market_open"] = False
@@ -281,20 +315,22 @@ def run_scan(markets: list[str] | None = None, now: dt.datetime | None = None, f
         alert_state = _apply_alerts("bist", payload, alert_state, today)
 
     if "nasdaq" in resolved_markets:
-        if force or market_hours.is_nasdaq_open(resolved_now):
+        nasdaq_really_open = market_hours.is_nasdaq_open(resolved_now)
+        if force or nasdaq_really_open:
             try:
                 payload = scan_market(
                     "nasdaq",
                     universe.get_nasdaq100_universe(),
                     GOZCU_NASDAQ_REFERENCE_TICKER,
                     None,
-                    market_hours.nasdaq_elapsed_fraction(resolved_now),
+                    market_hours.nasdaq_elapsed_fraction,
                     resolved_now,
+                    actually_open=nasdaq_really_open,
                 )
             except Exception:
                 log.exception("NASDAQ taramasi basarisiz, onceki snapshot korunuyor")
                 payload = previous_markets.get("nasdaq", _empty_market_payload())
-                payload["market_open"] = True
+                payload["market_open"] = nasdaq_really_open
         else:
             payload = previous_markets.get("nasdaq", _empty_market_payload())
             payload["market_open"] = False

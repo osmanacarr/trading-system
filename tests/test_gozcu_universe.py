@@ -50,11 +50,33 @@ def test_get_bist_universe_falls_back_on_missing_symbol_column(monkeypatch):
     assert universe_module.get_bist_universe() == list(BIST_TICKERS)
 
 
+def test_get_bist_universe_filters_short_section_header_artifacts(monkeypatch):
+    # Canli testte gozlemlendi: Wikipedia'nin alfabetik bolum basliklari
+    # ("A", "B", ...) bazen "Symbol" hucresi gibi parse ediliyor - bunlar
+    # gercek BIST sembolu degil (en kisa gercek sembol >=3 karakter).
+    table = pd.DataFrame(
+        {"Company": ["A (bolum basligi)", "Akbank"], "Symbol": ["A", "AKBNK"], "Notes": ["", ""]}
+    )
+    monkeypatch.setattr(universe_module.requests, "get", _fake_get(table.to_html()))
+    result = universe_module.get_bist_universe()
+    assert "A.IS" not in result
+    assert "AKBNK.IS" in result
+
+
 def test_get_nasdaq100_universe_parses_ticker_column(monkeypatch):
     table = pd.DataFrame({"Ticker": ["AAPL", "MSFT"], "Company": ["Apple", "Microsoft"]})
     monkeypatch.setattr(universe_module.requests, "get", _fake_get(table.to_html()))
     result = universe_module.get_nasdaq100_universe()
     assert result == ["AAPL", "MSFT"]
+
+
+def test_get_nasdaq100_universe_keeps_short_two_letter_tickers(monkeypatch):
+    # NASDAQ'ta "ON" (ON Semiconductor) gibi gecerli 2 harfli tikerlar var -
+    # BIST'e ozel min_length=3 filtresi NASDAQ tarafina uygulanmamali.
+    table = pd.DataFrame({"Ticker": ["ON", "AAPL"], "Company": ["ON Semiconductor", "Apple"]})
+    monkeypatch.setattr(universe_module.requests, "get", _fake_get(table.to_html()))
+    result = universe_module.get_nasdaq100_universe()
+    assert "ON" in result
 
 
 def test_get_nasdaq100_universe_falls_back_on_request_exception(monkeypatch):

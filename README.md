@@ -386,10 +386,25 @@ korunur, sadece "piyasa kapalı" bayrağı güncellenir — "piyasa kapalı" ile
   çekilir — gerçek "BIST100 endeks bileşenleri" için `pd.read_html` ile
   parse edilebilir bir kaynak bulunamadığından, bu daha geniş (BIST100'den
   fazla) ama tek uygun kaynak kullanıldı. Çekme/parse başarısız olursa
-  `config.BIST_TICKERS` (13 likit sembol) yedeğine düşülür.
+  `config.BIST_TICKERS` (13 likit sembol) yedeğine düşülür. Wikipedia,
+  User-Agent'sız istekleri 403 ile reddettiği için sayfa `requests` ile
+  tarayıcı benzeri bir header'la çekilir (`gozcu/universe._fetch_tables`).
 - **NASDAQ-100**: Wikipedia `List_of_NASDAQ-100_companies` sayfasından
   dinamik çekilir; başarısız olursa `config.GOZCU_NASDAQ100_FALLBACK`
   (~38 büyük isim) yedeğine düşülür.
+- **BIST evren gürültüsü**: Wikipedia tablosundaki alfabetik BÖLÜM
+  BAŞLIKLARI ("A", "B", ... "Z") bazen gerçek bir şirketin "Symbol" hücresi
+  gibi parse ediliyor (canlı testte 18 tane tek harfli sahte sembol
+  gözlemlendi: `A.IS`, `B.IS`, ...) — `gozcu/universe._clean_symbol`'e
+  BIST için `min_length=3` filtresi eklendi (gerçek BIST sembolleri en az 3
+  karakterdir; NASDAQ tarafı `min_length=1` kalır çünkü "ON" gibi geçerli
+  2 harfli tikerlar var). Kalan hata oranı (~%31, 347 sembolden ~109'u)
+  **rate-limit değil** — canlı loglarda `429`/`Too Many Requests`/timeout
+  sinyali SIFIR, tamamı `"possibly delisted; no price data found"`: bu,
+  BIST100'ün çok ötesine geçen bilinçli geniş evren tercihinin doğal
+  sonucu (küçük/durgun/fiilen işlem görmeyen ama Wikipedia'da hâlâ listeli
+  şirketler). Bu yüzden istekler arasına yapay bir bekleme EKLENMEDİ —
+  gereksiz yavaşlatma olurdu, sorunu çözmezdi.
 
 ### Metrikler, skor, psikoloji, korelasyon
 
@@ -411,10 +426,23 @@ hesaplar (tam NxN matris yerine, performans için).
 "Son 20 günün aynı saatteki ortalama hacmi" için her sembolde 20 gün geriye
 dönük 5 dakikalık bar çekmek, yüzlerce sembolde Actions'ın ~5 dakikalık
 tarama bütçesini aşar. Bunun yerine `gozcu/metrics.relative_volume()`,
-20 günlük ortalama GÜNLÜK hacmi seans içinde GEÇEN süre oranıyla
-(`gozcu/market_hours.py`'deki `*_elapsed_fraction`) ölçekler — aynı niyeti
-("bugünkü hacim normale kıyasla ne kadar öne çıktı") çok daha ucuz bir
-şekilde yaklaşıklar.
+20 günlük ortalama GÜNLÜK hacmi seans içinde GEÇEN süre oranıyla ölçekler —
+aynı niyeti ("bugünkü hacim normale kıyasla ne kadar öne çıktı") çok daha
+ucuz bir şekilde yaklaşıklar.
+
+**Seans-ilerleme oranı SEMBOL BAŞINA, o sembolün KENDİ son gün-içi barının
+zaman damgasından hesaplanır** (`gozcu/market_hours.py`'deki
+`bist_elapsed_fraction`/`nasdaq_elapsed_fraction`, `gozcu/scanner.py` içinde
+her sembolün son barına ayrı ayrı uygulanır) — tek bir "şu an" (wall-clock)
+değeri TÜM piyasa için kullanılmaz. Bu bilinçli bir tasarım: piyasa
+kapalıyken gün-içi veri bir önceki TAMAMLANMIŞ seansa ait olur; "şu an"ı o
+tamamlanmış seansla kıyaslamak anlamsız/yanlış bir RVOL üretirdi (canlı
+testte NASDAQ kapalıyken RVOL sütununun tamamen boş görünmesine yol açan kök
+neden buydu — düzeltilmiş halde RVOL, kapalı bir piyasa için "son seansın
+kapanışındaki RVOL"nu doğru şekilde gösterir). Aynı nedenle
+`gozcu/scanner.py: scan_market()`'ın döndürdüğü `market_open` alanı da artık
+taramanın NEDEN tetiklendiğinden (gerçek açık saat mi, `--force` mi)
+BAĞIMSIZ olarak piyasanın gerçek anlık durumunu yansıtır.
 
 ### Telegram uyarısı (opsiyonel)
 

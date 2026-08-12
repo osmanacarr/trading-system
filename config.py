@@ -96,6 +96,22 @@ PA_RISK_REWARD: float = 2.0  # sabit R/R cikis (2:1)
 SIGNIFICANCE_T_THRESHOLD: float = 2.0  # ~%95 guven esigi (faz3.5 SS4.1)
 CONFIDENCE_LEVEL: float = 0.95
 
+# Harvey & Liu (2014) "...and the Cross-Section of Expected Returns" - coklu
+# test problemi: ayni strateji/faktor havuzunda ne kadar cok hipotez
+# denenirse, sabit t>2.0 esigiyle sahte-pozitif (yanlislikla "anlamli"
+# bulunan, aslinda sans eseri) bulma olasiligi o kadar artar. quant2.md bu
+# referansla t-esiginin havuz buyudukce 3.0-3.5'e cikarilmasini onerir.
+# Burada UC kademeli bir merdiven kullanilir (bkz.
+# validation.significance.multi_test_t_threshold): tek/iki stratejilik kucuk
+# bir havuzda orijinal 2.0 esigi kalir (Donchian + Price Action - ilk ikisi
+# zaten bu esikle dogrulandi, geriye donuk sertlestirilmiyor); yeni bir
+# strateji/faktor havuza EKLENDIGINDE (3-6 arasi) 3.0'a, havuz daha da
+# buyudugunde (7+) 3.5'e cikar.
+SIGNIFICANCE_T_THRESHOLD_MULTI_TEST: float = 3.0  # havuzda 3-6 strateji/faktor varken
+SIGNIFICANCE_T_THRESHOLD_MULTI_TEST_STRICT: float = 3.5  # havuzda 7+ strateji/faktor varken
+SIGNIFICANCE_MULTI_TEST_SINGLE_MAX: int = 2  # bu sayiya kadar orijinal 2.0 esigi kullanilir
+SIGNIFICANCE_MULTI_TEST_MID_MAX: int = 6  # bu sayiya kadar 3.0, sonrasi 3.5
+
 # ---------------------------------------------------------------------------
 # Faz 4 - Paper Trading motoru (paper_trading/)
 # ---------------------------------------------------------------------------

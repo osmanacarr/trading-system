@@ -15,6 +15,11 @@ SS4.3 - Walk-forward: Colab'da kullanilan tek sabit (anchored olmayan)
     kesimin yaninda, gercek "rolling walk-forward" (parametreleri train'de
     optimize edip bir sonraki periyoda kaydirarak test etme) burada
     saglanir.
+
+Coklu-test duzeltmesi (Harvey & Liu 2014, quant2.md): sabit t>2.0 esigi tek
+bir hipotez test edilirken makuldur, ama bir strateji/faktor HAVUZUNDA ne
+kadar cok deneme yapilirsa sans eseri "anlamli" cikan sonuc bulma olasiligi
+o kadar artar. bkz. multi_test_t_threshold / is_significant_multi_test.
 """
 
 from __future__ import annotations
@@ -23,7 +28,14 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-from config import CONFIDENCE_LEVEL, SIGNIFICANCE_T_THRESHOLD
+from config import (
+    CONFIDENCE_LEVEL,
+    SIGNIFICANCE_MULTI_TEST_MID_MAX,
+    SIGNIFICANCE_MULTI_TEST_SINGLE_MAX,
+    SIGNIFICANCE_T_THRESHOLD,
+    SIGNIFICANCE_T_THRESHOLD_MULTI_TEST,
+    SIGNIFICANCE_T_THRESHOLD_MULTI_TEST_STRICT,
+)
 
 
 def standard_error_r(r_values: pd.Series | np.ndarray) -> float:
@@ -77,6 +89,56 @@ def is_significant(
         |t| >= t_threshold ise True.
     """
     return abs(t_statistic(r_values)) >= t_threshold
+
+
+def multi_test_t_threshold(n_strategies_tested: int) -> float:
+    """Havuzdaki toplam strateji/faktor sayisina gore kademeli t-esigi dondurur.
+
+    Harvey & Liu (2014) coklu-test mantigi: n_strategies_tested, bu
+    degerlendirmeye dahil olan ADAY dahil, ayni havuzda simdiye kadar
+    (backtest/canli) test edilmis TOPLAM strateji/faktor sayisidir - sadece
+    yeni eklenenler degil. Orn. Donchian+PriceAction zaten var (n=2) iken
+    Kart 1 eklenirse n=3 ile degerlendirilir.
+
+    Merdiven (config.py'de SIGNIFICANCE_MULTI_TEST_SINGLE_MAX/MID_MAX):
+        n <= 2  -> 2.0 (SIGNIFICANCE_T_THRESHOLD, tek/ikili hipotez)
+        n <= 6  -> 3.0 (SIGNIFICANCE_T_THRESHOLD_MULTI_TEST)
+        n > 6   -> 3.5 (SIGNIFICANCE_T_THRESHOLD_MULTI_TEST_STRICT)
+
+    Args:
+        n_strategies_tested: Havuzdaki toplam strateji/faktor sayisi (>=1).
+
+    Returns:
+        Uygulanacak t-esigi.
+
+    Raises:
+        ValueError: n_strategies_tested < 1 ise.
+    """
+    if n_strategies_tested < 1:
+        raise ValueError("n_strategies_tested >= 1 olmali")
+    if n_strategies_tested <= SIGNIFICANCE_MULTI_TEST_SINGLE_MAX:
+        return SIGNIFICANCE_T_THRESHOLD
+    if n_strategies_tested <= SIGNIFICANCE_MULTI_TEST_MID_MAX:
+        return SIGNIFICANCE_T_THRESHOLD_MULTI_TEST
+    return SIGNIFICANCE_T_THRESHOLD_MULTI_TEST_STRICT
+
+
+def is_significant_multi_test(
+    r_values: pd.Series | np.ndarray,
+    n_strategies_tested: int,
+) -> bool:
+    """is_significant'in coklu-test-farkinda versiyonu (bkz. multi_test_t_threshold).
+
+    Args:
+        r_values: Islem basina R-kati degerleri.
+        n_strategies_tested: Havuzdaki toplam strateji/faktor sayisi (bu
+            aday dahil) - bkz. multi_test_t_threshold.
+
+    Returns:
+        |t| >= multi_test_t_threshold(n_strategies_tested) ise True.
+    """
+    threshold = multi_test_t_threshold(n_strategies_tested)
+    return abs(t_statistic(r_values)) >= threshold
 
 
 def min_years_for_confidence(sharpe: float) -> float:

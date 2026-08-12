@@ -8,7 +8,9 @@ import pytest
 
 from validation.significance import (
     is_significant,
+    is_significant_multi_test,
     min_years_for_confidence,
+    multi_test_t_threshold,
     rolling_walk_forward_splits,
     sharpe_confidence_interval,
     single_split,
@@ -38,6 +40,34 @@ def test_is_significant_thresholds():
 
     noisy_signal = np.array([0.01, -0.02, 0.03, -0.01, 0.0])
     assert is_significant(noisy_signal, t_threshold=2.0) is False
+
+
+def test_multi_test_t_threshold_ladder():
+    assert multi_test_t_threshold(1) == 2.0
+    assert multi_test_t_threshold(2) == 2.0
+    assert multi_test_t_threshold(3) == 3.0
+    assert multi_test_t_threshold(6) == 3.0
+    assert multi_test_t_threshold(7) == 3.5
+    assert multi_test_t_threshold(20) == 3.5
+
+
+def test_multi_test_t_threshold_invalid_raises():
+    with pytest.raises(ValueError):
+        multi_test_t_threshold(0)
+
+
+def test_is_significant_multi_test_uses_ladder():
+    strong_signal = np.array([1.0] * 50) + np.random.default_rng(0).normal(0, 0.01, 50)
+    # t-stat cok yuksek (~700+), her esikte anlamli olmali
+    assert is_significant_multi_test(strong_signal, n_strategies_tested=2) is True
+    assert is_significant_multi_test(strong_signal, n_strategies_tested=7) is True
+
+    # t ~ 2.6 civarinda bir sinyal: 2 esiginde anlamli, 3.5 esiginde degil
+    rng = np.random.default_rng(1)
+    borderline_signal = rng.normal(0.45, 1.15, 45)
+    t = t_statistic(borderline_signal)
+    assert is_significant_multi_test(borderline_signal, n_strategies_tested=2) == (abs(t) >= 2.0)
+    assert is_significant_multi_test(borderline_signal, n_strategies_tested=20) == (abs(t) >= 3.5)
 
 
 def test_min_years_for_confidence_formula():

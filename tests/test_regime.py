@@ -175,3 +175,55 @@ def test_compute_trend_range_labels_only_contains_known_labels_or_none():
     labels = regime.compute_trend_range_labels(df, period=14)
     unique = set(labels.dropna().unique())
     assert unique.issubset(set(regime.TREND_RANGE_LABELS))
+
+
+# -- M7: haftalik trend bias (kalite filtresi) ------------------------------
+
+
+def test_weekly_trend_bias_up_in_strong_uptrend():
+    df = _trend_df(n=200, step=0.5)
+    bias = regime.compute_weekly_trend_bias(df, ma_weeks=10)
+    assert bias.iloc[-1] == "up"
+
+
+def test_weekly_trend_bias_down_in_strong_downtrend():
+    df = _trend_df(n=200, step=-0.5)
+    bias = regime.compute_weekly_trend_bias(df, ma_weeks=10)
+    assert bias.iloc[-1] == "down"
+
+
+def test_weekly_trend_bias_none_during_warmup():
+    df = _trend_df(n=20, step=0.5)  # ~4 hafta, ma_weeks=10 icin yetersiz
+    bias = regime.compute_weekly_trend_bias(df, ma_weeks=10)
+    assert pd.isna(bias.iloc[0])
+    assert pd.isna(bias.iloc[-1])
+
+
+def test_weekly_trend_bias_only_contains_known_labels_or_none():
+    df = _trend_df(n=200, step=0.5)
+    bias = regime.compute_weekly_trend_bias(df, ma_weeks=10)
+    unique = set(bias.dropna().unique())
+    assert unique.issubset(set(regime.WEEKLY_BIAS_LABELS))
+
+
+def test_weekly_trend_bias_no_lookahead():
+    """Belirli bir tarihten SONRAKI barlari degistirmek, O TARIHTEKI bias'i
+    degistirmemeli - haftalik gostergenin gelecek bilgisi SIZDIRMADIGININ
+    dogrudan kaniti."""
+    df = _trend_df(n=150, step=0.5)
+    cutoff_idx = 100
+    cutoff_date = df.index[cutoff_idx]
+
+    bias_before = regime.compute_weekly_trend_bias(df, ma_weeks=10)
+
+    df_altered = df.copy()
+    # cutoff'tan SONRAKI tum barlari sert bir dususe cevir (gelecegi degistir)
+    df_altered.loc[df_altered.index > cutoff_date, "Close"] = (
+        df_altered.loc[cutoff_date, "Close"] - 50.0
+    )
+    bias_after = regime.compute_weekly_trend_bias(df_altered, ma_weeks=10)
+
+    # cutoff TARIHINE KADAR (dahil) olan degerler DEGISMEMELI
+    pd.testing.assert_series_equal(
+        bias_before.loc[:cutoff_date], bias_after.loc[:cutoff_date]
+    )

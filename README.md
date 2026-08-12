@@ -156,7 +156,7 @@ trading-system/
 
 ## Doğrulama durumu
 
-- `python -m pytest -q` → **335/335 test geçiyor** (backtest/veri/sinyal/istatistik/
+- `python -m pytest -q` → **349/349 test geçiyor** (backtest/veri/sinyal/istatistik/
   paper trading/risk/GÖZCÜ; tamamı sentetik/deterministik veri veya mock'lanmış
   yfinance/Telegram çağrılarıyla, gerçek ağ bağlantısı gerektirmez).
 - Donchian + BIST canlı veriyle uçtan uca doğrulandı (2019-01-01 -> bugün, 13 sembol,
@@ -198,6 +198,21 @@ trading-system/
   düşülüyor, ayrı bir hipotez olarak ileride (yeni bir doğrulama turunda)
   test edilebilir. Strateji `--strategies donchian bollinger_fade` ile
   isteğe bağlı/deneysel çalıştırılabilir ama varsayılan DEĞİL.
+- **Haftalık kalite filtresi (`research/regime.py::compute_weekly_trend_bias`,
+  M7) — KODLANDI ama VARSAYILAN KAPALI; kanıt etkinleştirmeyi DESTEKLEMİYOR.**
+  Mevcut doğrulanmış Donchian işlemlerini (BIST 13 sembol, 676 işlem,
+  2018-2026), giriş anındaki haftalık trend yönüyle uyumlu/çelişen diye
+  ikiye ayırıp geriye dönük test ettim: filtre uygulansaydı örneklem
+  %30 küçülürdü (676→471) ve **t-stat düşerdi (4.38→3.43)** — elenecek
+  "çelişen" 205 işlem, kalan "uyumlu" işlemlerle AYNI/DAHA İYİ expectancy
+  gösteriyordu (E[R]=+0.53 vs +0.41). Yorum: Donchian bir rejim-değişimi
+  dedektörü (bkz. faz3.5 SS1) — haftalık trende TERS kırılımlar genelde
+  tam da onun yakalamaya çalıştığı erken dönüş sinyalleri, bunları filtrelemek
+  saf örneklem kaybı, kalite artışı değil. Altyapı `python -m
+  paper_trading.runner --weekly-bias-filter` ile deneysel açılabilir
+  (farklı bir formülasyonla — örn. farklı `ma_weeks`, sert filtre yerine
+  ağırlık çarpanı — ileride tekrar denenebilir) ama varsayılan ve
+  GitHub Actions workflow'u değişmedi.
 
 ## Zamanlama — günlük otomatik çalıştırma (Faz 4)
 
@@ -536,17 +551,19 @@ tutulur — paper trading `state.db`'sine dokunulmaz.
   bir API çağrısı yapılır. Şu an bilinçli olarak basit tutuldu (gorev tanımı);
   ileride bir tatil takvimi kütüphanesi (`pandas_market_calendars` gibi)
   eklenebilir.
-- **Çoklu-sembol equity ilişkisi (M3'te ele alındı):** Tüm semboller TEK bir
-  paylaşılan hesap equity'sinden %1 risk alıyor; artık `risk/portfolio.py` +
-  `risk/correlation_clusters.py` günün TÜM yeni giriş adaylarını, mevcut açık
-  pozisyonların tükettiği brüt kaldıraç bütçesi ve getiri-korelasyonu
-  kümelerine göre kısıtlayarak açıyor (bkz. yukarıdaki "Evren" notu). Bilinen
-  sınır: mevcut açık pozisyonların küme maruziyeti, YENİ adaylara karşı ayrı
-  ayrı (güne özel değil, kalıcı olarak) sınırlanmıyor — sadece toplam brüt
-  kaldıraç bütçesi düşülüyor; kümesel çapraz-gün takibi ileride genişletilebilir.
-  Korelasyon eşiği (0.6) sabit değil — bkz. `config.py`
-  `RISK_CORRELATION_CLUSTER_THRESHOLD` yorumu (birkaç hafta veri sonrası
-  0.5'e çekilmesi değerlendirilecek).
+- **Çoklu-sembol equity ilişkisi (M3'te ele alındı, M7'de çapraz-gün takibi
+  eklendi):** Tüm semboller TEK bir paylaşılan hesap equity'sinden %1 risk
+  alıyor; `risk/portfolio.py` + `risk/correlation_clusters.py` günün TÜM
+  yeni giriş adaylarını, mevcut açık pozisyonların tükettiği brüt kaldıraç
+  bütçesi VE getiri-korelasyonu kümelerine göre kısıtlayarak açıyor (bkz.
+  yukarıdaki "Evren" notu). M7 öncesi bilinen sınır (artık kapatıldı): bir
+  kümede DÜN/önceki günlerde açılmış pozisyonlar, o kümenin BUGÜNKÜ kalan
+  bütçesine dahil edilmiyordu — artık `optimize_portfolio`'nun
+  `max_sector_exposure` parametresi bir `{küme: sınır}` sözlüğü de kabul
+  ediyor, her kümenin kalan bütçesi (toplam sınır − açık pozisyonların o
+  kümede tükettiği pay) hesaplanıp geçiriliyor. Korelasyon eşiği (0.6) sabit
+  değil — bkz. `config.py` `RISK_CORRELATION_CLUSTER_THRESHOLD` yorumu
+  (birkaç hafta veri sonrası 0.5'e çekilmesi değerlendirilecek).
 - **Tek makine/tek process varsayımı:** SQLite dosya kilitleri aynı anda TEK
   bir yazan process'i güvenle destekler; runner'ı aynı state.db üzerinde
   paralel/çakışan zamanlamalarla çalıştırmayın (orn. hem cron hem manuel

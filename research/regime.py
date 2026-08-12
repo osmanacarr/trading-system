@@ -51,10 +51,12 @@ from config import (
     RESEARCH_REGIME_ATR_PERIOD,
     RESEARCH_REGIME_HIGH_PCT,
     RESEARCH_REGIME_LOW_PCT,
+    RESEARCH_REGIME_WEEKLY_MA_WEEKS,
 )
 
 REGIME_LABELS: tuple[str, str, str] = ("low", "normal", "high")
 TREND_RANGE_LABELS: tuple[str, str] = ("range", "trend")
+WEEKLY_BIAS_LABELS: tuple[str, str] = ("up", "down")
 
 
 def _rolling_percentile_rank(window: np.ndarray) -> float:
@@ -233,3 +235,50 @@ def compute_trend_range_labels(
         return "trend" if v >= trend_threshold else "range"
 
     return adx.apply(_label)
+
+
+def compute_weekly_trend_bias(
+    df: pd.DataFrame,
+    ma_weeks: int = RESEARCH_REGIME_WEEKLY_MA_WEEKS,
+) -> pd.Series:
+    """Her GUNLUK bar icin, EN SON TAMAMLANMIS haftanin trend yonunu ("up"/"down") dondurur.
+
+    M7 - haftalik kalite filtresi (bkz. modul docstring'i "M5" bolumundeki
+    ortogonal-eksen ilkesiyle AYNI mantik: bu da BAGIMSIZ ucuncu bir eksen,
+    OYNAKLIK/TREND-RANGE eksenlerini DEGISTIRMEZ). Amac: genisletilmis
+    evrendeki gunluk kirilim/geri-donus adaylarini, DAHA UST bir zaman
+    diliminin (haftalik) trend yonuyle CELISENLERI elemek icin bir
+    "kalite filtresi" saglamak - Aday LONG ise haftalik "up" bias
+    BEKLENIR, SHORT ise "down".
+
+    Yontem: Close, haftalik (W-FRI) bara indirgenir; o haftanin kapanisi,
+    trailing `ma_weeks` haftalik SMA'nin USTUNDEYSE "up", ALTINDAYSA "down".
+    LOOKAHEAD YOK: bir haftalik bar yalnizca o haftanin (Cuma dahil) kendi
+    barlarindan turer ve Cuma TARIHINDE damgalanir; bir GUNLUK barin
+    (orn. Sali) gorebilecegi en son haftalik bilgi, ONCEKI Cuma'da
+    kapanmis haftadir (reindex+ffill bunu DOGAL olarak saglar - o haftanin
+    KENDI Cuma'sindaki gunluk bar, o gun ZATEN kapanmis oldugu icin o
+    haftanin kendi degerini gorur; bu, "Close'ta karar ver" mevcut
+    disiplini ile TUTARLIDIR, bkz. signals/donchian.py ile ayni yaklasim).
+
+    Args:
+        df: "Close" kolonunu iceren, kronolojik sirali, DatetimeIndex'li DataFrame.
+        ma_weeks: Haftalik SMA periyodu (varsayilan 10 hafta ~ 50 islem gunu).
+
+    Returns:
+        df ile ayni (gunluk) index'e sahip, {"up","down",None} degerli Series.
+        Yeterli haftalik veri birikmeden (ilk ma_weeks hafta) None doner.
+    """
+    weekly_close = df["Close"].resample("W-FRI").last()
+    weekly_sma = weekly_close.rolling(ma_weeks).mean()
+
+    def _label(row: tuple[float, float]) -> str | None:
+        close, sma = row
+        if pd.isna(sma):
+            return None
+        return "up" if close > sma else "down"
+
+    weekly_bias = pd.Series(
+        [_label(row) for row in zip(weekly_close, weekly_sma)], index=weekly_close.index
+    )
+    return weekly_bias.reindex(df.index, method="ffill")

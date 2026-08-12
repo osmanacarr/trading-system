@@ -90,6 +90,7 @@ from gozcu.universe import get_bist_universe
 from notifications.telegram import send_telegram_message
 from paper_trading.logger import PaperTradingLogger
 from paper_trading.state import PaperTradingState, PositionRecord
+from research.regime import compute_weekly_trend_bias
 from risk import portfolio as risk_portfolio
 from risk import correlation_clusters
 from risk.correlation_clusters import build_correlation_clusters, compute_return_matrix
@@ -713,6 +714,36 @@ def _print_result(result: SymbolResult, dry_run: bool) -> None:
     print(f"{prefix}{result.symbol:>12} ({result.market:>6}/{result.strategy:<12}): {result.action}{suffix}")
 
 
+def _conflicts_with_weekly_bias(direction: int, weekly_bias: str | None) -> bool:
+    """M7 - haftalik kalite filtresi (OPSIYONEL, bkz. run_once weekly_bias_filter).
+
+    UYARI (bkz. README "Dogrulama durumu"): bu filtre BIST 13 sembol
+    Donchian islemleri uzerinde GERIYE DONUK test edildi - islem sayisini
+    %30 AZALTIYOR ama expectancy/t-stat'i IYILESTIRMIYOR (elenen "celisen"
+    islemler ayni/daha iyi performans gosteriyor - Donchian'in rejim-
+    degisimi yakalama yetenegini kesebilir). VARSAYILAN KAPALI - kanit,
+    etkinlestirmeyi DESTEKLEMIYOR, altyapi ileride farkli bir formulasyonla
+    (orn. farkli ma_weeks, sert filtre yerine agirlik carpani) tekrar
+    denenebilsin diye HAZIR tutuluyor.
+
+    Args:
+        direction: Aday yonu (+1 long, -1 short).
+        weekly_bias: research.regime.compute_weekly_trend_bias ciktisi
+            ("up"/"down"/None). None (yetersiz veri) HICBIR ZAMAN
+            filtrelemez.
+
+    Returns:
+        True ise aday CELISIYOR (filtre acikken elenmeli).
+    """
+    if weekly_bias is None or (isinstance(weekly_bias, float) and pd.isna(weekly_bias)):
+        return False
+    if direction == 1 and weekly_bias == "down":
+        return True
+    if direction == -1 and weekly_bias == "up":
+        return True
+    return False
+
+
 def run_once(
     strategies: list[str] | None = None,
     run_date: dt.date | None = None,
@@ -725,6 +756,7 @@ def run_once(
     fetch_max_attempts: int = FETCH_MAX_ATTEMPTS,
     fetch_base_delay: float = FETCH_RETRY_BASE_DELAY_SECONDS,
     fetch_sleep_fn: Callable[[float], None] = time.sleep,
+    weekly_bias_filter: bool = False,
 ) -> dict:
     """Tum evren (bist + crypto) x tum aktif stratejiler icin bir paper-trading calistirmasi yapar.
 
@@ -746,6 +778,13 @@ def run_once(
         markets: {"bist": [...], "crypto": [...]} (testler icin kucuk bir
             alt kume verilebilir; None ise _default_markets() - Gozcu'nun
             canli BIST evreni + sabit kripto evreni).
+        weekly_bias_filter: True ise adaylar research.regime.
+            compute_weekly_trend_bias ile CELISIYORSA (long/haftalik-dusus
+            veya short/haftalik-yukselis) elenir. VARSAYILAN FALSE -
+            geriye donuk test bunun Donchian t-stat/expectancy'sini
+            IYILESTIRMEDIGINI gosterdi (bkz. _conflicts_with_weekly_bias
+            docstring'i, README "Dogrulama durumu"); altyapi ileride farkli
+            bir formulasyonla tekrar denenebilsin diye HAZIR tutuluyor.
         verbose: True ise her (sembol, strateji) icin bir satir ve sonunda
             equity ozeti yazdirir.
 
@@ -789,12 +828,24 @@ def run_once(
 
                 mark_prices[symbol] = float(df["Close"].iloc[-1])
                 price_data[symbol] = df
+                weekly_bias = compute_weekly_trend_bias(df).iloc[-1] if weekly_bias_filter else None
 
                 for strategy in strategies:
                     outcome = evaluate_symbol_strategy(
                         symbol, market, strategy, df, state, trade_logger, run_date, dry_run
                     )
                     if isinstance(outcome, EntryCandidate):
+                        if weekly_bias_filter and _conflicts_with_weekly_bias(outcome.direction, weekly_bias):
+                            if not dry_run:
+                                state.set_last_processed_date(symbol, strategy, outcome.signal_date)
+                            result = SymbolResult(
+                                symbol=symbol, strategy=strategy, market=market, action="skip_weekly_trend_filter",
+                                signal_date=outcome.signal_date, last_close=mark_prices[symbol],
+                            )
+                            results.append(result)
+                            if verbose:
+                                _print_result(result, dry_run)
+                            continue
                         candidates.append(outcome)
                     else:
                         results.append(outcome)
@@ -870,12 +921,17 @@ def main(argv: list[str] | None = None) -> None:
     )
     parser.add_argument("--dry-run", action="store_true", help="Hicbir state/log degisikligi yapmadan ne yapilacagini yazdirir")
     parser.add_argument("--date", default=None, help="YYYY-MM-DD (opsiyonel; gecmis bir tarih icin simulasyon)")
+    parser.add_argument(
+        "--weekly-bias-filter", action="store_true",
+        help="DENEYSEL (varsayilan KAPALI - kanit etkinlestirmeyi desteklemiyor, bkz. README): "
+             "adaylari haftalik trend yonuyle celisiyorsa eler",
+    )
     args = parser.parse_args(argv)
 
     run_date = dt.date.fromisoformat(args.date) if args.date else dt.date.today()
-    print(f"Paper trading | stratejiler={args.strategies} | tarih={run_date} | dry_run={args.dry_run}")
+    print(f"Paper trading | stratejiler={args.strategies} | tarih={run_date} | dry_run={args.dry_run} | weekly_bias_filter={args.weekly_bias_filter}")
     print("-" * 80)
-    run_once(strategies=args.strategies, run_date=run_date, dry_run=args.dry_run)
+    run_once(strategies=args.strategies, run_date=run_date, dry_run=args.dry_run, weekly_bias_filter=args.weekly_bias_filter)
 
 
 if __name__ == "__main__":

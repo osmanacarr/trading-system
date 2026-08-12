@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -30,6 +31,29 @@ def _breakout_df(n_base: int = 70) -> pd.DataFrame:
     base = make_flat_range_df(n=n_base, price=100.0, half_range=1.0, volume=1000.0)
     breakout = {"Open": 101.0, "High": 116.0, "Low": 100.5, "Close": 115.0, "Volume": 6000.0}
     return append_bars(base, [breakout])
+
+
+def _trend_then_breakout_df(n_base: int = 70, weekly_step: float = -0.5, breakout_up: bool = True) -> pd.DataFrame:
+    """N gunluk dogrusal trend (haftalik bias uretmek icin) + kirilim bari.
+
+    weekly_step<0 (dusus trendi) + breakout_up=True -> CELISEN senaryo
+    (haftalik bias 'down', ama Donchian long kirilimi tetikleniyor).
+    weekly_step>0 (yukselis trendi) + breakout_up=True -> UYUMLU senaryo.
+    """
+    dates = pd.date_range("2020-01-01", periods=n_base, freq="B")
+    close = 150.0 + weekly_step * np.arange(n_base)
+    high = close + 1.0
+    low = close - 1.0
+    open_ = close + (0.3 if weekly_step < 0 else -0.3)
+    volume = np.full(n_base, 1000.0)
+    base = pd.DataFrame({"Open": open_, "High": high, "Low": low, "Close": close, "Volume": volume}, index=dates)
+
+    last_close = close[-1]
+    if breakout_up:
+        bar = {"Open": last_close + 1, "High": last_close + 16, "Low": last_close + 0.5, "Close": last_close + 15, "Volume": 6000.0}
+    else:
+        bar = {"Open": last_close - 1, "High": last_close - 0.5, "Low": last_close - 16, "Close": last_close - 15, "Volume": 6000.0}
+    return append_bars(base, [bar])
 
 
 def _down_move_df(n_base: int = 70) -> pd.DataFrame:
@@ -500,3 +524,77 @@ def test_dry_run_does_not_mutate_last_processed_date_for_candidates(state, trade
         markets={"crypto": ["FAKE-USD"]}, verbose=False,
     )
     assert state.get_last_processed_date("FAKE-USD", "donchian") is None
+
+
+# -- M7: haftalik kalite filtresi (opsiyonel, varsayilan KAPALI) -----------
+
+
+def test_conflicts_with_weekly_bias_none_never_filters():
+    assert runner_module._conflicts_with_weekly_bias(1, None) is False
+    assert runner_module._conflicts_with_weekly_bias(-1, None) is False
+
+
+def test_conflicts_with_weekly_bias_matrix():
+    assert runner_module._conflicts_with_weekly_bias(1, "down") is True
+    assert runner_module._conflicts_with_weekly_bias(1, "up") is False
+    assert runner_module._conflicts_with_weekly_bias(-1, "up") is True
+    assert runner_module._conflicts_with_weekly_bias(-1, "down") is False
+
+
+def test_weekly_bias_filter_disabled_by_default_allows_conflicting_entry(state, trade_logger):
+    """weekly_bias_filter verilmezse (varsayilan False), haftalik trendle
+    CELISEN bir kirilim yine de acilmali - mevcut davranis DEGISMEMELI."""
+    df = _trend_then_breakout_df(weekly_step=-0.5, breakout_up=True)
+    run_date = df.index[-1].date()
+    fetch_fn = _make_fetch_fn({"FAKE-USD": df})
+
+    summary = run_once(
+        strategies=["donchian"], run_date=run_date, state=state, trade_logger=trade_logger,
+        fetch_fn=fetch_fn, markets={"crypto": ["FAKE-USD"]}, verbose=False,
+    )
+    assert summary["results"][0].action == "entry_long"
+
+
+def test_weekly_bias_filter_blocks_conflicting_entry_when_enabled(state, trade_logger):
+    """weekly_bias_filter=True iken, haftalik dusus trendine RAGMEN gelen
+    bir long kirilimi ELENMELI (skip_weekly_trend_filter), pozisyon acilmamali."""
+    df = _trend_then_breakout_df(weekly_step=-0.5, breakout_up=True)
+    run_date = df.index[-1].date()
+    fetch_fn = _make_fetch_fn({"FAKE-USD": df})
+
+    summary = run_once(
+        strategies=["donchian"], run_date=run_date, state=state, trade_logger=trade_logger,
+        fetch_fn=fetch_fn, markets={"crypto": ["FAKE-USD"]}, verbose=False,
+        weekly_bias_filter=True,
+    )
+    assert summary["results"][0].action == "skip_weekly_trend_filter"
+    assert state.get_position("FAKE-USD", "donchian") is None
+
+
+def test_weekly_bias_filter_allows_aligned_entry_when_enabled(state, trade_logger):
+    """weekly_bias_filter=True iken, haftalik YUKSELIS trendiyle UYUMLU bir
+    long kirilimi normal sekilde acilmali."""
+    df = _trend_then_breakout_df(weekly_step=0.5, breakout_up=True)
+    run_date = df.index[-1].date()
+    fetch_fn = _make_fetch_fn({"FAKE-USD": df})
+
+    summary = run_once(
+        strategies=["donchian"], run_date=run_date, state=state, trade_logger=trade_logger,
+        fetch_fn=fetch_fn, markets={"crypto": ["FAKE-USD"]}, verbose=False,
+        weekly_bias_filter=True,
+    )
+    assert summary["results"][0].action == "entry_long"
+    assert state.get_position("FAKE-USD", "donchian") is not None
+
+
+def test_weekly_bias_filter_marks_idempotency_for_blocked_candidate(state, trade_logger):
+    df = _trend_then_breakout_df(weekly_step=-0.5, breakout_up=True)
+    run_date = df.index[-1].date()
+    fetch_fn = _make_fetch_fn({"FAKE-USD": df})
+
+    run_once(
+        strategies=["donchian"], run_date=run_date, state=state, trade_logger=trade_logger,
+        fetch_fn=fetch_fn, markets={"crypto": ["FAKE-USD"]}, verbose=False,
+        weekly_bias_filter=True,
+    )
+    assert state.get_last_processed_date("FAKE-USD", "donchian") == run_date

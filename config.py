@@ -328,6 +328,15 @@ RESEARCH_REGIME_HIGH_PCT: float = 67.0  # bu yuzdelik dilimin USTU -> "yuksek" r
 RESEARCH_REGIME_ADX_PERIOD: int = 14
 RESEARCH_REGIME_ADX_TREND_THRESHOLD: float = 20.0  # Kart 3 metni: "ADX(14) < 20"
 
+# M7 - haftalik zemin/kalite filtresi: gunluk sinyal ureten stratejilerin
+# (Donchian, Kart 1, Kart 3) adaylarini, DAHA UST bir zaman diliminin
+# (haftalik) trend yonuyle CELISMEDIGI surece filtrelemez - Asama 0 mimari
+# onerisinin "kalite filtresi" bileseni (genislik/cesitlilik/secim'den
+# SONRA, ayri bir bagimsiz sinyal katmani DEGIL). 10 hafta ~ 50 islem gunu -
+# Kart 1'in en yavas MA cifti (50 gun) ile ayni buyukluk mertebesinde,
+# kasitli tutarlilik.
+RESEARCH_REGIME_WEEKLY_MA_WEEKS: int = 10
+
 # ---------------------------------------------------------------------------
 # Model kombinasyonu / ensemble (research/ensemble.py) - Modul 5
 # ---------------------------------------------------------------------------

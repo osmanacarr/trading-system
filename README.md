@@ -213,6 +213,22 @@ trading-system/
   (farklı bir formülasyonla — örn. farklı `ma_weeks`, sert filtre yerine
   ağırlık çarpanı — ileride tekrar denenebilir) ama varsayılan ve
   GitHub Actions workflow'u değişmedi.
+- **LONG vs SHORT ayrı anlamlılık (2026-08-12, kullanıcının gerçek hesabında
+  açık satış marjini olmadığı için ölçüldü) — beklenenin TERSİ çıktı.**
+  BIST 13 sembol, 673 işlem, 2018-2026: **LONG-only** (n=436, %64.8) t-stat=**5.43**
+  (tüm havuzdan — t=4.36 — DAHA GÜÇLÜ), E[R]=+0.79, win_rate=%42.2. **SHORT-only**
+  (n=237, %35.2) t-stat=**-2.04** (eşiği GEÇEMEDİ, üstelik YANLIŞ yönde —
+  ortalama ZARAR ediyor, E[R]=-0.19). Yorum: Donchian'ın edge'i neredeyse
+  tamamen LONG tarafında — BIST'in 2018-2026 arası süregelen yükseliş
+  eğilimiyle (TL zayıflaması + nominal artış) tutarlı. Kullanıcının SHORT
+  açamama kısıtı stratejiyi ZAYIFLATMIYOR, gerçekten uygulayabildiği alt
+  küme zaten daha güçlü. `config.py` `USER_CAN_SHORT=False` bayrağı
+  eklendi — paper trading motoru SHORT sinyalleri üretmeye/test etmeye
+  DEVAM EDER (istatistiksel olarak geçerli bir araştırma konusu), ama
+  dashboard (Sistem Günlüğü + Açık Pozisyonlar) her sinyalin yanına
+  LONG için "UYGULANABİLİR" (yeşil), SHORT için "SADECE İZLEME" (amber,
+  üzerine gelince "açık satış hesabı gerekir" ipucu) rozeti ekliyor —
+  bkz. `dashboard/lib/constants.ts` `directionApplicability()`.
 
 ## Zamanlama — günlük otomatik çalıştırma (Faz 4)
 

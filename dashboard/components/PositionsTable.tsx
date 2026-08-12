@@ -5,6 +5,7 @@ import clsx from "clsx";
 import { useDashboard } from "@/lib/dashboard-context";
 import { formatDaysSince, formatNumber } from "@/lib/format";
 import { classifyMarket } from "@/lib/market";
+import { directionApplicability } from "@/lib/constants";
 import { Panel } from "./ui/Panel";
 import { EmptyState } from "./ui/EmptyState";
 import { Badge } from "./ui/Badge";
@@ -120,7 +121,17 @@ export function PositionsTable() {
                   >
                     <td className="px-3 py-1.5 font-medium text-term-text mono-tabular">{pos.symbol}</td>
                     <td className="px-3 py-1.5">
-                      <Badge tone={pos.direction === 1 ? "green" : "red"}>{pos.direction === 1 ? "LONG" : "SHORT"}</Badge>
+                      <span className="flex items-center gap-1">
+                        <Badge tone={pos.direction === 1 ? "green" : "red"}>{pos.direction === 1 ? "LONG" : "SHORT"}</Badge>
+                        {(() => {
+                          const app = directionApplicability(pos.direction);
+                          return (
+                            <span title={app.hint}>
+                              <Badge tone={app.applicable ? "green" : "amber"}>{app.label}</Badge>
+                            </span>
+                          );
+                        })()}
+                      </span>
                     </td>
                     <td className="px-3 py-1.5 mono-tabular text-term-text-dim">{formatNumber(pos.entry_price, 4)}</td>
                     <td className="px-3 py-1.5 mono-tabular text-term-amber">{(stopDistancePct(pos) * 100).toFixed(2)}%</td>

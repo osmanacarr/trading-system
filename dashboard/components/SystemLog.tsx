@@ -4,8 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import { useDashboard } from "@/lib/dashboard-context";
 import { formatR } from "@/lib/format";
+import { directionApplicability } from "@/lib/constants";
 import { Panel } from "./ui/Panel";
 import { EmptyState } from "./ui/EmptyState";
+import { Badge } from "./ui/Badge";
 import type { TradeRecord } from "@/lib/types";
 
 function tradeKey(t: TradeRecord, i: number): string {
@@ -39,6 +41,15 @@ function LogLine({
         </span>
         <span className="truncate text-term-text">{trade.symbol}</span>
         <span className={clsx(dir === "LONG" ? "text-term-green" : "text-term-red", "text-[10px]")}>{dir}</span>
+        {isEntry &&
+          (() => {
+            const app = directionApplicability(trade.direction);
+            return (
+              <span title={app.hint}>
+                <Badge tone={app.applicable ? "green" : "amber"}>{app.label}</Badge>
+              </span>
+            );
+          })()}
         {!isEntry && trade.exit_reason && (
           <span className="text-[10px] text-term-text-faint">({trade.exit_reason})</span>
         )}

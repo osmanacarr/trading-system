@@ -151,6 +151,22 @@ SIGNIFICANCE_MULTI_TEST_MID_MAX: int = 6  # bu sayiya kadar 3.0, sonrasi 3.5
 PAPER_TRADING_INITIAL_CAPITAL: float = 10_000.0  # sanal sermaye baslangici
 PAPER_TRADING_DEFAULT_STRATEGY: str = "donchian"  # Faz 3'te dogrulanan birincil strateji
 
+# Kullanicinin GERCEK hesabinda SHORT (acik satis) yapip yapamadigi - BIST'te
+# acik satis icin ozel marjin izni gerekir, kullanicida su an YOK. Bu SADECE
+# GORSEL bir bayrak (bkz. dashboard "UYGULANABILIR"/"SADECE IZLEME" rozetleri) -
+# paper trading motoru SHORT sinyalleri uretmeye/test etmeye DEVAM EDER (Kart
+# 4'un simetrik parcasi, istatistiksel olarak gecerli bir arastirma konusu).
+# Kullanici ileride acik satis marjini olan bir hesap acarsa True yapilabilir.
+#
+# ILGILI BULGU (2026-08-12, BIST 13 sembol, 2018-2026, 673 islem): LONG-only
+# alt kume (n=436) t-stat=5.43, E[R]=+0.79 - TUM havuzdan (t=4.36, E[R]=+0.44)
+# DAHA GUCLU. SHORT-only alt kume (n=237) t-stat=-2.04 (ESIGI GECEMEDI, ustelik
+# YANLIS yonde - ortalama ZARAR ediyor, E[R]=-0.19). Yani kullanicinin SHORT
+# acamama kisiti, uygulanabilir stratejiyi ZAYIFLATMIYOR - MEVCUT edge zaten
+# neredeyse tamamen LONG tarafinda (BIST'in 2018-2026 sureklik yukselis
+# egilimiyle tutarli bir aciklama).
+USER_CAN_SHORT: bool = False
+
 # Kalici state (SQLite) ve log dosyalarinin yolu - proje kokune gore sabit,
 # calisma dizininden bagimsiz.
 PAPER_TRADING_DATA_DIR: Path = PROJECT_ROOT / "paper_trading" / "data"

@@ -118,3 +118,29 @@ def build_correlation_clusters(
             assignment[symbol] = f"cluster_{len(clusters) - 1}"
 
     return assignment
+
+
+def compute_cluster_exposure(clusters: dict[str, str], exposures: dict[str, float]) -> dict[str, float]:
+    """Her kume icin, o kumedeki sembollerin TOPLAM maruziyetini hesaplar.
+
+    M7 - CAPRAZ-GUN kume takibi icin kullanilir: build_correlation_clusters
+    hem BUGUNKU aday sinyalleri HEM DE ZATEN ACIK pozisyonlari kapsayacak
+    sekilde cagrilirsa, bu fonksiyon "acik pozisyonlarin bir kumede
+    simdiden ne kadar butce tukettigini" hesaplar - risk.portfolio.
+    optimize_portfolio'nun {kume: KALAN butce} sozlugune donusturulur
+    (bkz. paper_trading/runner.py::allocate_and_open_candidates).
+
+    Args:
+        clusters: {sembol: kume_id} (build_correlation_clusters ciktisi).
+        exposures: {sembol: maruziyet} - genelde |pozisyon_dolar_degeri|/equity
+            (mutlak deger, cagiran kod hesaplar).
+
+    Returns:
+        {kume_id: toplam_maruziyet}. exposures'ta olmayan semboller atlanir.
+    """
+    result: dict[str, float] = {}
+    for symbol, cluster_id in clusters.items():
+        if symbol not in exposures:
+            continue
+        result[cluster_id] = result.get(cluster_id, 0.0) + exposures[symbol]
+    return result

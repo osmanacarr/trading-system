@@ -74,6 +74,41 @@ def test_optimize_portfolio_respects_sector_exposure():
     assert tech_exposure <= 0.4 + 1e-6
 
 
+def test_optimize_portfolio_respects_per_sector_dict_exposure():
+    """M7 - cok-gunluk kume takibi: max_sector_exposure bir {sektor: sinir}
+    sozlugu olarak verilebilir, her sektor KENDI sinirina tabi olur."""
+    scores = {"A": 5.0, "B": 5.0, "C": 5.0, "D": 5.0}
+    sector_map = {"A": "tech", "B": "tech", "C": "energy", "D": "energy"}
+    weights = portfolio.optimize_portfolio(
+        scores,
+        max_gross_leverage=1.0,
+        max_position_size=0.5,
+        sector_map=sector_map,
+        max_sector_exposure={"tech": 0.1, "energy": 0.4},
+    )
+    tech_exposure = abs(weights["A"] + weights["B"])
+    energy_exposure = abs(weights["C"] + weights["D"])
+    assert tech_exposure <= 0.1 + 1e-6
+    assert energy_exposure <= 0.4 + 1e-6
+    # energy'nin daha genis butcesi var -> tech'ten daha fazla agirlik almali
+    assert energy_exposure > tech_exposure
+
+
+def test_optimize_portfolio_sector_missing_from_dict_gets_zero_budget():
+    """Sozlukte listelenmeyen bir sektor icin sinir 0.0 kabul edilir
+    (temkinli varsayim - bkz. docstring)."""
+    scores = {"A": 5.0, "B": 1.0}
+    sector_map = {"A": "unlisted_sector", "B": "listed_sector"}
+    weights = portfolio.optimize_portfolio(
+        scores,
+        max_gross_leverage=1.0,
+        max_position_size=0.5,
+        sector_map=sector_map,
+        max_sector_exposure={"listed_sector": 0.3},
+    )
+    assert np.isclose(weights["A"], 0.0, atol=1e-6)
+
+
 def test_constraint_impact_report_identical_weights_gives_perfect_correlation():
     weights = {"A": 0.3, "B": -0.2, "C": 0.1}
     report = portfolio.constraint_impact_report(weights, weights)

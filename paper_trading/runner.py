@@ -91,6 +91,7 @@ from notifications.telegram import send_telegram_message
 from paper_trading.logger import PaperTradingLogger
 from paper_trading.state import PaperTradingState, PositionRecord
 from risk import portfolio as risk_portfolio
+from risk import correlation_clusters
 from risk.correlation_clusters import build_correlation_clusters, compute_return_matrix
 from signals import bollinger_fade, donchian, ma_voting, price_action
 
@@ -536,6 +537,7 @@ def allocate_and_open_candidates(
     trade_logger: PaperTradingLogger,
     mark_prices: dict[str, float],
     dry_run: bool,
+    historical_price_data: dict[str, pd.DataFrame] | None = None,
 ) -> list[SymbolResult]:
     """Gunun tum yeni giris adaylarina, portfoy-geneli risk butcesini
     kullanarak pozisyon acar (M3 - PORTFOY TAHSISI, bkz. modul docstring'i).
@@ -543,8 +545,14 @@ def allocate_and_open_candidates(
     Adimlar:
         1. Mevcut acik pozisyonlarin (TUM stratejiler) tukettigi brut
            maruziyeti hesapla, kalan butceyi bul.
-        2. Adaylarin getiri korelasyonundan kume haritasi cikar
-           (risk/correlation_clusters.py).
+        2. Adaylarin VE mevcut acik pozisyonlarin (birlikte) getiri
+           korelasyonundan kume haritasi cikar (risk/correlation_clusters.py) -
+           M7 CAPRAZ-GUN kume takibi: bir kume dunku/onceki gunlerde acilan
+           pozisyonlarla ZATEN doluysa, bugunku YENI adaylar o kumede
+           KALAN butceyle sinirlanir (M3'un birakti	gi acik nokta - onceki
+           surumde yalnizca AYNI GUNUN adaylari birbirleriyle kumeleniyordu,
+           dun acilmis bir pozisyonun kume-maruziyeti hic hesaba
+           katilmiyordu).
         3. GECICI esit-agirlik skorla (bkz. modul docstring'i "GECICI
            SKOR") risk.portfolio.optimize_portfolio'yu cagirip hedef
            agirliklari bul.
@@ -559,6 +567,13 @@ def allocate_and_open_candidates(
         mark_prices: {sembol: bu calistirmadaki son kapanis} - mevcut acik
             pozisyonlarin guncel dolar maruziyetini olcmek icin.
         dry_run: True ise hicbir state/log degisikligi yapilmaz.
+        historical_price_data: {sembol: OHLCV df} - bu calistirmada
+            TARANMIS TUM sembollerin (yalniz adaylarin degil) gecmis
+            barlari; acik pozisyonlarin kume uyeligini belirlemek icin
+            kullanilir. None/eksikse (orn. o sembol bugun fetch
+            basarisiz oldu) o pozisyon kume hesabina KATILMAZ - brut
+            butceye zaten dahil oldugundan tamamen gozden kacmaz, sadece
+            o gune ozel kume sinirlamasi o pozisyon icin uygulanamaz.
 
     Returns:
         Her aday icin bir SymbolResult (action: entry_long/entry_short/
@@ -568,14 +583,18 @@ def allocate_and_open_candidates(
     if not candidates:
         return results
 
+    historical_price_data = historical_price_data or {}
     equity = state.get_equity()
 
     existing_positions = state.list_open_positions()
     existing_gross_exposure = 0.0
+    existing_position_exposure: dict[str, float] = {}  # sembol -> |maruziyet|/equity, kume hesabi icin
     if equity > 0:
         for pos in existing_positions:
             mark = mark_prices.get(pos.symbol, pos.entry_price)
-            existing_gross_exposure += abs(pos.size * mark) / equity
+            exposure = abs(pos.size * mark) / equity
+            existing_gross_exposure += exposure
+            existing_position_exposure[pos.symbol] = existing_position_exposure.get(pos.symbol, 0.0) + exposure
 
     remaining_budget = max(0.0, RISK_MAX_GROSS_LEVERAGE - existing_gross_exposure)
 
@@ -584,21 +603,49 @@ def allocate_and_open_candidates(
     if remaining_budget <= 0:
         weights: dict[str, float] = {key: 0.0 for key in candidate_keys}
     else:
-        price_data = {key: c.df for key, c in candidate_keys.items()}
-        returns_df = compute_return_matrix(price_data, lookback_days=RISK_CORRELATION_CLUSTER_LOOKBACK_DAYS)
-        clusters = (
+        # Kume haritasi ADAYLAR + ACIK POZISYON sembolleri BIRLIKTE cikarilir
+        # (M7) - boylece bir aday, dun acilmis korelasyonlu bir pozisyonla
+        # AYNI kumeye duserse bu tespit edilebilir.
+        combined_price_data: dict[str, pd.DataFrame] = {key: c.df for key, c in candidate_keys.items()}
+        existing_symbols = {pos.symbol for pos in existing_positions}
+        for symbol in existing_symbols:
+            df = historical_price_data.get(symbol)
+            if df is not None:
+                combined_price_data[f"__existing__::{symbol}"] = df
+
+        returns_df = compute_return_matrix(combined_price_data, lookback_days=RISK_CORRELATION_CLUSTER_LOOKBACK_DAYS)
+        all_clusters = (
             build_correlation_clusters(returns_df, threshold=RISK_CORRELATION_CLUSTER_THRESHOLD)
             if not returns_df.empty
-            else None
+            else {}
         )
+
+        candidate_clusters = {key: all_clusters[key] for key in candidate_keys if key in all_clusters}
+        existing_cluster_exposure_by_key = {
+            f"__existing__::{symbol}": exposure for symbol, exposure in existing_position_exposure.items()
+        }
+        existing_cluster_exposure = correlation_clusters.compute_cluster_exposure(
+            all_clusters, existing_cluster_exposure_by_key
+        )
+
+        # Her kume icin KALAN butce = toplam sinir - o kumede acik
+        # pozisyonlardan zaten tuketilmis pay (M7). Adaylarin kumesinde
+        # olmayan hicbir kume icin girdi TUTULMAZ (optimize_portfolio
+        # eksik anahtari 0.0 kabul eder - ama buradaki dongu candidate_clusters
+        # UZERINDEN gittigi icin her aday kumesi mutlaka bir girdiye sahip olur).
+        sector_caps: dict[str, float] = {}
+        for cluster_id in set(candidate_clusters.values()):
+            consumed = existing_cluster_exposure.get(cluster_id, 0.0)
+            sector_caps[cluster_id] = max(0.0, RISK_MAX_SECTOR_EXPOSURE - consumed)
+
         # GECICI skor (M6'dan once) - yon isaretiyle esit agirlik, bkz. modul docstring'i.
         scores = {key: float(c.direction) for key, c in candidate_keys.items()}
         weights = risk_portfolio.optimize_portfolio(
             scores,
             max_gross_leverage=remaining_budget,
             max_position_size=RISK_MAX_POSITION_SIZE,
-            sector_map=clusters,
-            max_sector_exposure=RISK_MAX_SECTOR_EXPOSURE,
+            sector_map=candidate_clusters if candidate_clusters else None,
+            max_sector_exposure=sector_caps if sector_caps else RISK_MAX_SECTOR_EXPOSURE,
         )
 
     for key, candidate in candidate_keys.items():
@@ -724,6 +771,7 @@ def run_once(
         results: list[SymbolResult] = []
         candidates: list[EntryCandidate] = []
         mark_prices: dict[str, float] = {}
+        price_data: dict[str, pd.DataFrame] = {}  # M7 - capraz-gun kume takibi icin (bkz. allocate_and_open_candidates)
 
         for market, tickers in markets.items():
             for symbol in tickers:
@@ -740,6 +788,7 @@ def run_once(
                     continue
 
                 mark_prices[symbol] = float(df["Close"].iloc[-1])
+                price_data[symbol] = df
 
                 for strategy in strategies:
                     outcome = evaluate_symbol_strategy(
@@ -752,7 +801,9 @@ def run_once(
                         if verbose:
                             _print_result(outcome, dry_run)
 
-        allocation_results = allocate_and_open_candidates(candidates, state, trade_logger, mark_prices, dry_run)
+        allocation_results = allocate_and_open_candidates(
+            candidates, state, trade_logger, mark_prices, dry_run, historical_price_data=price_data
+        )
         results.extend(allocation_results)
         if verbose:
             for result in allocation_results:

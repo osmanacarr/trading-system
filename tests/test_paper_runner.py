@@ -458,6 +458,37 @@ def test_correlated_candidates_capped_by_cluster_exposure(state, trade_logger):
     assert total_exposure <= 10_000.0 * 0.4 + 1e-6
 
 
+def test_cross_day_cluster_exposure_limits_new_candidate(state, trade_logger):
+    """M7 - dun (baska bir calistirmada) acilmis, YUKSEK KORELASYONLU bir
+    pozisyon zaten kume butcesinin cogunu tuketmisse, BUGUNKU yeni bir aday
+    (ayni kumede) o kalan kucuk butceyle SINIRLANMALI - M3'un birakip M7'ye
+    devrettigi capraz-gun kume takibi."""
+    # Mevcut (dunku) pozisyon equity'nin %35'ini kapliyor (RISK_MAX_SECTOR_EXPOSURE=0.4,
+    # kalan kume butcesi ~%5 olmali)
+    state.open_position(
+        "EXISTING-USD", "donchian", direction=1, entry_date=dt.date(2024, 1, 1),
+        entry_price=100.0, stop_price=95.0, size=35.0,  # 35*100=3500 = equity'nin %35'i
+    )
+
+    existing_df = _breakout_df()
+    new_df = _breakout_df()  # deterministik uretim -> existing_df ile ozdes/yuksek korelasyonlu
+    run_date = existing_df.index[-1].date()
+    fetch_fn = _make_fetch_fn({"EXISTING-USD": existing_df, "NEW-USD": new_df})
+
+    run_once(
+        strategies=["donchian"], run_date=run_date, state=state, trade_logger=trade_logger,
+        fetch_fn=fetch_fn, markets={"crypto": ["EXISTING-USD", "NEW-USD"]}, verbose=False,
+    )
+
+    new_pos = state.get_position("NEW-USD", "donchian")
+    if new_pos is not None:
+        new_exposure = abs(new_pos.size * new_pos.entry_price) / 10_000.0
+        # Capraz-gun kume takibi OLMASAYDI yeni aday tek basina RISK_MAX_POSITION_SIZE'a
+        # (0.2) kadar acilabilirdi; kume butcesi ZATEN %35 tuketildigi icin
+        # KALAN ~%5'i asmamali (kucuk bir tolerans).
+        assert new_exposure <= 0.4 - 0.35 + 0.02
+
+
 def test_dry_run_does_not_mutate_last_processed_date_for_candidates(state, trade_logger):
     df = _breakout_df()
     run_date = df.index[-1].date()

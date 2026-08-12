@@ -75,7 +75,7 @@ def optimize_portfolio(
     max_gross_leverage: float = RISK_MAX_GROSS_LEVERAGE,
     max_position_size: float = RISK_MAX_POSITION_SIZE,
     sector_map: dict[str, str] | None = None,
-    max_sector_exposure: float = RISK_MAX_SECTOR_EXPOSURE,
+    max_sector_exposure: float | dict[str, float] = RISK_MAX_SECTOR_EXPOSURE,
     dollar_neutral: bool = False,
 ) -> dict[str, float]:
     """Kompozit skorlara gore, risk kisitlari altinda agirliklandirilmis-getiriyi maksimize eden portfoy insa eder.
@@ -89,7 +89,14 @@ def optimize_portfolio(
         sector_map: Opsiyonel {sembol: sektor_adi}. None ise sektor kisiti
             UYGULANMAZ (guvenilir veri olmadan kisit uydurulmaz).
         max_sector_exposure: sector_map verildiyse, her sektor icin
-            |sum(w_i in sektor)| <= bu deger.
+            |sum(w_i in sektor)| <= bu deger. TEK bir float ise TUM
+            sektorlere ayni sinir uygulanir (varsayilan davranis). Bir
+            {sektor: sinir} sozlugu de verilebilir (M7 - cagiran kod, o
+            sektorde ZATEN acik pozisyonlardan tuketilmis payi dusup KALAN
+            butceyi buraya koyabilir - bkz. paper_trading/runner.py
+            "CAPRAZ-GUN KUME MARUZIYETI"). Sozlukte OLMAYAN bir sektor icin
+            sinir 0.0 kabul edilir (temkinli varsayim - cagiran kod HER
+            sektoru acikca listelemeli, sessizce sinirsiz birakilmaz).
         dollar_neutral: True ise sum(w_i) == 0 kisiti eklenir (esit
             long/short tutar).
 
@@ -124,12 +131,13 @@ def optimize_portfolio(
         sectors = sorted({sector_map[s] for s in symbols if s in sector_map})
         for sector in sectors:
             idx = np.array([i for i, s in enumerate(symbols) if sector_map.get(s) == sector])
+            cap = max_sector_exposure.get(sector, 0.0) if isinstance(max_sector_exposure, dict) else max_sector_exposure
 
-            def sector_upper(w: np.ndarray, idx: np.ndarray = idx) -> float:
-                return max_sector_exposure - np.sum(w[idx])
+            def sector_upper(w: np.ndarray, idx: np.ndarray = idx, cap: float = cap) -> float:
+                return cap - np.sum(w[idx])
 
-            def sector_lower(w: np.ndarray, idx: np.ndarray = idx) -> float:
-                return max_sector_exposure + np.sum(w[idx])
+            def sector_lower(w: np.ndarray, idx: np.ndarray = idx, cap: float = cap) -> float:
+                return cap + np.sum(w[idx])
 
             constraints.append({"type": "ineq", "fun": sector_upper})
             constraints.append({"type": "ineq", "fun": sector_lower})

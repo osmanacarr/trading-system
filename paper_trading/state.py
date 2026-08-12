@@ -8,11 +8,14 @@ komutlari atomik oldugundan es zamanlilik ve yarim-yazma riskine karsi
 daha dayaniklidir.
 
 Kisitlar:
-- Sembol basina EN FAZLA 1 acik pozisyon (positions.symbol PRIMARY KEY +
-  open_position()'daki acik kontrol).
+- (Sembol, strateji) basina EN FAZLA 1 acik pozisyon (positions PRIMARY
+  KEY (symbol, strategy) + open_position()'daki acik kontrol). M3'ten
+  ONCE anahtar yalnizca symbol'du (tek strateji varsayimi) - coklu
+  strateji (Kart 1/Kart 3) ayni sembolde paralel pozisyon acabilsin diye
+  (symbol, strategy) kompozit anahtara gecildi (bkz. _migrate_schema).
 - symbol_run_state, runner.py'nin ayni gun icinde birden fazla
-  calistirilmasinda ayni sinyali iki kere islememesini saglar
-  (bkz. paper_trading/runner.py IDEMPOTENCY notu).
+  calistirilmasinda ayni (sembol, strateji) sinyalini iki kere
+  islememesini saglar (bkz. paper_trading/runner.py IDEMPOTENCY notu).
 """
 
 from __future__ import annotations
@@ -22,7 +25,7 @@ import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 
-from config import PAPER_TRADING_INITIAL_CAPITAL, PAPER_TRADING_STATE_DB_PATH
+from config import PAPER_TRADING_DEFAULT_STRATEGY, PAPER_TRADING_INITIAL_CAPITAL, PAPER_TRADING_STATE_DB_PATH
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS account (
@@ -31,26 +34,117 @@ CREATE TABLE IF NOT EXISTS account (
 );
 
 CREATE TABLE IF NOT EXISTS positions (
-    symbol TEXT PRIMARY KEY,
+    symbol TEXT NOT NULL,
     strategy TEXT NOT NULL,
     direction INTEGER NOT NULL,
     entry_date TEXT NOT NULL,
     entry_price REAL NOT NULL,
     stop_price REAL NOT NULL,
     target_price REAL,
-    size REAL NOT NULL
+    size REAL NOT NULL,
+    PRIMARY KEY (symbol, strategy)
 );
 
 CREATE TABLE IF NOT EXISTS symbol_run_state (
-    symbol TEXT PRIMARY KEY,
-    last_processed_date TEXT NOT NULL
+    symbol TEXT NOT NULL,
+    strategy TEXT NOT NULL,
+    last_processed_date TEXT NOT NULL,
+    PRIMARY KEY (symbol, strategy)
 );
 
 CREATE TABLE IF NOT EXISTS stop_warnings (
-    symbol TEXT PRIMARY KEY,
-    warned_date TEXT NOT NULL
+    symbol TEXT NOT NULL,
+    strategy TEXT NOT NULL,
+    warned_date TEXT NOT NULL,
+    PRIMARY KEY (symbol, strategy)
 );
 """
+
+
+def _table_exists(conn: sqlite3.Connection, name: str) -> bool:
+    row = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", (name,)).fetchone()
+    return row is not None
+
+
+def _pk_columns(conn: sqlite3.Connection, table: str) -> list[str]:
+    """PRIMARY KEY'e ait kolon adlarini (kompozit ise sirayla) dondurur."""
+    rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
+    pk_rows = sorted((r for r in rows if r[5] > 0), key=lambda r: r[5])
+    return [r[1] for r in pk_rows]
+
+
+def _column_names(conn: sqlite3.Connection, table: str) -> list[str]:
+    return [r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()]
+
+
+def _migrate_schema(conn: sqlite3.Connection) -> None:
+    """Eski (yalniz-symbol PK) semayi (symbol, strategy) kompozit PK semasina,
+    VAR OLAN SATIRLARI KAYBETMEDEN tasir (M3 - coklu strateji destegi).
+
+    Eski symbol_run_state/stop_warnings tablolarinda strategy kolonu hic
+    yoktu (tek strateji varsayimiydi); bu satirlar
+    PAPER_TRADING_DEFAULT_STRATEGY ("donchian") ile doldurulur - bu depoda
+    su ana kadar fiilen calisan tek strateji zaten donchian'di.
+    """
+    if _table_exists(conn, "positions") and _pk_columns(conn, "positions") == ["symbol"]:
+        conn.executescript(
+            """
+            ALTER TABLE positions RENAME TO positions_old_migration;
+            CREATE TABLE positions (
+                symbol TEXT NOT NULL,
+                strategy TEXT NOT NULL,
+                direction INTEGER NOT NULL,
+                entry_date TEXT NOT NULL,
+                entry_price REAL NOT NULL,
+                stop_price REAL NOT NULL,
+                target_price REAL,
+                size REAL NOT NULL,
+                PRIMARY KEY (symbol, strategy)
+            );
+            INSERT INTO positions
+                (symbol, strategy, direction, entry_date, entry_price, stop_price, target_price, size)
+                SELECT symbol, strategy, direction, entry_date, entry_price, stop_price, target_price, size
+                FROM positions_old_migration;
+            DROP TABLE positions_old_migration;
+            """
+        )
+        conn.commit()
+
+    if _table_exists(conn, "symbol_run_state") and "strategy" not in _column_names(conn, "symbol_run_state"):
+        conn.executescript(
+            f"""
+            ALTER TABLE symbol_run_state RENAME TO symbol_run_state_old_migration;
+            CREATE TABLE symbol_run_state (
+                symbol TEXT NOT NULL,
+                strategy TEXT NOT NULL,
+                last_processed_date TEXT NOT NULL,
+                PRIMARY KEY (symbol, strategy)
+            );
+            INSERT INTO symbol_run_state (symbol, strategy, last_processed_date)
+                SELECT symbol, '{PAPER_TRADING_DEFAULT_STRATEGY}', last_processed_date
+                FROM symbol_run_state_old_migration;
+            DROP TABLE symbol_run_state_old_migration;
+            """
+        )
+        conn.commit()
+
+    if _table_exists(conn, "stop_warnings") and "strategy" not in _column_names(conn, "stop_warnings"):
+        conn.executescript(
+            f"""
+            ALTER TABLE stop_warnings RENAME TO stop_warnings_old_migration;
+            CREATE TABLE stop_warnings (
+                symbol TEXT NOT NULL,
+                strategy TEXT NOT NULL,
+                warned_date TEXT NOT NULL,
+                PRIMARY KEY (symbol, strategy)
+            );
+            INSERT INTO stop_warnings (symbol, strategy, warned_date)
+                SELECT symbol, '{PAPER_TRADING_DEFAULT_STRATEGY}', warned_date
+                FROM stop_warnings_old_migration;
+            DROP TABLE stop_warnings_old_migration;
+            """
+        )
+        conn.commit()
 
 
 class PositionAlreadyOpenError(RuntimeError):
@@ -111,6 +205,7 @@ class PaperTradingState:
             self._conn.execute("PRAGMA journal_mode=WAL")
 
         self._conn.execute("PRAGMA foreign_keys=ON")
+        _migrate_schema(self._conn)
         self._conn.executescript(_SCHEMA)
         self._conn.commit()
         self._ensure_account(initial_capital)
@@ -141,23 +236,36 @@ class PaperTradingState:
 
     # -- Pozisyonlar ------------------------------------------------------
 
-    def get_position(self, symbol: str) -> PositionRecord | None:
-        """Bir sembol icin acik pozisyon varsa dondurur, yoksa None."""
+    def get_position(self, symbol: str, strategy: str) -> PositionRecord | None:
+        """Bir (sembol, strateji) cifti icin acik pozisyon varsa dondurur, yoksa None."""
         row = self._conn.execute(
             "SELECT symbol, strategy, direction, entry_date, entry_price, stop_price, target_price, size "
-            "FROM positions WHERE symbol = ?",
-            (symbol,),
+            "FROM positions WHERE symbol = ? AND strategy = ?",
+            (symbol, strategy),
         ).fetchone()
         if row is None:
             return None
         return _row_to_position(row)
 
-    def list_open_positions(self) -> list[PositionRecord]:
-        """Tum acik pozisyonlari sembol adina gore sirali dondurur."""
-        rows = self._conn.execute(
-            "SELECT symbol, strategy, direction, entry_date, entry_price, stop_price, target_price, size "
-            "FROM positions ORDER BY symbol"
-        ).fetchall()
+    def list_open_positions(self, strategy: str | None = None) -> list[PositionRecord]:
+        """Acik pozisyonlari sembol adina gore sirali dondurur.
+
+        Args:
+            strategy: Verilirse yalnizca bu stratejinin pozisyonlari
+                dondurulur; None ise TUM stratejilerdeki acik pozisyonlar
+                (portfoy-geneli maruziyet hesaplari icin gerekli).
+        """
+        if strategy is None:
+            rows = self._conn.execute(
+                "SELECT symbol, strategy, direction, entry_date, entry_price, stop_price, target_price, size "
+                "FROM positions ORDER BY symbol, strategy"
+            ).fetchall()
+        else:
+            rows = self._conn.execute(
+                "SELECT symbol, strategy, direction, entry_date, entry_price, stop_price, target_price, size "
+                "FROM positions WHERE strategy = ? ORDER BY symbol",
+                (strategy,),
+            ).fetchall()
         return [_row_to_position(row) for row in rows]
 
     def open_position(
@@ -174,11 +282,13 @@ class PaperTradingState:
         """Yeni bir pozisyon acar.
 
         Raises:
-            PositionAlreadyOpenError: symbol icin zaten acik bir pozisyon varsa
-                (sembol basina en fazla 1 pozisyon kurali).
+            PositionAlreadyOpenError: bu (symbol, strategy) cifti icin
+                zaten acik bir pozisyon varsa. Ayni sembolde FARKLI bir
+                strateji zaten pozisyon tutuyor olabilir - bu izinlidir
+                (M3 - coklu strateji destegi).
         """
-        if self.get_position(symbol) is not None:
-            raise PositionAlreadyOpenError(f"{symbol} icin zaten acik pozisyon var")
+        if self.get_position(symbol, strategy) is not None:
+            raise PositionAlreadyOpenError(f"{symbol}/{strategy} icin zaten acik pozisyon var")
         self._conn.execute(
             "INSERT INTO positions "
             "(symbol, strategy, direction, entry_date, entry_price, stop_price, target_price, size) "
@@ -187,55 +297,58 @@ class PaperTradingState:
         )
         self._conn.commit()
 
-    def close_position(self, symbol: str) -> None:
-        """Bir sembolun acik pozisyonunu siler.
+    def close_position(self, symbol: str, strategy: str) -> None:
+        """Bir (sembol, strateji) ciftinin acik pozisyonunu siler.
 
         Raises:
-            PositionNotFoundError: symbol icin acik pozisyon yoksa.
+            PositionNotFoundError: bu (symbol, strategy) cifti icin acik
+                pozisyon yoksa.
         """
-        cur = self._conn.execute("DELETE FROM positions WHERE symbol = ?", (symbol,))
-        self._conn.execute("DELETE FROM stop_warnings WHERE symbol = ?", (symbol,))
+        cur = self._conn.execute("DELETE FROM positions WHERE symbol = ? AND strategy = ?", (symbol, strategy))
+        self._conn.execute("DELETE FROM stop_warnings WHERE symbol = ? AND strategy = ?", (symbol, strategy))
         self._conn.commit()
         if cur.rowcount == 0:
-            raise PositionNotFoundError(f"{symbol} icin acik pozisyon bulunamadi")
+            raise PositionNotFoundError(f"{symbol}/{strategy} icin acik pozisyon bulunamadi")
 
-    # -- Idempotency: sembol basina son islenen bar tarihi -----------------
+    # -- Idempotency: (sembol, strateji) basina son islenen bar tarihi -----
 
-    def get_last_processed_date(self, symbol: str) -> dt.date | None:
-        """Bu sembol icin en son islenmis sinyal barinin tarihini dondurur (yoksa None)."""
+    def get_last_processed_date(self, symbol: str, strategy: str) -> dt.date | None:
+        """Bu (sembol, strateji) cifti icin en son islenmis sinyal barinin tarihini dondurur (yoksa None)."""
         row = self._conn.execute(
-            "SELECT last_processed_date FROM symbol_run_state WHERE symbol = ?", (symbol,)
+            "SELECT last_processed_date FROM symbol_run_state WHERE symbol = ? AND strategy = ?",
+            (symbol, strategy),
         ).fetchone()
         if row is None:
             return None
         return dt.date.fromisoformat(row[0])
 
-    def set_last_processed_date(self, symbol: str, date_value: dt.date) -> None:
-        """Bu sembol icin son islenen sinyal bari tarihini kalici olarak kaydeder."""
+    def set_last_processed_date(self, symbol: str, strategy: str, date_value: dt.date) -> None:
+        """Bu (sembol, strateji) cifti icin son islenen sinyal bari tarihini kalici olarak kaydeder."""
         self._conn.execute(
-            "INSERT INTO symbol_run_state (symbol, last_processed_date) VALUES (?, ?) "
-            "ON CONFLICT(symbol) DO UPDATE SET last_processed_date = excluded.last_processed_date",
-            (symbol, date_value.isoformat()),
+            "INSERT INTO symbol_run_state (symbol, strategy, last_processed_date) VALUES (?, ?, ?) "
+            "ON CONFLICT(symbol, strategy) DO UPDATE SET last_processed_date = excluded.last_processed_date",
+            (symbol, strategy, date_value.isoformat()),
         )
         self._conn.commit()
 
-    # -- Stop'a yaklasma uyarisi idempotency: sembol basina son uyarilan tarih --
+    # -- Stop'a yaklasma uyarisi idempotency: (sembol, strateji) basina son uyarilan tarih --
 
-    def get_stop_warning_date(self, symbol: str) -> dt.date | None:
-        """Bu sembol icin en son stop-yaklasma uyarisinin gonderildigi tarihi dondurur (yoksa None)."""
+    def get_stop_warning_date(self, symbol: str, strategy: str) -> dt.date | None:
+        """Bu (sembol, strateji) cifti icin en son stop-yaklasma uyarisinin gonderildigi tarihi dondurur (yoksa None)."""
         row = self._conn.execute(
-            "SELECT warned_date FROM stop_warnings WHERE symbol = ?", (symbol,)
+            "SELECT warned_date FROM stop_warnings WHERE symbol = ? AND strategy = ?",
+            (symbol, strategy),
         ).fetchone()
         if row is None:
             return None
         return dt.date.fromisoformat(row[0])
 
-    def set_stop_warning_date(self, symbol: str, date_value: dt.date) -> None:
-        """Bu sembol icin son stop-yaklasma uyarisi tarihini kalici olarak kaydeder."""
+    def set_stop_warning_date(self, symbol: str, strategy: str, date_value: dt.date) -> None:
+        """Bu (sembol, strateji) cifti icin son stop-yaklasma uyarisi tarihini kalici olarak kaydeder."""
         self._conn.execute(
-            "INSERT INTO stop_warnings (symbol, warned_date) VALUES (?, ?) "
-            "ON CONFLICT(symbol) DO UPDATE SET warned_date = excluded.warned_date",
-            (symbol, date_value.isoformat()),
+            "INSERT INTO stop_warnings (symbol, strategy, warned_date) VALUES (?, ?, ?) "
+            "ON CONFLICT(symbol, strategy) DO UPDATE SET warned_date = excluded.warned_date",
+            (symbol, strategy, date_value.isoformat()),
         )
         self._conn.commit()
 

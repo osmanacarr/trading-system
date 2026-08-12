@@ -44,22 +44,27 @@ Sharpe yazdırılır; sonda tüm işlemler havuzlanıp t-istatistiği ve Sharpe 
 
 ```bash
 # Gunluk calistirma (gercek state/log yazar)
-python -m paper_trading.runner --strategy donchian
+python -m paper_trading.runner --strategies donchian
+
+# Birden fazla strateji paralel calistirilabilir (M3 - coklu strateji destegi)
+python -m paper_trading.runner --strategies donchian price_action
 
 # Once ne yapacagini gormek icin (HICBIR state/log degisikligi yapmaz)
-python -m paper_trading.runner --strategy donchian --dry-run
+python -m paper_trading.runner --strategies donchian --dry-run
 
 # Gecmis bir tarih icin simulasyon (test/hata ayiklama)
-python -m paper_trading.runner --strategy donchian --date 2026-08-05
+python -m paper_trading.runner --strategies donchian --date 2026-08-05
 
 # Haftalik ozet raporu (stdout'a; --out ile dosyaya da yazar)
 python -m paper_trading.report
 python -m paper_trading.report --out paper_trading/logs/weekly_report.md
 ```
 
-- **State:** `paper_trading/data/state.db` (SQLite) — açık pozisyonlar (sembol
-  başına en fazla 1), sanal hesap sermayesi (başlangıç 10.000, `config.PAPER_TRADING_INITIAL_CAPITAL`)
-  ve idempotency için sembol başına "son işlenen bar tarihi" burada tutulur.
+- **State:** `paper_trading/data/state.db` (SQLite) — açık pozisyonlar
+  ((sembol, strateji) çifti başına en fazla 1 — M3'ten itibaren aynı sembolde
+  birden fazla strateji PARALEL pozisyon tutabilir), sanal hesap sermayesi
+  (başlangıç 10.000, `config.PAPER_TRADING_INITIAL_CAPITAL`) ve idempotency
+  için (sembol, strateji) başına "son işlenen bar tarihi" burada tutulur.
   JSON değil SQLite seçildi: yarım kalan bir yazma (çökme, güç kesintisi)
   SQLite'ta atomik INSERT/UPDATE/DELETE + WAL modu sayesinde dosyayı
   bozmaz; tek büyük bir JSON dosyası bu garantiyi vermez.
@@ -71,8 +76,20 @@ python -m paper_trading.report --out paper_trading/logs/weekly_report.md
   - `summary.json` — dashboard'un doğrudan okuyabileceği küçük özet
     (güncel toplam equity, açık pozisyon sayısı, son 7 günün işlem sayısı)
 - **İdempotency:** Aynı gün içinde `runner.py` birden fazla kez çalıştırılırsa,
-  bir sembol için en son işlenen bar tarihi zaten güncel ise o sembol
-  `skip_already_processed` olarak atlanır — aynı sinyal iki kez işlenmez.
+  bir (sembol, strateji) çifti için en son işlenen bar tarihi zaten güncel ise
+  o çift `skip_already_processed` olarak atlanır — aynı sinyal iki kez işlenmez.
+- **Evren (M3 - evren genişletme):** BIST tarafı artık sabit 13 sembol değil,
+  Gözcü'nün canlı evrenini (`gozcu.universe.get_bist_universe()`, dinamik
+  Wikipedia çekimi, ~347 sembol — başarısız/boş dönerse 13 sembole düşer)
+  kullanır. Bu, `risk/correlation_clusters.py` + `risk/portfolio.py` ile
+  ATOMİK teslim edildi: yeni girişler önce mevcut açık pozisyonların
+  tükettiği brüt kaldıraç bütçesi düşülerek, sonra getiri-korelasyonu
+  kümelerine göre kısıtlanarak açılır (bkz. `paper_trading/runner.py`
+  modül docstring'i "PORTFÖY TAHSİSİ").
+- **Çoklu strateji (M3):** `--strategies` ile birden fazla strateji paralel
+  çalıştırılabilir; aynı sembolde farklı stratejiler bağımsız pozisyon
+  tutabilir (`paper_trading/state.py`'de pozisyon anahtarı artık
+  (sembol, strateji) kompozit).
 - **Piyasa takvimi:** BIST sembolleri için hafta sonu (Cts/Paz) günlerinde
   hiç fetch denenmez (`skip_weekend`); kripto her gün çalışır. Tam resmi
   tatil takvimi bu sürümde yok (bkz. "Bilinen riskler").
@@ -139,8 +156,8 @@ trading-system/
 
 ## Doğrulama durumu
 
-- `python -m pytest -q` → **157/157 test geçiyor** (92 backtest/veri/sinyal/istatistik/
-  paper trading + 65 GÖZCÜ; tamamı sentetik/deterministik veri veya mock'lanmış
+- `python -m pytest -q` → **305/305 test geçiyor** (backtest/veri/sinyal/istatistik/
+  paper trading/risk/GÖZCÜ; tamamı sentetik/deterministik veri veya mock'lanmış
   yfinance/Telegram çağrılarıyla, gerçek ağ bağlantısı gerektirmez).
 - Donchian + BIST canlı veriyle uçtan uca doğrulandı (2019-01-01 -> bugün, 13 sembol,
   ATR(20)): havuzlanmış 594 işlem, t-stat ≈ 4.29 (anlamlı), Sharpe %95 GA ≈ [0.42, 0.59] —
@@ -167,7 +184,7 @@ kendi makinenizde/sunucunuzda çalıştırmak isterseniz referans olarak duruyor
 ```cron
 # Her is gunu (Pzt-Cum) 19:00'da calistir (BIST kapanisindan, kripto icin
 # gun sonuna yakin bir saat secildi - istege gore degistirin)
-0 19 * * 1-5 cd /path/to/trading-system && /path/to/venv/bin/python -m paper_trading.runner --strategy donchian >> paper_trading/logs/cron.log 2>&1
+0 19 * * 1-5 cd /path/to/trading-system && /path/to/venv/bin/python -m paper_trading.runner --strategies donchian >> paper_trading/logs/cron.log 2>&1
 ```
 
 ### Seçenek B — Windows Task Scheduler
@@ -175,7 +192,7 @@ kendi makinenizde/sunucunuzda çalıştırmak isterseniz referans olarak duruyor
 ```powershell
 # PowerShell'den bir kez calistirarak gorevi olusturur (gunluk 19:00)
 $action = New-ScheduledTaskAction -Execute "python.exe" `
-    -Argument "-m paper_trading.runner --strategy donchian" `
+    -Argument "-m paper_trading.runner --strategies donchian" `
     -WorkingDirectory "C:\path\to\trading-system"
 $trigger = New-ScheduledTaskTrigger -Daily -At 19:00
 Register-ScheduledTask -TaskName "PaperTradingDaily" -Action $action -Trigger $trigger
@@ -203,7 +220,7 @@ Ne yapıyor, adım adım:
 3. **Testler önce çalışır** (`python -m pytest -q`) — başarısız olursa (varsayılan
    GitHub Actions davranışı gereği) sonraki adımlar (runner, commit, push)
    **hiç çalışmaz**; bozuk kod state'e/loglara asla dokunmaz.
-4. `python -m paper_trading.runner --strategy donchian` — dry-run **DEĞİL**,
+4. `python -m paper_trading.runner --strategies donchian` — dry-run **DEĞİL**,
    gerçek state/log güncellemesi yapar.
 5. `paper_trading/data/state.db` ve `paper_trading/logs/` altındaki değişiklikler
    otomatik commit'lenip aynı branch'e push'lanır (`permissions: contents: write`
@@ -492,12 +509,17 @@ tutulur — paper trading `state.db`'sine dokunulmaz.
   bir API çağrısı yapılır. Şu an bilinçli olarak basit tutuldu (gorev tanımı);
   ileride bir tatil takvimi kütüphanesi (`pandas_market_calendars` gibi)
   eklenebilir.
-- **Çoklu-sembol equity ilişkisi:** Tüm semboller TEK bir paylaşılan hesap
-  equity'sinden %1 risk alıyor (gerçekçi bir portföy davranışı), ancak
-  semboller arası korelasyon (özellikle 13 BIST sembolü, bkz. Faz 3.5 §6)
-  hesaba katılmıyor — aynı gün birden fazla korelasyonlu sembolde eşzamanlı
-  giriş, göründüğünden daha yüksek gerçek risk anlamına gelebilir.
-  `risk/portfolio.py` (Faz 3.5 §6, henüz kodlanmadı) bunu ele alacak modül.
+- **Çoklu-sembol equity ilişkisi (M3'te ele alındı):** Tüm semboller TEK bir
+  paylaşılan hesap equity'sinden %1 risk alıyor; artık `risk/portfolio.py` +
+  `risk/correlation_clusters.py` günün TÜM yeni giriş adaylarını, mevcut açık
+  pozisyonların tükettiği brüt kaldıraç bütçesi ve getiri-korelasyonu
+  kümelerine göre kısıtlayarak açıyor (bkz. yukarıdaki "Evren" notu). Bilinen
+  sınır: mevcut açık pozisyonların küme maruziyeti, YENİ adaylara karşı ayrı
+  ayrı (güne özel değil, kalıcı olarak) sınırlanmıyor — sadece toplam brüt
+  kaldıraç bütçesi düşülüyor; kümesel çapraz-gün takibi ileride genişletilebilir.
+  Korelasyon eşiği (0.6) sabit değil — bkz. `config.py`
+  `RISK_CORRELATION_CLUSTER_THRESHOLD` yorumu (birkaç hafta veri sonrası
+  0.5'e çekilmesi değerlendirilecek).
 - **Tek makine/tek process varsayımı:** SQLite dosya kilitleri aynı anda TEK
   bir yazan process'i güvenle destekler; runner'ı aynı state.db üzerinde
   paralel/çakışan zamanlamalarla çalıştırmayın (orn. hem cron hem manuel
@@ -527,7 +549,9 @@ tutulur — paper trading `state.db`'sine dokunulmaz.
   (üçgen, destek/direnç, swing high/low) gerektiren versiyonu; formalizasyon
   dokümanı SS3'te yalnızca Model B kapalı-form olarak verildi. Model A, otomatik
   swing/yapı tespiti eklendiğinde `signals/price_action.py`'ye eklenebilir.
-- `risk/position_sizing.py` (Kelly) ve `risk/portfolio.py` (korelasyon bazlı risk
-  bütçesi) — Faz 3.5 SS5-6'da tanımlanan, henüz kodlanmamış modüller.
-- Kart 1 (MA oylama), Kart 2 (VWAP mean reversion), Kart 3 (Bollinger/Keltner
-  fade) — Faz 2'de tanımlı ama bu iterasyonun kapsamı dışında.
+- `risk/position_sizing.py` (Kelly) — Faz 3.5 SS5'te tanımlanan, henüz
+  kodlanmamış modül (`risk/portfolio.py` M2/M3'te kodlanıp paper trading'e
+  bağlandı, bkz. yukarıdaki "Evren" ve "Çoklu-sembol equity ilişkisi" notları).
+- Kart 1 (MA oylama), Kart 3 (Bollinger/Keltner fade) — kodlanma sırasında
+  (bkz. proje kökündeki mimari genişletme planı). Kart 2 (VWAP mean
+  reversion, gün-içi) daha düşük öncelikli, henüz planlanmadı.

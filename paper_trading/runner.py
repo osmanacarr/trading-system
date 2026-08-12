@@ -1,27 +1,46 @@
 """paper_trading/runner.py - gunluk paper trading calistiricisi.
 
-Her sembol icin akis:
+Her sembol icin (TUM aktif stratejiler PAYLASIR - sembol basina veri BIR
+KEZ cekilir):
     en guncel veriyi cek (3 deneme + exponential backoff) ->
-    sinyalleri uret (backtest ile AYNI signals.* fonksiyonlari) ->
-    acik pozisyon VARSA: stop/trailing kontrolu (tetiklenirse kapat) ->
-    acik pozisyon YOKSA: giris sinyali varsa ac (backtest.engine ile AYNI
-    ATR-stop / pozisyon-buyuklugu formulleri) ->
-    state'i guncelle (idempotency icin sembolun son islenen bar tarihi)
+    her aktif strateji icin sinyal uret (backtest ile AYNI signals.*
+    fonksiyonlari) ->
+    acik pozisyon VARSA (o strateji icin): stop/trailing kontrolu (tetiklenirse
+    HEMEN kapat - exit risk AZALTIR, portfoy tahsisini beklemez) ->
+    acik pozisyon YOKSA ve giris sinyali VARSA: HENUZ ACMA, bir
+    EntryCandidate olarak biriktir.
 
-IDEMPOTENCY: Her sembol icin islenen son bar'in tarihi state'e yazilir
-(PaperTradingState.set_last_processed_date). Runner ayni gun icinde tekrar
-calistirilirsa, veri kaynagindaki en guncel bar hala ayni oldugundan
-(signal_date degismez), sembol "zaten islendi" olarak atlanir - ayni sinyal
-iki kere isleme alinmaz.
+PORTFOY TAHSISI (M3 - coklu strateji + evren genisletme ile eklendi):
+Tum sembol x strateji taramasi bittikten SONRA, gunun tum yeni giris
+adaylari TEK SEFERDE degerlendirilir: mevcut acik pozisyonlarin (tum
+stratejiler) tukettigi brut maruziyet hesaplanir, kalan risk butcesi
+risk.portfolio.optimize_portfolio ile (getiri-korelasyonu kumelerine gore
+kisitlanarak - bkz. risk/correlation_clusters.py) adaylara PAYLASTIRILIR.
+Bu adim OLMADAN evren genisletmesi (13 -> ~yuzlerce sembol) devreye
+girmez: kontrolsuz genis evren + yonetilmeyen korelasyon riski, ayni
+trend gununde onlarca korelasyonlu sembolde es zamanli giris anlamina
+gelip brut kaldiraci fiilen anlamsizlastirabilirdi.
+
+GECICI SKOR (M6'dan ONCE): adaylar arasi onceliklendirme su an sadece
+yon isaretiyle ESIT agirlik kullaniyor (research.ensemble.composite_score
+HENUZ baglanmadi - factor_history yeterince birikmeden IC-agirlikli skoru
+guvenilirmis gibi sunmamak icin bilincli bir ara adim, bkz. M6).
+
+IDEMPOTENCY: Her (sembol, strateji) cifti icin islenen son bar'in tarihi
+state'e yazilir (PaperTradingState.set_last_processed_date). Runner ayni
+gun icinde tekrar calistirilirsa, veri kaynagindaki en guncel bar hala
+ayni oldugundan (signal_date degismez), o (sembol, strateji) cifti "zaten
+islendi" olarak atlanir.
 
 DAYANIKLILIK: Bir sembolde veri cekme kalici olarak basarisiz olursa
-(3 deneme sonrasi) o sembol atlanir ve loglanir; calisma DURMAZ, digerlerine
-devam edilir.
+(3 deneme sonrasi) o sembol (TUM stratejiler icin) atlanir ve loglanir;
+calisma DURMAZ, digerlerine devam edilir.
 
 Kullanim:
-    python -m paper_trading.runner --strategy donchian
-    python -m paper_trading.runner --strategy donchian --dry-run
-    python -m paper_trading.runner --strategy donchian --date 2026-08-05
+    python -m paper_trading.runner --strategies donchian
+    python -m paper_trading.runner --strategies donchian price_action
+    python -m paper_trading.runner --strategies donchian --dry-run
+    python -m paper_trading.runner --strategies donchian --date 2026-08-05
 """
 
 from __future__ import annotations
@@ -46,7 +65,6 @@ from backtest.engine import (
     resolve_intrabar_exit,
 )
 from config import (
-    BIST_TICKERS,
     COMMISSION_PCT,
     CRYPTO_TICKERS,
     DONCHIAN_ATR_PERIOD,
@@ -56,15 +74,23 @@ from config import (
     MIN_BARS_REQUIRED,
     PAPER_TRADING_DEFAULT_STRATEGY,
     PAPER_TRADING_LOOKBACK_DAYS,
+    RISK_CORRELATION_CLUSTER_LOOKBACK_DAYS,
+    RISK_CORRELATION_CLUSTER_THRESHOLD,
+    RISK_MAX_GROSS_LEVERAGE,
+    RISK_MAX_POSITION_SIZE,
+    RISK_MAX_SECTOR_EXPOSURE,
     RISK_PER_TRADE,
     SLIPPAGE_PCT,
     STOP_PROXIMITY_WARNING_PCT,
 )
 from data.adjust import adjust_jumps
 from data.fetch import fetch_ohlcv
+from gozcu.universe import get_bist_universe
 from notifications.telegram import send_telegram_message
 from paper_trading.logger import PaperTradingLogger
 from paper_trading.state import PaperTradingState, PositionRecord
+from risk import portfolio as risk_portfolio
+from risk.correlation_clusters import build_correlation_clusters, compute_return_matrix
 from signals import donchian, price_action
 
 log = logging.getLogger("paper_trading.runner")
@@ -74,69 +100,91 @@ STRATEGY_SIGNAL_FN: dict[str, Callable[[pd.DataFrame], pd.DataFrame]] = {
     "price_action": price_action.generate_signals,
 }
 
-MARKETS: dict[str, list[str]] = {
-    "bist": BIST_TICKERS,
-    "crypto": CRYPTO_TICKERS,
-}
-
 FetchFn = Callable[..., pd.DataFrame]
 
 
+def _default_markets() -> dict[str, list[str]]:
+    """Varsayilan evren: BIST icin Gozcu'nun canli evrenini (dinamik
+    Wikipedia cekimi; basarisiz/bos donerse gozcu.universe kendi icinde
+    config.BIST_TICKERS - 13 likit sembol - yedegine duser), kripto icin
+    sabit CRYPTO_TICKERS (M3 - evren genisletme, risk/correlation_clusters.py
+    ile ATOMIK teslim edildi - bkz. modul docstring'i "PORTFOY TAHSISI")."""
+    return {"bist": get_bist_universe(), "crypto": list(CRYPTO_TICKERS)}
+
+
 def _format_entry_telegram_message(
-    symbol: str, direction: int, entry_price: float, stop_price: float, signal_date: dt.date
+    symbol: str, strategy: str, direction: int, entry_price: float, stop_price: float, signal_date: dt.date
 ) -> str:
-    """GIRIS bildirimi metnini olusturur (orn. "🔴 GIRIS: EREGL.IS SHORT @ 38.66
-    | Stop: 41.72 (+7.9%) | 2026-08-07"). Emoji yon renginde: LONG=yesil,
-    SHORT=kirmizi (dashboard'daki ayni renk disipliniyle tutarli)."""
+    """GIRIS bildirimi metnini olusturur (orn. "🔴 GIRIS [donchian]: EREGL.IS
+    SHORT @ 38.66 | Stop: 41.72 (+7.9%) | 2026-08-07"). Emoji yon renginde:
+    LONG=yesil, SHORT=kirmizi (dashboard'daki ayni renk disipliniyle
+    tutarli)."""
     emoji = "🟢" if direction == 1 else "🔴"
     yon = "LONG" if direction == 1 else "SHORT"
     stop_pct = abs(stop_price - entry_price) / entry_price * 100
     return (
-        f"{emoji} GIRIS: {symbol} {yon} @ {entry_price:.2f} | "
+        f"{emoji} GIRIS [{strategy}]: {symbol} {yon} @ {entry_price:.2f} | "
         f"Stop: {stop_price:.2f} ({stop_pct:+.1f}%) | {signal_date.isoformat()}"
     )
 
 
 def _format_exit_telegram_message(
-    symbol: str, direction: int, exit_price: float, r_multiple: float, exit_reason: str, signal_date: dt.date
+    symbol: str, strategy: str, direction: int, exit_price: float, r_multiple: float, exit_reason: str, signal_date: dt.date
 ) -> str:
     """CIKIS bildirimi metnini olusturur. Emoji kar/zarar renginde: R>=0 yesil,
     R<0 kirmizi (yon degil, sonuc onemli)."""
     emoji = "🟢" if r_multiple >= 0 else "🔴"
     yon = "LONG" if direction == 1 else "SHORT"
     return (
-        f"{emoji} CIKIS: {symbol} {yon} @ {exit_price:.2f} | "
+        f"{emoji} CIKIS [{strategy}]: {symbol} {yon} @ {exit_price:.2f} | "
         f"R: {r_multiple:+.2f} ({exit_reason}) | {signal_date.isoformat()}"
     )
 
 
 def _format_stop_proximity_telegram_message(
-    symbol: str, direction: int, current_price: float, stop_price: float
+    symbol: str, strategy: str, direction: int, current_price: float, stop_price: float
 ) -> str:
-    """Stop'a yaklasma uyari metnini olusturur (orn. "⚠️ EREGL.IS SHORT stop'a
-    yaklasiyor: guncel 40.95, stop 41.71 (mesafe %1.8)"). Karar/islem
-    degistirmez, yalnizca erken bilgilendirme."""
+    """Stop'a yaklasma uyari metnini olusturur. Karar/islem degistirmez,
+    yalnizca erken bilgilendirme."""
     yon = "LONG" if direction == 1 else "SHORT"
     distance_pct = abs(current_price - stop_price) / current_price * 100
     return (
-        f"⚠️ {symbol} {yon} stop'a yaklasiyor: guncel {current_price:.2f}, "
+        f"⚠️ [{strategy}] {symbol} {yon} stop'a yaklasiyor: guncel {current_price:.2f}, "
         f"stop {stop_price:.2f} (mesafe %{distance_pct:.1f})"
     )
 
 
 @dataclass
 class SymbolResult:
-    """Bir sembol icin bu calistirmada alinan aksiyonun ozeti."""
+    """Bir (sembol, strateji) cifti icin bu calistirmada alinan aksiyonun ozeti."""
 
     symbol: str
+    strategy: str
     market: str
     action: str
     # action degerleri:
     #   skip_weekend, skip_fetch_error, skip_insufficient_data,
-    #   skip_already_processed, hold, no_signal, entry_long, entry_short, exit
+    #   skip_already_processed, skip_risk_budget, hold, no_signal,
+    #   entry_long, entry_short, exit
     detail: str = ""
     signal_date: dt.date | None = None
     last_close: float | None = None
+
+
+@dataclass
+class EntryCandidate:
+    """Yeni bir pozisyon acmaya aday (sembol, strateji) cifti - portfoy
+    tahsisi karar verene kadar HENUZ ACILMAMIS durumdadir."""
+
+    symbol: str
+    strategy: str
+    market: str
+    direction: int  # +1 long, -1 short
+    entry_price: float
+    stop_price: float
+    signal_date: dt.date
+    df: pd.DataFrame  # korelasyon kumelemesi icin (Close kolonu kullanilir)
+    target_price: float | None = None
 
 
 def is_bist_trading_day(date: dt.date) -> bool:
@@ -195,40 +243,30 @@ def fetch_with_retry(
     return None
 
 
-def process_symbol(
+def fetch_symbol_bars(
     symbol: str,
     market: str,
-    strategy: str,
-    state: PaperTradingState,
-    trade_logger: PaperTradingLogger,
     run_date: dt.date,
-    dry_run: bool,
     fetch_fn: FetchFn,
     fetch_max_attempts: int = FETCH_MAX_ATTEMPTS,
     fetch_base_delay: float = FETCH_RETRY_BASE_DELAY_SECONDS,
     fetch_sleep_fn: Callable[[float], None] = time.sleep,
-) -> SymbolResult:
-    """Tek bir sembol icin bir gunluk paper-trading adimini isler.
+) -> tuple[pd.DataFrame | None, str | None]:
+    """Bir sembol icin (o sembolun TUM aktif stratejilerinin PAYLASACAGI)
+    OHLCV barlarini ceker.
 
-    Args:
-        symbol: yfinance sembolu.
-        market: "bist" veya "crypto" (piyasa takvimi kontrolu icin).
-        strategy: "donchian" veya "price_action".
-        state: Kalici state (dry_run=True ise DEGISTIRILMEZ).
-        trade_logger: Trade/equity logger (dry_run=True ise YAZILMAZ).
-        run_date: Bu calistirmanin "bugun" kabul ettigi tarih (--date ile
-            gecmis bir tarih verilebilir).
-        dry_run: True ise hicbir state/log degisikligi yapilmaz, yalnizca
-            ne yapilacagi hesaplanir.
-        fetch_fn: Veri cekme fonksiyonu (retry sarmalayicisina aktarilir).
-        fetch_max_attempts, fetch_base_delay, fetch_sleep_fn: fetch_with_retry'e
-            aktarilir (testlerde bekleme suresini sifirlamak icin kullanilir).
+    M3 oncesi bu mantik tek bir strateji varsayimiyla sembol basina
+    cagiriliyordu; artik coklu strateji ile ayni sembolu N kez cekmek
+    israf olacagindan, veri sembol basina BIR KEZ cekilir ve sonucu tum
+    aktif stratejiler paylasir (bkz. evaluate_symbol_strategy).
 
     Returns:
-        SymbolResult: bu sembol icin alinan/alinacak aksiyonun ozeti.
+        (df, None) basariliysa; (None, skip_reason) basarisizsa -
+        skip_reason "skip_weekend" | "skip_fetch_error" |
+        "skip_insufficient_data" degerlerinden biridir.
     """
     if market == "bist" and not is_bist_trading_day(run_date):
-        return SymbolResult(symbol=symbol, market=market, action="skip_weekend")
+        return None, "skip_weekend"
 
     start = (run_date - dt.timedelta(days=PAPER_TRADING_LOOKBACK_DAYS)).isoformat()
     end = (run_date + dt.timedelta(days=1)).isoformat()
@@ -237,22 +275,49 @@ def process_symbol(
         max_attempts=fetch_max_attempts, base_delay=fetch_base_delay, sleep_fn=fetch_sleep_fn,
     )
     if df is None:
-        return SymbolResult(symbol=symbol, market=market, action="skip_fetch_error")
+        return None, "skip_fetch_error"
 
     df = df[df.index.date <= run_date]
     if market == "bist":
         df = adjust_jumps(df)
 
     if len(df) < MIN_BARS_REQUIRED:
-        return SymbolResult(symbol=symbol, market=market, action="skip_insufficient_data")
+        return None, "skip_insufficient_data"
 
+    return df, None
+
+
+def evaluate_symbol_strategy(
+    symbol: str,
+    market: str,
+    strategy: str,
+    df: pd.DataFrame,
+    state: PaperTradingState,
+    trade_logger: PaperTradingLogger,
+    run_date: dt.date,
+    dry_run: bool,
+) -> SymbolResult | EntryCandidate:
+    """Onceden cekilmis barlarla tek bir (sembol, strateji) cifti icin degerlendirme yapar.
+
+    Acik pozisyon VARSA: cikis kontrolu yapilir ve sonuc HEMEN uygulanir
+    (dry_run=False ise state/log yazilir) - exit'ler risk AZALTTIGI icin
+    portfoy tahsisini beklemeye gerek yoktur.
+
+    Acik pozisyon YOKSA ve bir giris sinyali VARSA: pozisyon HENUZ
+    ACILMAZ - bir EntryCandidate dondurulur, asil acilip acilmayacagina
+    (ve ne buyuklukte) run_once icindeki portfoy tahsisi adimi karar verir.
+
+    Returns:
+        Acil bir aksiyon alindiysa (veya sinyal yoksa) SymbolResult;
+        yeni bir giris sinyali varsa EntryCandidate.
+    """
     signal_date = df.index[-1].date()
     last_close = float(df["Close"].iloc[-1])
 
-    last_processed = state.get_last_processed_date(symbol)
+    last_processed = state.get_last_processed_date(symbol, strategy)
     if last_processed is not None and last_processed >= signal_date:
         return SymbolResult(
-            symbol=symbol, market=market, action="skip_already_processed",
+            symbol=symbol, strategy=strategy, market=market, action="skip_already_processed",
             signal_date=signal_date, last_close=last_close,
         )
 
@@ -261,9 +326,7 @@ def process_symbol(
     last_row = df.iloc[-1]
     last_signal = signals.iloc[-1]
 
-    position: PositionRecord | None = state.get_position(symbol)
-    action = "no_signal"
-    detail = ""
+    position: PositionRecord | None = state.get_position(symbol, strategy)
 
     if position is not None:
         direction = position.direction
@@ -279,6 +342,9 @@ def process_symbol(
                 position.stop_price, position.target_price,
             )
 
+        action = "hold"
+        detail = ""
+
         if exit_result is not None:
             raw_price, reason = exit_result
             open_pos = OpenPosition(
@@ -291,7 +357,7 @@ def process_symbol(
             detail = reason
             if not dry_run:
                 new_equity = state.adjust_equity(net_pnl)
-                state.close_position(symbol)
+                state.close_position(symbol, strategy)
                 trade_logger.log_trade(
                     {
                         "event_type": "exit",
@@ -311,85 +377,206 @@ def process_symbol(
                 )
                 send_telegram_message(
                     _format_exit_telegram_message(
-                        symbol, direction, trade["exit_price"], trade["r_multiple"], reason, signal_date
+                        symbol, strategy, direction, trade["exit_price"], trade["r_multiple"], reason, signal_date
                     )
                 )
         else:
-            action = "hold"
             if not dry_run:
                 initial_risk = abs(position.entry_price - position.stop_price)
                 distance_to_stop = abs(last_close - position.stop_price)
                 if initial_risk > 0 and distance_to_stop < STOP_PROXIMITY_WARNING_PCT * initial_risk:
-                    already_warned = state.get_stop_warning_date(symbol)
+                    already_warned = state.get_stop_warning_date(symbol, strategy)
                     if already_warned is None or already_warned < signal_date:
                         send_telegram_message(
                             _format_stop_proximity_telegram_message(
-                                symbol, direction, last_close, position.stop_price
+                                symbol, strategy, direction, last_close, position.stop_price
                             )
                         )
-                        state.set_stop_warning_date(symbol, signal_date)
+                        state.set_stop_warning_date(symbol, strategy, signal_date)
+
+        if not dry_run:
+            state.set_last_processed_date(symbol, strategy, signal_date)
+        return SymbolResult(
+            symbol=symbol, strategy=strategy, market=market, action=action, detail=detail,
+            signal_date=signal_date, last_close=last_close,
+        )
+
+    # Acik pozisyon yok: giris adayi olustur (HENUZ ACILMAZ - bkz. modul docstring'i)
+    direction = 1 if bool(last_signal["entry_long"]) else (-1 if bool(last_signal["entry_short"]) else 0)
+    entry_price: float | None = None
+    stop_price: float | None = None
+    target_price: float | None = None
+
+    if direction != 0:
+        if strategy == "donchian":
+            atr_series = compute_atr(df, period=DONCHIAN_ATR_PERIOD)
+            current_atr = atr_series.iloc[-1]
+            if pd.notna(current_atr) and current_atr > 0:
+                entry_price, stop_price = plan_donchian_entry(
+                    last_row["Close"], direction, current_atr, DONCHIAN_ATR_STOP_MULT, SLIPPAGE_PCT
+                )
+        else:
+            entry_price = apply_slippage(last_row["Close"], direction, is_entry=True, slippage_pct=SLIPPAGE_PCT)
+            stop_price = last_signal["stop_long"] if direction == 1 else last_signal["stop_short"]
+            target_price = last_signal["target_long"] if direction == 1 else last_signal["target_short"]
+
+    valid_stop = (
+        entry_price is not None
+        and stop_price is not None
+        and ((direction == 1 and stop_price < entry_price) or (direction == -1 and stop_price > entry_price))
+    )
+
+    if not valid_stop:
+        if not dry_run:
+            state.set_last_processed_date(symbol, strategy, signal_date)
+        return SymbolResult(
+            symbol=symbol, strategy=strategy, market=market, action="no_signal",
+            signal_date=signal_date, last_close=last_close,
+        )
+
+    return EntryCandidate(
+        symbol=symbol, strategy=strategy, market=market, direction=direction,
+        entry_price=entry_price, stop_price=stop_price, target_price=target_price,
+        signal_date=signal_date, df=df,
+    )
+
+
+def allocate_and_open_candidates(
+    candidates: list[EntryCandidate],
+    state: PaperTradingState,
+    trade_logger: PaperTradingLogger,
+    mark_prices: dict[str, float],
+    dry_run: bool,
+) -> list[SymbolResult]:
+    """Gunun tum yeni giris adaylarina, portfoy-geneli risk butcesini
+    kullanarak pozisyon acar (M3 - PORTFOY TAHSISI, bkz. modul docstring'i).
+
+    Adimlar:
+        1. Mevcut acik pozisyonlarin (TUM stratejiler) tukettigi brut
+           maruziyeti hesapla, kalan butceyi bul.
+        2. Adaylarin getiri korelasyonundan kume haritasi cikar
+           (risk/correlation_clusters.py).
+        3. GECICI esit-agirlik skorla (bkz. modul docstring'i "GECICI
+           SKOR") risk.portfolio.optimize_portfolio'yu cagirip hedef
+           agirliklari bul.
+        4. Her aday icin, ATR-stop/%1-risk bazli hisse sayisi ile
+           optimizer'in agirlik-bazli hisse sayisinin KUCUK OLANINI kullan
+           (hem islem-basi risk hem portfoy-geneli maruziyet sinirlanir).
+
+    Args:
+        candidates: evaluate_symbol_strategy'den gelen yeni giris adaylari.
+        state: Kalici state (dry_run=True ise DEGISTIRILMEZ).
+        trade_logger: Trade logger (dry_run=True ise YAZILMAZ).
+        mark_prices: {sembol: bu calistirmadaki son kapanis} - mevcut acik
+            pozisyonlarin guncel dolar maruziyetini olcmek icin.
+        dry_run: True ise hicbir state/log degisikligi yapilmaz.
+
+    Returns:
+        Her aday icin bir SymbolResult (action: entry_long/entry_short/
+        skip_risk_budget).
+    """
+    results: list[SymbolResult] = []
+    if not candidates:
+        return results
+
+    equity = state.get_equity()
+
+    existing_positions = state.list_open_positions()
+    existing_gross_exposure = 0.0
+    if equity > 0:
+        for pos in existing_positions:
+            mark = mark_prices.get(pos.symbol, pos.entry_price)
+            existing_gross_exposure += abs(pos.size * mark) / equity
+
+    remaining_budget = max(0.0, RISK_MAX_GROSS_LEVERAGE - existing_gross_exposure)
+
+    candidate_keys: dict[str, EntryCandidate] = {f"{c.symbol}::{c.strategy}": c for c in candidates}
+
+    if remaining_budget <= 0:
+        weights: dict[str, float] = {key: 0.0 for key in candidate_keys}
     else:
-        direction = 1 if bool(last_signal["entry_long"]) else (-1 if bool(last_signal["entry_short"]) else 0)
-        entry_price: float | None = None
-        stop_price: float | None = None
-        target_price: float | None = None
+        price_data = {key: c.df for key, c in candidate_keys.items()}
+        returns_df = compute_return_matrix(price_data, lookback_days=RISK_CORRELATION_CLUSTER_LOOKBACK_DAYS)
+        clusters = (
+            build_correlation_clusters(returns_df, threshold=RISK_CORRELATION_CLUSTER_THRESHOLD)
+            if not returns_df.empty
+            else None
+        )
+        # GECICI skor (M6'dan once) - yon isaretiyle esit agirlik, bkz. modul docstring'i.
+        scores = {key: float(c.direction) for key, c in candidate_keys.items()}
+        weights = risk_portfolio.optimize_portfolio(
+            scores,
+            max_gross_leverage=remaining_budget,
+            max_position_size=RISK_MAX_POSITION_SIZE,
+            sector_map=clusters,
+            max_sector_exposure=RISK_MAX_SECTOR_EXPOSURE,
+        )
 
-        if direction != 0:
-            if strategy == "donchian":
-                atr_series = compute_atr(df, period=DONCHIAN_ATR_PERIOD)
-                current_atr = atr_series.iloc[-1]
-                if pd.notna(current_atr) and current_atr > 0:
-                    entry_price, stop_price = plan_donchian_entry(
-                        last_row["Close"], direction, current_atr, DONCHIAN_ATR_STOP_MULT, SLIPPAGE_PCT
-                    )
-            else:
-                entry_price = apply_slippage(last_row["Close"], direction, is_entry=True, slippage_pct=SLIPPAGE_PCT)
-                stop_price = last_signal["stop_long"] if direction == 1 else last_signal["stop_short"]
-                target_price = last_signal["target_long"] if direction == 1 else last_signal["target_short"]
+    for key, candidate in candidate_keys.items():
+        weight = weights.get(key, 0.0)
+        risk_based_size = compute_position_size(equity, RISK_PER_TRADE, candidate.entry_price, candidate.stop_price)
+        weight_based_size = (abs(weight) * equity) / candidate.entry_price if candidate.entry_price > 0 else 0.0
+        size = min(risk_based_size, weight_based_size)
+        last_close = float(candidate.df["Close"].iloc[-1])
 
-        if entry_price is not None and stop_price is not None:
-            size = compute_position_size(state.get_equity(), RISK_PER_TRADE, entry_price, stop_price)
-            valid_stop = (direction == 1 and stop_price < entry_price) or (direction == -1 and stop_price > entry_price)
-            if size > 0 and valid_stop:
-                action = "entry_long" if direction == 1 else "entry_short"
-                if not dry_run:
-                    commission = COMMISSION_PCT * entry_price * size
-                    new_equity = state.adjust_equity(-commission)
-                    state.open_position(
-                        symbol, strategy, direction, signal_date, entry_price, stop_price, size, target_price
-                    )
-                    trade_logger.log_trade(
-                        {
-                            "event_type": "entry",
-                            "date": signal_date.isoformat(),
-                            "symbol": symbol,
-                            "strategy": strategy,
-                            "direction": direction,
-                            "price": entry_price,
-                            "stop_price": stop_price,
-                            "target_price": target_price,
-                            "size": size,
-                            "equity_after": new_equity,
-                        }
-                    )
-                    send_telegram_message(
-                        _format_entry_telegram_message(symbol, direction, entry_price, stop_price, signal_date)
-                    )
+        if abs(weight) < 1e-6 or size <= 0:
+            if not dry_run:
+                state.set_last_processed_date(candidate.symbol, candidate.strategy, candidate.signal_date)
+            results.append(
+                SymbolResult(
+                    symbol=candidate.symbol, strategy=candidate.strategy, market=candidate.market,
+                    action="skip_risk_budget", signal_date=candidate.signal_date, last_close=last_close,
+                )
+            )
+            continue
 
-    if not dry_run:
-        state.set_last_processed_date(symbol, signal_date)
+        action = "entry_long" if candidate.direction == 1 else "entry_short"
+        if not dry_run:
+            commission = COMMISSION_PCT * candidate.entry_price * size
+            new_equity = state.adjust_equity(-commission)
+            state.open_position(
+                candidate.symbol, candidate.strategy, candidate.direction, candidate.signal_date,
+                candidate.entry_price, candidate.stop_price, size, candidate.target_price,
+            )
+            state.set_last_processed_date(candidate.symbol, candidate.strategy, candidate.signal_date)
+            trade_logger.log_trade(
+                {
+                    "event_type": "entry",
+                    "date": candidate.signal_date.isoformat(),
+                    "symbol": candidate.symbol,
+                    "strategy": candidate.strategy,
+                    "direction": candidate.direction,
+                    "price": candidate.entry_price,
+                    "stop_price": candidate.stop_price,
+                    "target_price": candidate.target_price,
+                    "size": size,
+                    "equity_after": new_equity,
+                }
+            )
+            send_telegram_message(
+                _format_entry_telegram_message(
+                    candidate.symbol, candidate.strategy, candidate.direction,
+                    candidate.entry_price, candidate.stop_price, candidate.signal_date,
+                )
+            )
+        results.append(
+            SymbolResult(
+                symbol=candidate.symbol, strategy=candidate.strategy, market=candidate.market,
+                action=action, signal_date=candidate.signal_date, last_close=last_close,
+            )
+        )
 
-    return SymbolResult(symbol=symbol, market=market, action=action, detail=detail, signal_date=signal_date, last_close=last_close)
+    return results
 
 
 def _print_result(result: SymbolResult, dry_run: bool) -> None:
     prefix = "[DRY-RUN] " if dry_run else ""
     suffix = f" [{result.detail}]" if result.detail else ""
-    print(f"{prefix}{result.symbol:>12} ({result.market:>6}): {result.action}{suffix}")
+    print(f"{prefix}{result.symbol:>12} ({result.market:>6}/{result.strategy:<12}): {result.action}{suffix}")
 
 
 def run_once(
-    strategy: str = PAPER_TRADING_DEFAULT_STRATEGY,
+    strategies: list[str] | None = None,
     run_date: dt.date | None = None,
     dry_run: bool = False,
     state: PaperTradingState | None = None,
@@ -401,10 +588,11 @@ def run_once(
     fetch_base_delay: float = FETCH_RETRY_BASE_DELAY_SECONDS,
     fetch_sleep_fn: Callable[[float], None] = time.sleep,
 ) -> dict:
-    """Tum evren (bist + crypto) icin bir paper-trading calistirmasi yapar.
+    """Tum evren (bist + crypto) x tum aktif stratejiler icin bir paper-trading calistirmasi yapar.
 
     Args:
-        strategy: "donchian" veya "price_action".
+        strategies: Aktif stratejiler listesi (orn. ["donchian"] veya
+            ["donchian", "ma_voting"]). None ise [PAPER_TRADING_DEFAULT_STRATEGY].
         run_date: Bu calistirmanin "bugun" kabul ettigi tarih (None ise
             dt.date.today()).
         dry_run: True ise hicbir state/log degisikligi yapilmaz; state None
@@ -418,16 +606,18 @@ def run_once(
         fetch_fn: Veri cekme fonksiyonu (testler icin sentetik bir stub
             verilebilir; varsayilan data.fetch.fetch_ohlcv).
         markets: {"bist": [...], "crypto": [...]} (testler icin kucuk bir
-            alt kume verilebilir; varsayilan config evrenlerinin tamami).
-        verbose: True ise her sembol icin bir satir ve sonunda equity ozeti
-            yazdirir.
+            alt kume verilebilir; None ise _default_markets() - Gozcu'nun
+            canli BIST evreni + sabit kripto evreni).
+        verbose: True ise her (sembol, strateji) icin bir satir ve sonunda
+            equity ozeti yazdirir.
 
     Returns:
         {"run_date", "results" (SymbolResult listesi), "equity_snapshot"}
         anahtarlarina sahip bir sozluk.
     """
     run_date = run_date or dt.date.today()
-    markets = markets if markets is not None else MARKETS
+    strategies = strategies if strategies is not None else [PAPER_TRADING_DEFAULT_STRATEGY]
+    markets = markets if markets is not None else _default_markets()
     owns_state = state is None
     if state is None:
         state = PaperTradingState(read_only=dry_run)
@@ -441,19 +631,44 @@ def run_once(
             state.backup()
 
         results: list[SymbolResult] = []
+        candidates: list[EntryCandidate] = []
+        mark_prices: dict[str, float] = {}
+
         for market, tickers in markets.items():
             for symbol in tickers:
-                result = process_symbol(
-                    symbol, market, strategy, state, trade_logger, run_date, dry_run, fetch_fn,
+                df, skip_reason = fetch_symbol_bars(
+                    symbol, market, run_date, fetch_fn,
                     fetch_max_attempts=fetch_max_attempts, fetch_base_delay=fetch_base_delay, fetch_sleep_fn=fetch_sleep_fn,
                 )
-                results.append(result)
-                if verbose:
-                    _print_result(result, dry_run)
+                if df is None:
+                    for strategy in strategies:
+                        result = SymbolResult(symbol=symbol, strategy=strategy, market=market, action=skip_reason or "skip_fetch_error")
+                        results.append(result)
+                        if verbose:
+                            _print_result(result, dry_run)
+                    continue
+
+                mark_prices[symbol] = float(df["Close"].iloc[-1])
+
+                for strategy in strategies:
+                    outcome = evaluate_symbol_strategy(
+                        symbol, market, strategy, df, state, trade_logger, run_date, dry_run
+                    )
+                    if isinstance(outcome, EntryCandidate):
+                        candidates.append(outcome)
+                    else:
+                        results.append(outcome)
+                        if verbose:
+                            _print_result(outcome, dry_run)
+
+        allocation_results = allocate_and_open_candidates(candidates, state, trade_logger, mark_prices, dry_run)
+        results.extend(allocation_results)
+        if verbose:
+            for result in allocation_results:
+                _print_result(result, dry_run)
 
         open_positions = state.list_open_positions()
         realized_equity = state.get_equity()
-        mark_prices = {r.symbol: r.last_close for r in results if r.last_close is not None}
         unrealized = 0.0
         for pos in open_positions:
             mark = mark_prices.get(pos.symbol)
@@ -480,7 +695,7 @@ def run_once(
             trade_logger.update_summary(
                 {
                     "last_updated": run_date.isoformat(),
-                    "strategy": strategy,
+                    "strategy": ", ".join(strategies),
                     "total_equity": total_equity,
                     "realized_equity": realized_equity,
                     "open_positions": len(open_positions),
@@ -507,15 +722,18 @@ def main(argv: list[str] | None = None) -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
     parser = argparse.ArgumentParser(description="Paper trading gunluk calistirici")
-    parser.add_argument("--strategy", choices=sorted(STRATEGY_SIGNAL_FN), default=PAPER_TRADING_DEFAULT_STRATEGY)
+    parser.add_argument(
+        "--strategies", nargs="+", choices=sorted(STRATEGY_SIGNAL_FN), default=[PAPER_TRADING_DEFAULT_STRATEGY],
+        help="Aktif stratejiler (bosluklarla ayirip birden fazla verilebilir)",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Hicbir state/log degisikligi yapmadan ne yapilacagini yazdirir")
     parser.add_argument("--date", default=None, help="YYYY-MM-DD (opsiyonel; gecmis bir tarih icin simulasyon)")
     args = parser.parse_args(argv)
 
     run_date = dt.date.fromisoformat(args.date) if args.date else dt.date.today()
-    print(f"Paper trading | strateji={args.strategy} | tarih={run_date} | dry_run={args.dry_run}")
+    print(f"Paper trading | stratejiler={args.strategies} | tarih={run_date} | dry_run={args.dry_run}")
     print("-" * 80)
-    run_once(strategy=args.strategy, run_date=run_date, dry_run=args.dry_run)
+    run_once(strategies=args.strategies, run_date=run_date, dry_run=args.dry_run)
 
 
 if __name__ == "__main__":

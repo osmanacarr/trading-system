@@ -61,11 +61,11 @@ jobs:
       - name: Testleri calistir (guvenlik onlemi - basarisizsa dur, state'e dokunma)
         run: python -m pytest -q
 
-      - name: Paper trading calistir (Donchian, tum evren)
+      - name: Paper trading calistir (Donchian, genisletilmis BIST evreni + kripto)
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python -m paper_trading.runner --strategy donchian
+        run: python -m paper_trading.runner --strategies donchian
 
       - name: State ve log degisikliklerini commit'le ve pushla
         run: |

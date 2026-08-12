@@ -71,13 +71,13 @@ def test_entry_opens_position(state, trade_logger):
     fetch_fn = _make_fetch_fn({"FAKE-USD": df})
 
     summary = run_once(
-        strategy="donchian", run_date=run_date, dry_run=False,
+        strategies=["donchian"], run_date=run_date, dry_run=False,
         state=state, trade_logger=trade_logger, fetch_fn=fetch_fn,
         markets={"crypto": ["FAKE-USD"]}, verbose=False,
     )
 
     assert summary["results"][0].action == "entry_long"
-    pos = state.get_position("FAKE-USD")
+    pos = state.get_position("FAKE-USD", "donchian")
     assert pos is not None
     assert pos.direction == 1
     assert pos.strategy == "donchian"
@@ -99,14 +99,14 @@ def test_stop_exit_closes_position(state, trade_logger):
     fetch_fn = _make_fetch_fn({"FAKE-USD": df})
 
     summary = run_once(
-        strategy="donchian", run_date=run_date, dry_run=False,
+        strategies=["donchian"], run_date=run_date, dry_run=False,
         state=state, trade_logger=trade_logger, fetch_fn=fetch_fn,
         markets={"crypto": ["FAKE-USD"]}, verbose=False,
     )
 
     assert summary["results"][0].action == "exit"
     assert summary["results"][0].detail == "stop"
-    assert state.get_position("FAKE-USD") is None
+    assert state.get_position("FAKE-USD", "donchian") is None
     assert state.get_equity() < starting_equity  # stop kaybi
 
     trades = trade_logger.read_trades()
@@ -122,11 +122,11 @@ def test_idempotency_same_day_double_run(state, trade_logger):
     fetch_fn = _make_fetch_fn({"FAKE-USD": df})
 
     run_once(
-        strategy="donchian", run_date=run_date, state=state, trade_logger=trade_logger,
+        strategies=["donchian"], run_date=run_date, state=state, trade_logger=trade_logger,
         fetch_fn=fetch_fn, markets={"crypto": ["FAKE-USD"]}, verbose=False,
     )
     summary2 = run_once(
-        strategy="donchian", run_date=run_date, state=state, trade_logger=trade_logger,
+        strategies=["donchian"], run_date=run_date, state=state, trade_logger=trade_logger,
         fetch_fn=fetch_fn, markets={"crypto": ["FAKE-USD"]}, verbose=False,
     )
 
@@ -147,7 +147,7 @@ def test_fetch_failure_skips_symbol_and_continues(state, trade_logger):
         return good_df.copy()
 
     summary = run_once(
-        strategy="donchian", run_date=run_date, state=state, trade_logger=trade_logger,
+        strategies=["donchian"], run_date=run_date, state=state, trade_logger=trade_logger,
         fetch_fn=flaky_fetch, markets={"crypto": ["BAD-USD", "GOOD-USD"]}, verbose=False,
         fetch_max_attempts=2, fetch_base_delay=0.0, fetch_sleep_fn=lambda s: None,
     )
@@ -156,8 +156,8 @@ def test_fetch_failure_skips_symbol_and_continues(state, trade_logger):
     assert results_by_symbol["BAD-USD"].action == "skip_fetch_error"
     assert results_by_symbol["GOOD-USD"].action == "entry_long"
     # BAD-USD icin state/pozisyon degismemis olmali, GOOD-USD icin acilmis olmali
-    assert state.get_position("BAD-USD") is None
-    assert state.get_position("GOOD-USD") is not None
+    assert state.get_position("BAD-USD", "donchian") is None
+    assert state.get_position("GOOD-USD", "donchian") is not None
 
 
 def test_multi_symbol_multi_position(state, trade_logger):
@@ -167,7 +167,7 @@ def test_multi_symbol_multi_position(state, trade_logger):
     fetch_fn = _make_fetch_fn({"SYM-A": df_a, "SYM-B": df_b})
 
     run_once(
-        strategy="donchian", run_date=run_date, state=state, trade_logger=trade_logger,
+        strategies=["donchian"], run_date=run_date, state=state, trade_logger=trade_logger,
         fetch_fn=fetch_fn, markets={"crypto": ["SYM-A", "SYM-B"]}, verbose=False,
     )
 
@@ -183,7 +183,7 @@ def test_bist_weekend_is_skipped_without_fetching(state, trade_logger):
         raise AssertionError("hafta sonu BIST icin fetch cagrilmamali")
 
     summary = run_once(
-        strategy="donchian", run_date=saturday, state=state, trade_logger=trade_logger,
+        strategies=["donchian"], run_date=saturday, state=state, trade_logger=trade_logger,
         fetch_fn=fetch_fn, markets={"bist": ["THYAO.IS"]}, verbose=False,
     )
     assert summary["results"][0].action == "skip_weekend"
@@ -197,7 +197,7 @@ def test_crypto_runs_on_weekend(state, trade_logger):
     fetch_fn = _make_fetch_fn({"BTC-USD": df})
 
     summary = run_once(
-        strategy="donchian", run_date=saturday, state=state, trade_logger=trade_logger,
+        strategies=["donchian"], run_date=saturday, state=state, trade_logger=trade_logger,
         fetch_fn=fetch_fn, markets={"crypto": ["BTC-USD"]}, verbose=False,
     )
     assert summary["results"][0].action != "skip_weekend"
@@ -209,14 +209,14 @@ def test_dry_run_makes_no_state_or_log_changes(state, trade_logger):
     fetch_fn = _make_fetch_fn({"FAKE-USD": df})
 
     run_once(
-        strategy="donchian", run_date=run_date, dry_run=True,
+        strategies=["donchian"], run_date=run_date, dry_run=True,
         state=state, trade_logger=trade_logger, fetch_fn=fetch_fn,
         markets={"crypto": ["FAKE-USD"]}, verbose=False,
     )
 
-    assert state.get_position("FAKE-USD") is None
+    assert state.get_position("FAKE-USD", "donchian") is None
     assert state.get_equity() == 10_000.0
-    assert state.get_last_processed_date("FAKE-USD") is None
+    assert state.get_last_processed_date("FAKE-USD", "donchian") is None
     assert not trade_logger.trades_jsonl_path.exists()
     assert not trade_logger.equity_jsonl_path.exists()
 
@@ -235,7 +235,7 @@ def test_state_and_idempotency_persist_across_separate_runner_instances(tmp_path
     state1 = PaperTradingState(db_path=db_path, initial_capital=10_000.0)
     logger1 = PaperTradingLogger(log_dir=log_dir)
     run_once(
-        strategy="donchian", run_date=run_date, state=state1, trade_logger=logger1,
+        strategies=["donchian"], run_date=run_date, state=state1, trade_logger=logger1,
         fetch_fn=fetch_fn, markets={"crypto": ["FAKE-USD"]}, verbose=False,
     )
     state1.close()
@@ -243,12 +243,12 @@ def test_state_and_idempotency_persist_across_separate_runner_instances(tmp_path
     state2 = PaperTradingState(db_path=db_path, initial_capital=10_000.0)
     logger2 = PaperTradingLogger(log_dir=log_dir)
     summary2 = run_once(
-        strategy="donchian", run_date=run_date, state=state2, trade_logger=logger2,
+        strategies=["donchian"], run_date=run_date, state=state2, trade_logger=logger2,
         fetch_fn=fetch_fn, markets={"crypto": ["FAKE-USD"]}, verbose=False,
     )
 
     assert summary2["results"][0].action == "skip_already_processed"
-    pos = state2.get_position("FAKE-USD")
+    pos = state2.get_position("FAKE-USD", "donchian")
     assert pos is not None
     assert pos.direction == 1
     state2.close()
@@ -260,11 +260,11 @@ def test_no_signal_when_flat_range(state, trade_logger):
     fetch_fn = _make_fetch_fn({"FAKE-USD": df})
 
     summary = run_once(
-        strategy="donchian", run_date=run_date, state=state, trade_logger=trade_logger,
+        strategies=["donchian"], run_date=run_date, state=state, trade_logger=trade_logger,
         fetch_fn=fetch_fn, markets={"crypto": ["FAKE-USD"]}, verbose=False,
     )
     assert summary["results"][0].action == "no_signal"
-    assert state.get_position("FAKE-USD") is None
+    assert state.get_position("FAKE-USD", "donchian") is None
 
 
 def test_dry_run_with_no_existing_db_creates_no_file(tmp_path, trade_logger):
@@ -279,7 +279,7 @@ def test_dry_run_with_no_existing_db_creates_no_file(tmp_path, trade_logger):
     dry_state = PaperTradingState(db_path=db_path, initial_capital=10_000.0, read_only=True)
 
     summary = run_once(
-        strategy="donchian", run_date=run_date, dry_run=True,
+        strategies=["donchian"], run_date=run_date, dry_run=True,
         state=dry_state, trade_logger=trade_logger, fetch_fn=fetch_fn,
         markets={"crypto": ["FAKE-USD"]}, verbose=False,
     )
@@ -297,7 +297,7 @@ def test_real_run_creates_timestamped_backup(state, trade_logger):
 
     assert not backups_dir.exists()
     run_once(
-        strategy="donchian", run_date=run_date, dry_run=False,
+        strategies=["donchian"], run_date=run_date, dry_run=False,
         state=state, trade_logger=trade_logger, fetch_fn=fetch_fn,
         markets={"crypto": ["FAKE-USD"]}, verbose=False,
     )
@@ -312,7 +312,7 @@ def test_dry_run_does_not_create_backup(state, trade_logger):
     backups_dir = state.db_path.parent / "backups"
 
     run_once(
-        strategy="donchian", run_date=run_date, dry_run=True,
+        strategies=["donchian"], run_date=run_date, dry_run=True,
         state=state, trade_logger=trade_logger, fetch_fn=fetch_fn,
         markets={"crypto": ["FAKE-USD"]}, verbose=False,
     )
@@ -324,7 +324,7 @@ def test_stop_proximity_warning_not_sent_when_far_from_stop(state, trade_logger,
     monkeypatch.setattr(runner_module, "send_telegram_message", lambda text: sent_messages.append(text))
 
     state.open_position(
-        "FAKE-USD", "donchian", direction=1, entry_date=dt.date(2019, 1, 1),
+        "FAKE-USD", "price_action", direction=1, entry_date=dt.date(2019, 1, 1),
         entry_price=100.0, stop_price=90.0, size=1.0,
     )
     df = _hold_far_from_stop_df()
@@ -332,14 +332,14 @@ def test_stop_proximity_warning_not_sent_when_far_from_stop(state, trade_logger,
     fetch_fn = _make_fetch_fn({"FAKE-USD": df})
 
     summary = run_once(
-        strategy="price_action", run_date=run_date, dry_run=False,
+        strategies=["price_action"], run_date=run_date, dry_run=False,
         state=state, trade_logger=trade_logger, fetch_fn=fetch_fn,
         markets={"crypto": ["FAKE-USD"]}, verbose=False,
     )
 
     assert summary["results"][0].action == "hold"
     assert sent_messages == []
-    assert state.get_stop_warning_date("FAKE-USD") is None
+    assert state.get_stop_warning_date("FAKE-USD", "price_action") is None
 
 
 def test_stop_proximity_warning_sent_when_near_stop(state, trade_logger, monkeypatch):
@@ -347,7 +347,7 @@ def test_stop_proximity_warning_sent_when_near_stop(state, trade_logger, monkeyp
     monkeypatch.setattr(runner_module, "send_telegram_message", lambda text: sent_messages.append(text))
 
     state.open_position(
-        "FAKE-USD", "donchian", direction=1, entry_date=dt.date(2019, 1, 1),
+        "FAKE-USD", "price_action", direction=1, entry_date=dt.date(2019, 1, 1),
         entry_price=101.0, stop_price=99.8, size=1.0,
     )
     df = _hold_near_stop_df()
@@ -355,7 +355,7 @@ def test_stop_proximity_warning_sent_when_near_stop(state, trade_logger, monkeyp
     fetch_fn = _make_fetch_fn({"FAKE-USD": df})
 
     summary = run_once(
-        strategy="price_action", run_date=run_date, dry_run=False,
+        strategies=["price_action"], run_date=run_date, dry_run=False,
         state=state, trade_logger=trade_logger, fetch_fn=fetch_fn,
         markets={"crypto": ["FAKE-USD"]}, verbose=False,
     )
@@ -364,7 +364,7 @@ def test_stop_proximity_warning_sent_when_near_stop(state, trade_logger, monkeyp
     assert len(sent_messages) == 1
     assert "FAKE-USD" in sent_messages[0]
     assert "stop'a yaklasiyor" in sent_messages[0]
-    assert state.get_stop_warning_date("FAKE-USD") == run_date
+    assert state.get_stop_warning_date("FAKE-USD", "price_action") == run_date
 
 
 def test_stop_proximity_warning_not_repeated_same_day(state, trade_logger, monkeypatch):
@@ -372,7 +372,7 @@ def test_stop_proximity_warning_not_repeated_same_day(state, trade_logger, monke
     monkeypatch.setattr(runner_module, "send_telegram_message", lambda text: sent_messages.append(text))
 
     state.open_position(
-        "FAKE-USD", "donchian", direction=1, entry_date=dt.date(2019, 1, 1),
+        "FAKE-USD", "price_action", direction=1, entry_date=dt.date(2019, 1, 1),
         entry_price=101.0, stop_price=99.8, size=1.0,
     )
     df = _hold_near_stop_df()
@@ -380,13 +380,92 @@ def test_stop_proximity_warning_not_repeated_same_day(state, trade_logger, monke
     fetch_fn = _make_fetch_fn({"FAKE-USD": df})
 
     # Bugun zaten uyarilmis durumu simule et (ayni pozisyon icin idempotency)
-    state.set_stop_warning_date("FAKE-USD", run_date)
+    state.set_stop_warning_date("FAKE-USD", "price_action", run_date)
 
     summary = run_once(
-        strategy="price_action", run_date=run_date, dry_run=False,
+        strategies=["price_action"], run_date=run_date, dry_run=False,
         state=state, trade_logger=trade_logger, fetch_fn=fetch_fn,
         markets={"crypto": ["FAKE-USD"]}, verbose=False,
     )
 
     assert summary["results"][0].action == "hold"
     assert sent_messages == []
+
+
+# -- M3: coklu strateji + portfoy tahsisi --------------------------------
+
+
+def test_two_strategies_same_symbol_independent_positions(state, trade_logger):
+    """Ayni sembolde iki strateji BAGIMSIZ pozisyon acabilmeli (kompozit anahtar)."""
+    df = _breakout_df()
+    run_date = df.index[-1].date()
+    fetch_fn = _make_fetch_fn({"FAKE-USD": df})
+
+    summary = run_once(
+        strategies=["donchian", "price_action"], run_date=run_date, state=state, trade_logger=trade_logger,
+        fetch_fn=fetch_fn, markets={"crypto": ["FAKE-USD"]}, verbose=False,
+    )
+
+    actions = {r.strategy: r.action for r in summary["results"]}
+    assert actions["donchian"] in ("entry_long", "skip_risk_budget")
+    assert actions["price_action"] in ("entry_long", "skip_risk_budget")
+    # En az biri gercekten acilmis olmali (veri identik oldugundan ikisi de
+    # sinyal uretir; portfoy tahsisi ikisini de agirliklandirabilir)
+    positions = state.list_open_positions()
+    assert len(positions) >= 1
+
+
+def test_candidate_rejected_when_gross_budget_exhausted(state, trade_logger):
+    """Mevcut acik pozisyonlar zaten %100 brut kaldiraci tuketmisse, yeni
+    adaylar ACILMAMALI (skip_risk_budget) - M3'un sert korelasyon/kaldirac kosulu."""
+    # Mevcut pozisyon: TUM equity'i (10.000) kaplayan buyuk bir maruziyet
+    state.open_position(
+        "EXISTING-USD", "donchian", direction=1, entry_date=dt.date(2024, 1, 1),
+        entry_price=100.0, stop_price=95.0, size=100.0,  # 100*100 = 10.000 = %100 equity
+    )
+
+    df = _breakout_df()
+    run_date = df.index[-1].date()
+    fetch_fn = _make_fetch_fn({"EXISTING-USD": df, "NEW-USD": df})
+
+    summary = run_once(
+        strategies=["donchian"], run_date=run_date, state=state, trade_logger=trade_logger,
+        fetch_fn=fetch_fn, markets={"crypto": ["EXISTING-USD", "NEW-USD"]}, verbose=False,
+    )
+
+    new_result = next(r for r in summary["results"] if r.symbol == "NEW-USD")
+    assert new_result.action == "skip_risk_budget"
+    assert state.get_position("NEW-USD", "donchian") is None
+
+
+def test_correlated_candidates_capped_by_cluster_exposure(state, trade_logger):
+    """Iki adayin fiyat serisi neredeyse ozdes (yuksek korelasyonlu) ise,
+    korelasyon-kume kisiti toplam maruziyetlerini sinirlamali (M2 entegrasyonu)."""
+    df_a = _breakout_df()
+    df_b = _breakout_df()  # deterministik uretim -> df_a ile ozdes/yuksek korelasyonlu
+    run_date = df_a.index[-1].date()
+    fetch_fn = _make_fetch_fn({"SYM-A": df_a, "SYM-B": df_b})
+
+    run_once(
+        strategies=["donchian"], run_date=run_date, state=state, trade_logger=trade_logger,
+        fetch_fn=fetch_fn, markets={"crypto": ["SYM-A", "SYM-B"]}, verbose=False,
+    )
+
+    positions = state.list_open_positions()
+    total_exposure = sum(abs(p.size * p.entry_price) for p in positions)
+    # RISK_MAX_SECTOR_EXPOSURE=0.4 -> ayni kumedeki toplam maruziyet
+    # equity'nin %40'ini (kucuk bir toleransla) asmamali
+    assert total_exposure <= 10_000.0 * 0.4 + 1e-6
+
+
+def test_dry_run_does_not_mutate_last_processed_date_for_candidates(state, trade_logger):
+    df = _breakout_df()
+    run_date = df.index[-1].date()
+    fetch_fn = _make_fetch_fn({"FAKE-USD": df})
+
+    run_once(
+        strategies=["donchian"], run_date=run_date, dry_run=True,
+        state=state, trade_logger=trade_logger, fetch_fn=fetch_fn,
+        markets={"crypto": ["FAKE-USD"]}, verbose=False,
+    )
+    assert state.get_last_processed_date("FAKE-USD", "donchian") is None

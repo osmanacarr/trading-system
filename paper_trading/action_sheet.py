@@ -37,6 +37,7 @@ import datetime as dt
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Callable
 
 from config import PAPER_TRADING_LOG_DIR, STOP_PROXIMITY_WARNING_PCT, USER_CAN_SHORT
 from paper_trading.state import PositionRecord
@@ -67,6 +68,7 @@ class ActionSheetEntry:
     is_near_stop: bool  # STOP_PROXIMITY_WARNING_PCT ile ayni esik (bkz. runner.py)
     is_new_today: bool  # "YENI FIRSAT" - bugun acilan pozisyon
     exit_explanation: str
+    unrealized_pnl_pct: float | None  # (guncel-giris)/giris * yon * 100 - guncel fiyat yoksa None
 
 
 def _exit_mechanism_explanation(strategy: str, stop_price: float) -> str:
@@ -128,12 +130,15 @@ def build_action_sheet(
 
         stop_distance_pct: float | None = None
         is_near_stop = False
+        unrealized_pnl_pct: float | None = None
         if current_price is not None and current_price > 0:
             stop_distance_pct = abs(current_price - pos.stop_price) / current_price * 100
             initial_risk = abs(pos.entry_price - pos.stop_price)
             distance_to_stop = abs(current_price - pos.stop_price)
             if initial_risk > 0:
                 is_near_stop = distance_to_stop < STOP_PROXIMITY_WARNING_PCT * initial_risk
+            if pos.entry_price > 0:
+                unrealized_pnl_pct = (current_price - pos.entry_price) / pos.entry_price * pos.direction * 100
 
         entries.append(
             ActionSheetEntry(
@@ -150,6 +155,7 @@ def build_action_sheet(
                 is_near_stop=is_near_stop,
                 is_new_today=pos.entry_date == run_date,
                 exit_explanation=_exit_mechanism_explanation(pos.strategy, pos.stop_price),
+                unrealized_pnl_pct=unrealized_pnl_pct,
             )
         )
     return entries
@@ -218,9 +224,18 @@ def format_daily_telegram_summary(entries: list[ActionSheetEntry], run_date: dt.
 
 
 def action_sheet_to_dict(entries: list[ActionSheetEntry], run_date: dt.date) -> dict:
-    """Dashboard'un okuyacagi JSON-serilestirilebilir gosterimi uretir."""
+    """Dashboard'un okuyacagi JSON-serilestirilebilir gosterimi uretir.
+
+    "prices_updated_at" BILEREK "generated_at" ile AYNI baslar (tam olusturma
+    aninda fiyatlar da tazedir - mark_prices runner.py'nin AYNI calistirmasindan
+    gelir) ama SONRADAN refresh_live_prices() TARAFINDAN BAGIMSIZ guncellenir
+    (bkz. o fonksiyonun docstring'i - formun geri kalani gunde bir, fiyatlar
+    ~birkac dakikada bir yenilenir - iki ayri tazelik saati, dashboard'un
+    ikisini de ayri ayri gosterebilmesi icin AYRI tutulur)."""
+    now = dt.datetime.now(dt.timezone.utc).isoformat()
     return {
-        "generated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "generated_at": now,
+        "prices_updated_at": now,
         "run_date": run_date.isoformat(),
         "disclaimer": DISCLAIMER,
         "entries": [asdict(e) for e in entries],
@@ -244,6 +259,85 @@ def write_action_sheet_json(
     return target
 
 
+def refresh_live_prices(
+    path: str | Path = ACTION_SHEET_JSON_PATH,
+    fetch_batch_fn: Callable[[list[str]], dict] | None = None,
+) -> bool:
+    """Mevcut action_sheet.json'daki fiyat-bagimli alanlari (current_price,
+    stop_distance_pct, is_near_stop, unrealized_pnl_pct) YERINDE gunceller -
+    formun geri kalanini (giris/stop/exit_explanation/is_new_today/gunun
+    sinyalleri) YENIDEN URETMEZ.
+
+    NEDEN AYRI: gunluk formun tamami (build_action_sheet) SADECE runner.py'nin
+    gunde-bir calistigi anda, TUM evreni tarayip sinyal uretirken zaten
+    elindeki mark_prices ile olusturulur - bu PAHALI bir islemdir (yuzlerce
+    sembol). Ama SADECE acik pozisyonlarin (tipik olarak ~5 sembol) GUNCEL
+    fiyatini yenilemek COK UCUZDUR - gozcu/data_fetch.py::fetch_daily_batch
+    (gozcu'nun KENDI "last_price"i icin kullandigi AYNI toplu yf.download
+    yontemi - bkz. gozcu/scanner.py::_compute_symbol_metrics) TEK bir toplu
+    cagriyla hepsini ceker. Bu fonksiyon gozcu_scan.yml'in ZATEN var olan
+    ~2 dakikalik harici tetikleme dongusune (cron-job.org) eklenerek "gercek
+    zamanli"ya yakin bir tazelik saglar - runner.py'nin gunde-bir sinyal
+    uretme mantigina HIC dokunmadan (bkz. modul docstring'i, gorev tanimi).
+
+    Args:
+        path: Guncellenecek action_sheet.json yolu.
+        fetch_batch_fn: {sembol: OHLCV df} donen toplu getirme fonksiyonu
+            (varsayilan gozcu.data_fetch.fetch_daily_batch - testler icin
+            enjekte edilebilir). Import LAZY yapilir (action_sheet.py'nin
+            gozcu'ya sabit bir bagimliligi olmasin, sadece bu fonksiyon
+            cagrildiginda gerekli olsun diye).
+
+    Returns:
+        Dosya var olup basariyla guncellendiyse True; action_sheet.json
+        HENUZ hic olusturulmadiysa (ilk gunluk calistirma once gelmeli)
+        False (sessizce atlanir, hata FIRLATILMAZ - bkz. bu depodaki genel
+        "veri yoksa/hata olursa sessizce atla" felsefesi).
+    """
+    target = Path(path)
+    if not target.exists():
+        return False
+
+    try:
+        data = json.loads(target.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+
+    entries = data.get("entries", [])
+    if not entries:
+        return True
+
+    if fetch_batch_fn is None:
+        from gozcu.data_fetch import fetch_daily_batch as fetch_batch_fn  # lazy import, bkz. docstring
+
+    symbols = sorted({e["symbol"] for e in entries})
+    price_data = fetch_batch_fn(symbols)
+
+    for entry in entries:
+        df = price_data.get(entry["symbol"])
+        if df is None or df.empty:
+            continue  # bu sembol icin cekim basarisiz - ESKI degerler KORUNUR (sessizce atla)
+        current_price = float(df["Close"].dropna().iloc[-1])
+        if current_price <= 0:
+            continue
+
+        entry["current_price"] = current_price
+        entry["stop_distance_pct"] = abs(current_price - entry["stop_price"]) / current_price * 100
+        initial_risk = abs(entry["entry_price"] - entry["stop_price"])
+        distance_to_stop = abs(current_price - entry["stop_price"])
+        entry["is_near_stop"] = bool(initial_risk > 0 and distance_to_stop < STOP_PROXIMITY_WARNING_PCT * initial_risk)
+        if entry["entry_price"] > 0:
+            entry["unrealized_pnl_pct"] = (
+                (current_price - entry["entry_price"]) / entry["entry_price"] * entry["direction"] * 100
+            )
+
+    data["entries"] = entries
+    data["prices_updated_at"] = dt.datetime.now(dt.timezone.utc).isoformat()
+
+    target.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    return True
+
+
 def _print_human_readable(entries: list[ActionSheetEntry], run_date: dt.date) -> None:
     print(f"Gunluk Islem Formu - {run_date.isoformat()}")
     print(DISCLAIMER)
@@ -257,7 +351,8 @@ def _print_human_readable(entries: list[ActionSheetEntry], run_date: dt.date) ->
         print(f"  giris: {e.entry_price:.2f} | stop: {e.stop_price:.2f} | acik gunu: {e.days_open}")
         if e.current_price is not None:
             near = " (STOP'A YAKIN)" if e.is_near_stop else ""
-            print(f"  guncel: {e.current_price:.2f} | stop mesafesi: %{e.stop_distance_pct:.2f}{near}")
+            pnl = f" | P&L: %{e.unrealized_pnl_pct:+.2f}" if e.unrealized_pnl_pct is not None else ""
+            print(f"  guncel: {e.current_price:.2f} | stop mesafesi: %{e.stop_distance_pct:.2f}{near}{pnl}")
         else:
             print("  guncel fiyat: bilinmiyor")
         if e.is_new_today:
@@ -273,7 +368,12 @@ def main(argv: list[str] | None = None) -> None:
     (bkz. run_once icindeki asil canli entegrasyon, bu sadece manuel
     onizleme/dogrulama icindir). --fetch-prices verilirse guncel fiyatlar
     (data.fetch.fetch_ohlcv ile, YENIDEN cekilir) de eklenir; verilmezse
-    stop mesafesi hesaplanamaz (current_price=None)."""
+    stop mesafesi hesaplanamaz (current_price=None).
+
+    --refresh-live-prices FARKLI bir modu tetikler (YAN ETKILI - gercek
+    action_sheet.json'i GUNCELLER): formu YENIDEN URETMEZ, sadece
+    refresh_live_prices()'i cagirir (bkz. o fonksiyonun docstring'i -
+    gozcu_scan.yml'in ~2 dakikalik dongusunden cagrilmak icin tasarlandi)."""
     import argparse
 
     from data.fetch import fetch_ohlcv
@@ -283,7 +383,17 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Gunluk Islem Formu onizleme (yan etkisiz)")
     parser.add_argument("--fetch-prices", action="store_true", help="Acik pozisyonlar icin guncel fiyati yeniden ceker")
     parser.add_argument("--date", default=None, help="YYYY-MM-DD (varsayilan: bugun)")
+    parser.add_argument(
+        "--refresh-live-prices", action="store_true",
+        help="YAN ETKILI: mevcut action_sheet.json'daki fiyat alanlarini gozcu'nun toplu-fetch "
+             "yontemiyle YERINDE gunceller (formu yeniden uretmez) - bkz. refresh_live_prices()",
+    )
     args = parser.parse_args(argv)
+
+    if args.refresh_live_prices:
+        updated = refresh_live_prices()
+        print("action_sheet.json fiyatlari guncellendi." if updated else "action_sheet.json henuz yok, atlandi.")
+        return
 
     run_date = dt.date.fromisoformat(args.date) if args.date else dt.date.today()
     state = PaperTradingState(read_only=True)

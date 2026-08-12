@@ -34,6 +34,36 @@ function useRealCapital(): [number | null, (value: number | null) => void] {
   return [capital, setCapital];
 }
 
+function formatMinutesAgo(iso: string | undefined): string {
+  if (!iso) return "bilinmiyor";
+  const then = new Date(iso).getTime();
+  if (!Number.isFinite(then)) return "bilinmiyor";
+  const minutes = Math.max(0, Math.round((Date.now() - then) / 60_000));
+  if (minutes === 0) return "az önce";
+  if (minutes === 1) return "1 dakika önce";
+  return `${minutes} dakika önce`;
+}
+
+function PriceAndPnl({ entry }: { entry: ActionSheetEntry }) {
+  if (entry.current_price === null) {
+    return <p className="mt-2 text-[10px] text-term-text-faint">canlı fiyat henüz yok</p>;
+  }
+  const pnl = entry.unrealized_pnl_pct;
+  return (
+    <div className="mt-2 flex items-center justify-between gap-2 rounded-sm border border-term-border-soft bg-term-bg-1/40 px-2 py-1">
+      <span className="label-xs text-[9px] text-term-text-dim">
+        güncel <span className="mono-tabular text-term-text">{formatNumber(entry.current_price, 2)}</span>
+      </span>
+      {pnl !== null && (
+        <span className={clsx("mono-tabular text-[11px] font-semibold", pnl >= 0 ? "text-term-green" : "text-term-red")}>
+          P&amp;L {pnl >= 0 ? "+" : ""}
+          {pnl.toFixed(2)}%
+        </span>
+      )}
+    </div>
+  );
+}
+
 function ActionStepCard({ entry, capital }: { entry: ActionSheetEntry; capital: number | null }) {
   const stopPct = entry.entry_price > 0 ? (Math.abs(entry.entry_price - entry.stop_price) / entry.entry_price) * 100 : 0;
   const size = capital !== null ? computePositionSize(capital, RISK_PER_TRADE, entry.entry_price, entry.stop_price) : null;
@@ -72,6 +102,8 @@ function ActionStepCard({ entry, capital }: { entry: ActionSheetEntry; capital: 
         </div>
       </div>
 
+      <PriceAndPnl entry={entry} />
+
       <p className="mt-2 text-[10px] leading-relaxed text-term-text-dim">{entry.exit_explanation}</p>
 
       <ol className="mt-2 list-decimal space-y-0.5 pl-4 text-[10px] leading-relaxed text-term-text-faint">
@@ -91,6 +123,7 @@ function ActionStepCard({ entry, capital }: { entry: ActionSheetEntry; capital: 
 }
 
 function WatchOnlyRow({ entry }: { entry: ActionSheetEntry }) {
+  const pnl = entry.unrealized_pnl_pct;
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-sm border border-term-border-soft bg-term-bg-1/40 px-3 py-1.5">
       <span className="flex items-center gap-2">
@@ -98,8 +131,17 @@ function WatchOnlyRow({ entry }: { entry: ActionSheetEntry }) {
         <Badge tone="red">SHORT</Badge>
         <Badge tone="amber">SADECE İZLEME</Badge>
       </span>
-      <span className="mono-tabular text-[10px] text-term-text-faint">
-        giriş {formatNumber(entry.entry_price, 2)} · stop {formatNumber(entry.stop_price, 2)}
+      <span className="flex items-center gap-2 mono-tabular text-[10px] text-term-text-faint">
+        <span>
+          giriş {formatNumber(entry.entry_price, 2)} · stop {formatNumber(entry.stop_price, 2)}
+          {entry.current_price !== null && <> · güncel {formatNumber(entry.current_price, 2)}</>}
+        </span>
+        {pnl !== null && (
+          <span className={clsx("font-semibold", pnl >= 0 ? "text-term-green" : "text-term-red")}>
+            {pnl >= 0 ? "+" : ""}
+            {pnl.toFixed(2)}%
+          </span>
+        )}
       </span>
     </div>
   );
@@ -131,6 +173,11 @@ export function ActionSheetPanel() {
         <span className="label-xs text-[9px] text-term-amber/90">
           {sheet?.disclaimer ?? "Bu form karar destegidir, yatirim tavsiyesi degildir. Emirlerinizi kendi sorumlulugunuzda verin."}
         </span>
+        {sheet && (
+          <span className="label-xs text-[9px] text-term-amber/70">
+            fiyatlar {formatMinutesAgo(sheet.prices_updated_at)} güncellendi
+          </span>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-2 border-b border-term-border-soft px-3 py-2">

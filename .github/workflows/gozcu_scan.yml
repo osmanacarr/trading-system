@@ -56,30 +56,51 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python -m gozcu.scanner --market all
 
-      - name: Snapshot degisikliklerini commit'le ve pushla
+      - name: Action Sheet canli fiyatlarini guncelle (sadece acik pozisyonlar, GOZCU'nun ayni toplu-fetch altyapisiyla)
+        # paper_trading.yml gunde bir tam formu (giris/stop/miktar mantigi)
+        # uretiyor - bu adim o formu YENIDEN URETMEZ, sadece fiyat-bagimli
+        # alanlari (guncel fiyat, stop mesafesi, P&L) bu is akisinin ZATEN
+        # var olan ~2 dakikalik harici tetikleme dongusunde (cron-job.org)
+        # tazeler (bkz. paper_trading/action_sheet.py::refresh_live_prices
+        # docstring'i). action_sheet.json henuz hic olusmadiysa (ilk gunluk
+        # calistirma once gelmeli) sessizce atlanir.
+        run: python -m paper_trading.action_sheet --refresh-live-prices
+
+      - name: Snapshot ve Action Sheet fiyat degisikliklerini commit'le ve pushla
         # Harici zamanlayici (cron-job.org) 2 dakikada bir workflow_dispatch
         # tetikledigi icin (bkz. README "Harici tetikleyici"), ardisik iki
         # calistirma bazen COK yakin gelip concurrency kuyruguna ragmen
         # push ANI'nda remote'un zaten ilerlemis olmasina yol acabiliyor
         # (2026-08-12 canli gozlemi: "! [rejected] main -> main (fetch
-        # first)"). Bu dosyalar (snapshot.json/alert_state.json) HER
-        # calistirmada TAMAMEN yeniden uretilir - iki taramanin verisini
-        # SATIR BAZINDA birlestirmek (rebase/merge) anlamsiz VE cakisma
-        # riski tasir; dogru davranis "en TAZE tarama HER ZAMAN kazanir"dir.
-        # Bu yuzden cakisma olursa: bu calistirmanin TARADIGI veriyi (git
-        # durumundan BAGIMSIZ bir yedekten) remote'un EN SON commit'inin
-        # USTUNE yeniden uygulayip tekrar denenir (en fazla 5 kez).
+        # first)"). Bu dosyalar HER calistirmada TAMAMEN yeniden uretilir -
+        # iki taramanin verisini SATIR BAZINDA birlestirmek (rebase/merge)
+        # anlamsiz VE cakisma riski tasir; dogru davranis "en TAZE tarama
+        # HER ZAMAN kazanir"dir. Bu yuzden cakisma olursa: bu calistirmanin
+        # TARADIGI veriyi (git durumundan BAGIMSIZ bir yedekten) remote'un
+        # EN SON commit'inin USTUNE yeniden uygulayip tekrar denenir (en
+        # fazla 5 kez).
         run: |
           git config user.name "gozcu-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add gozcu/data/snapshot.json gozcu/data/alert_state.json
+
+          TRACKED_FILES="gozcu/data/snapshot.json gozcu/data/alert_state.json paper_trading/logs/action_sheet.json"
+          existing_files() {
+            for f in $TRACKED_FILES; do
+              [ -f "$f" ] && echo "$f"
+            done
+          }
+
+          git add $(existing_files)
           if git diff --cached --quiet; then
-            echo "Degisiklik yok (her iki piyasa da kapali/veri degismedi), commit atlaniyor."
+            echo "Degisiklik yok, commit atlaniyor."
             exit 0
           fi
 
           backup_dir="$(mktemp -d)"
-          cp gozcu/data/snapshot.json gozcu/data/alert_state.json "$backup_dir/"
+          for f in $(existing_files); do
+            mkdir -p "$backup_dir/$(dirname "$f")"
+            cp "$f" "$backup_dir/$f"
+          done
 
           git commit -m "gozcu: otomatik tarama $(date -u +'%Y-%m-%d %H:%M UTC')"
 
@@ -95,9 +116,10 @@ jobs:
             echo "Push basarisiz (deneme $attempt/$max_attempts) - remote guncellenmis, senkronize edilip bu calistirmanin verisiyle tekrar denenecek."
             git fetch origin main
             git reset --hard origin/main
-            cp "$backup_dir/snapshot.json" gozcu/data/snapshot.json
-            cp "$backup_dir/alert_state.json" gozcu/data/alert_state.json
-            git add gozcu/data/snapshot.json gozcu/data/alert_state.json
+            for f in $TRACKED_FILES; do
+              [ -f "$backup_dir/$f" ] && cp "$backup_dir/$f" "$f"
+            done
+            git add $(existing_files)
             if git diff --cached --quiet; then
               echo "Remote zaten bu calistirmanin verisiyle ayni/daha taze - commit atlaniyor."
               pushed=1

@@ -11,6 +11,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 
+import pandas as pd
 import pytest
 
 from paper_trading import action_sheet
@@ -106,6 +107,64 @@ def test_format_action_steps_does_not_leak_a_quantity_number():
 
 def test_telegram_summary_empty_string_when_no_open_positions():
     assert action_sheet.format_daily_telegram_summary([], RUN_DATE) == ""
+
+
+def test_unrealized_pnl_pct_computed_for_long_and_short():
+    long_pos = _pos(symbol="THYAO.IS", direction=1, entry_price=100.0)
+    short_pos = _pos(symbol="EREGL.IS", direction=-1, entry_price=100.0, stop_price=105.0)
+    entries = action_sheet.build_action_sheet(
+        [long_pos, short_pos], RUN_DATE, mark_prices={"THYAO.IS": 110.0, "EREGL.IS": 110.0}
+    )
+    by_symbol = {e.symbol: e for e in entries}
+    assert by_symbol["THYAO.IS"].unrealized_pnl_pct == pytest.approx(10.0)  # LONG, fiyat yukseldi -> kar
+    assert by_symbol["EREGL.IS"].unrealized_pnl_pct == pytest.approx(-10.0)  # SHORT, fiyat yukseldi -> zarar
+
+
+def test_unrealized_pnl_pct_none_when_no_mark_price():
+    entries = action_sheet.build_action_sheet([_pos()], RUN_DATE, mark_prices={})
+    assert entries[0].unrealized_pnl_pct is None
+
+
+def test_refresh_live_prices_returns_false_when_file_missing(tmp_path):
+    missing_path = tmp_path / "does_not_exist.json"
+    assert action_sheet.refresh_live_prices(path=missing_path, fetch_batch_fn=lambda symbols: {}) is False
+
+
+def test_refresh_live_prices_updates_price_fields_in_place(tmp_path):
+    pos = _pos(symbol="THYAO.IS", direction=1, entry_price=100.0, stop_price=95.0)
+    entries = action_sheet.build_action_sheet([pos], RUN_DATE, mark_prices={"THYAO.IS": 100.0})
+    out_path = action_sheet.write_action_sheet_json(entries, RUN_DATE, path=tmp_path / "action_sheet.json")
+    original = json.loads(out_path.read_text(encoding="utf-8"))
+
+    def fake_fetch(symbols):
+        assert symbols == ["THYAO.IS"]
+        return {"THYAO.IS": pd.DataFrame({"Close": [108.0]})}
+
+    updated = action_sheet.refresh_live_prices(path=out_path, fetch_batch_fn=fake_fetch)
+    assert updated is True
+
+    data = json.loads(out_path.read_text(encoding="utf-8"))
+    entry = data["entries"][0]
+    assert entry["current_price"] == 108.0
+    assert entry["unrealized_pnl_pct"] == pytest.approx(8.0)
+    assert entry["stop_distance_pct"] == pytest.approx(abs(108.0 - 95.0) / 108.0 * 100)
+    # Fiyat-bagimsiz alanlar DEGISMEMELI (yeniden uretilmiyor, sadece yerinde guncelleniyor).
+    assert entry["entry_price"] == original["entries"][0]["entry_price"]
+    assert entry["exit_explanation"] == original["entries"][0]["exit_explanation"]
+    assert data["generated_at"] == original["generated_at"]
+    assert data["prices_updated_at"] != original["prices_updated_at"]
+
+
+def test_refresh_live_prices_skips_symbol_gracefully_when_fetch_empty(tmp_path):
+    pos = _pos(symbol="THYAO.IS", direction=1, entry_price=100.0, stop_price=95.0)
+    entries = action_sheet.build_action_sheet([pos], RUN_DATE, mark_prices={"THYAO.IS": 100.0})
+    out_path = action_sheet.write_action_sheet_json(entries, RUN_DATE, path=tmp_path / "action_sheet.json")
+
+    updated = action_sheet.refresh_live_prices(path=out_path, fetch_batch_fn=lambda symbols: {"THYAO.IS": pd.DataFrame()})
+    assert updated is True
+
+    data = json.loads(out_path.read_text(encoding="utf-8"))
+    assert data["entries"][0]["current_price"] == 100.0  # eski deger korunuyor, ezilmiyor
 
 
 def test_telegram_summary_separates_actionable_and_watch_only():

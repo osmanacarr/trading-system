@@ -67,11 +67,16 @@ export interface ActionSheetEntry {
   is_near_stop: boolean;
   is_new_today: boolean;
   exit_explanation: string;
+  unrealized_pnl_pct: number | null;
 }
 
 // paper_trading/action_sheet.py::action_sheet_to_dict ciktisi.
 export interface ActionSheetData {
   generated_at: string;
+  // refresh_live_prices() TARAFINDAN generated_at'TEN BAGIMSIZ guncellenir
+  // (bkz. o fonksiyonun docstring'i - form gunde bir, fiyatlar ~birkac
+  // dakikada bir tazelenir, iki ayri tazelik saati).
+  prices_updated_at: string;
   run_date: string;
   disclaimer: string;
   entries: ActionSheetEntry[];

@@ -99,6 +99,7 @@ from data.adjust import adjust_jumps
 from data.fetch import fetch_ohlcv
 from gozcu.universe import get_bist_universe
 from notifications.telegram import send_telegram_message
+from paper_trading import action_sheet
 from paper_trading.logger import PaperTradingLogger
 from paper_trading.state import PaperTradingState, PositionRecord
 from research.regime import compute_weekly_trend_bias
@@ -910,6 +911,17 @@ def run_once(
                     "trades_last_7_days": trades_last_7_days,
                 }
             )
+
+            # Gunluk Islem Formu (bkz. paper_trading/action_sheet.py modul
+            # docstring'i) - AYNI calistirmanin mark_prices'ini kullanir,
+            # ikinci bir veri cekimi YAPMAZ. Acik pozisyon yoksa Telegram
+            # ozeti bos string doner (gonderme atlanir - bkz.
+            # format_daily_telegram_summary docstring'i).
+            sheet_entries = action_sheet.build_action_sheet(open_positions, run_date, mark_prices)
+            action_sheet.write_action_sheet_json(sheet_entries, run_date)
+            telegram_summary = action_sheet.format_daily_telegram_summary(sheet_entries, run_date)
+            if telegram_summary:
+                send_telegram_message(telegram_summary)
 
         if verbose:
             print("-" * 80)

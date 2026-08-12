@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import type { EquitySnapshot, ManualEntryRecord, OpenPosition, Summary, TradeRecord } from "./types";
+import type { ActionSheetData, EquitySnapshot, ManualEntryRecord, OpenPosition, Summary, TradeRecord } from "./types";
 import type { CorrelationWarning, RiskBudget, StrategyStats } from "./derive";
 import type { BACKTEST_BASELINE } from "./backtestBaseline";
 import type { DataIntegrityStatus } from "./integrity";
@@ -14,6 +14,7 @@ export interface DashboardData {
   positions: OpenPosition[];
   positionsError: string | null;
   manualEntries: ManualEntryRecord[];
+  actionSheet: ActionSheetData | null;
   stats: StrategyStats;
   riskBudget: RiskBudget;
   correlation: CorrelationWarning;

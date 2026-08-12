@@ -17,6 +17,14 @@ export const GOZCU_DATA_STALENESS_ESTIMATE_MINUTES = 6;
 // (config.py + burada) true yapilmali.
 export const USER_CAN_SHORT = false;
 
+// config.py RISK_PER_TRADE ile birebir ayni (hesabin %1'i, SS2.3 formulu:
+// size = E_t*rho / |giris-stop|) - "Bugunun Islem Formu" panelinin (bkz.
+// dashboard/components/ActionSheetPanel.tsx) kac adet alinmasi gerektigini
+// GERCEK sermaye (yalnizca bu tarayicida, localStorage) ile hesaplayabilmesi
+// icin client-side'da mirror'lanir - sunucu bu hesabi YAPMAZ/YAPAMAZ (bkz.
+// paper_trading/action_sheet.py modul docstring'i, gizlilik kisiti).
+export const RISK_PER_TRADE = 0.01;
+
 export function directionApplicability(direction: 1 | -1): { label: string; hint: string; applicable: boolean } {
   if (direction === 1) {
     return { label: "UYGULANABILIR", hint: "Gercek hesabinizdan LONG olarak uygulayabilirsiniz", applicable: true };

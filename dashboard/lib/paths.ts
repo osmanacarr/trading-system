@@ -12,6 +12,9 @@ export const STATE_DB_PATH = path.join(PAPER_TRADING_DATA_DIR, "state.db");
 export const TRADES_JSONL_PATH = path.join(PAPER_TRADING_LOG_DIR, "trades.jsonl");
 export const EQUITY_JSONL_PATH = path.join(PAPER_TRADING_LOG_DIR, "equity.jsonl");
 export const SUMMARY_JSON_PATH = path.join(PAPER_TRADING_LOG_DIR, "summary.json");
+// paper_trading/action_sheet.py (ACTION_SHEET_JSON_PATH) ile BIREBIR ayni yol.
+// runner.py'nin HER calistirmasi (dry_run=False) sonunda UZERINE yazilir.
+export const ACTION_SHEET_JSON_PATH = path.join(PAPER_TRADING_LOG_DIR, "action_sheet.json");
 // paper_trading/manual_log.py (PAPER_TRADING_MANUAL_LOG_PATH) ile BIREBIR ayni yol.
 export const MANUAL_LOG_PATH = path.join(PAPER_TRADING_LOG_DIR, "manual_trades.jsonl");
 

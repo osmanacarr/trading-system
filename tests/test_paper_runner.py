@@ -385,7 +385,10 @@ def test_stop_proximity_warning_not_sent_when_far_from_stop(state, trade_logger,
     )
 
     assert summary["results"][0].action == "hold"
-    assert sent_messages == []
+    # Proksimite uyarisi gonderilmedi (uzak) ama gunluk islem formu ozeti
+    # HER GUN acik pozisyon varken gonderilir (bkz. action_sheet.py) - o
+    # yuzden liste TAMAMEN bos degil, sadece proksimite metni icermiyor.
+    assert not any("stop'a yaklasiyor" in msg for msg in sent_messages)
     assert state.get_stop_warning_date("FAKE-USD", "price_action") is None
 
 
@@ -408,9 +411,12 @@ def test_stop_proximity_warning_sent_when_near_stop(state, trade_logger, monkeyp
     )
 
     assert summary["results"][0].action == "hold"
-    assert len(sent_messages) == 1
-    assert "FAKE-USD" in sent_messages[0]
-    assert "stop'a yaklasiyor" in sent_messages[0]
+    # Iki mesaj beklenir: proksimite uyarisi + HER GUN gonderilen gunluk
+    # islem formu ozeti (bkz. action_sheet.py) - ikisi BAGIMSIZ mekanizmalar.
+    assert len(sent_messages) == 2
+    proximity_messages = [m for m in sent_messages if "stop'a yaklasiyor" in m]
+    assert len(proximity_messages) == 1
+    assert "FAKE-USD" in proximity_messages[0]
     assert state.get_stop_warning_date("FAKE-USD", "price_action") == run_date
 
 
@@ -436,7 +442,9 @@ def test_stop_proximity_warning_not_repeated_same_day(state, trade_logger, monke
     )
 
     assert summary["results"][0].action == "hold"
-    assert sent_messages == []
+    # Proksimite uyarisi ayni gun tekrar GONDERILMEZ (idempotency) ama
+    # gunluk islem formu ozeti yine de gonderilir (bkz. action_sheet.py).
+    assert not any("stop'a yaklasiyor" in msg for msg in sent_messages)
 
 
 # -- M3: coklu strateji + portfoy tahsisi --------------------------------

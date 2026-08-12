@@ -1,5 +1,6 @@
 import { DashboardProvider } from "@/lib/dashboard-context";
 import { StatusBar } from "@/components/StatusBar";
+import { ActionSheetPanel } from "@/components/ActionSheetPanel";
 import { StrategySummaryCard } from "@/components/StrategySummaryCard";
 import { SystemLog } from "@/components/SystemLog";
 import { EquityChart } from "@/components/EquityChart";
@@ -24,6 +25,12 @@ export default function Home() {
         <StatusBar />
 
         <main className="flex-1 space-y-3 px-2 py-3">
+          {/* Bugunun Islem Formu - en gorunur yer (equity/durum cubugundan
+              hemen sonra), Acik Pozisyonlar tablosunun USTUNDE (yerine degil) */}
+          <div id="panel-action-sheet">
+            <ActionSheetPanel />
+          </div>
+
           {/* Ana 12-kolon grid: sol (strateji ozeti + gunluk) / orta (equity + pozisyonlar) / sag (islem gecmisi + guven) */}
           <div className="grid grid-cols-12 gap-2">
             <div className="col-span-12 flex flex-col gap-2 lg:col-span-3">

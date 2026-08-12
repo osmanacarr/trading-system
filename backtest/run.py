@@ -20,12 +20,18 @@ from backtest.metrics import summarize
 from config import BIST_TICKERS, CRYPTO_TICKERS, INITIAL_CAPITAL, MIN_BARS_REQUIRED
 from data.adjust import adjust_jumps
 from data.fetch import fetch_ohlcv
-from signals import donchian, price_action
-from validation.significance import is_significant, sharpe_confidence_interval, t_statistic
+from signals import donchian, ma_voting, price_action
+from validation.significance import (
+    is_significant_multi_test,
+    multi_test_t_threshold,
+    sharpe_confidence_interval,
+    t_statistic,
+)
 
 STRATEGY_SIGNAL_FN: dict[str, Callable[[pd.DataFrame], pd.DataFrame]] = {
     "donchian": donchian.generate_signals,
     "price_action": price_action.generate_signals,
+    "ma_voting": ma_voting.generate_signals,
 }
 
 UNIVERSES: dict[str, list[str]] = {
@@ -120,12 +126,19 @@ def main(argv: list[str] | None = None) -> None:
     if not pooled_trades.empty and len(pooled_trades) >= 2:
         r_values = pooled_trades["r_multiple"]
         t = t_statistic(r_values)
-        sig = is_significant(r_values)
+        # Coklu-test duzeltmesi (Harvey & Liu 2014, bkz. validation/significance.py):
+        # esik, STRATEGY_SIGNAL_FN havuzundaki TOPLAM strateji sayisina gore
+        # kademeli sertlesir - yeni bir strateji eklendikce (donchian+price_action=2
+        # -> +ma_voting=3) esik otomatik 2.0'dan 3.0'a cikar.
+        n_strategies = len(STRATEGY_SIGNAL_FN)
+        threshold = multi_test_t_threshold(n_strategies)
+        sig = is_significant_multi_test(r_values, n_strategies_tested=n_strategies)
         avg_sharpe = summary_df["sharpe"].mean()
         ci_low, ci_high = sharpe_confidence_interval(avg_sharpe, n_periods=len(pooled_trades))
         print(
             f"Havuzlanmis istatistik: n={len(pooled_trades)} t-stat={t:.2f} "
-            f"(anlamli @ t>=2: {sig}) | Sharpe %95 GA ~= [{ci_low:.2f}, {ci_high:.2f}]"
+            f"(anlamli @ t>={threshold} [coklu-test, havuzda {n_strategies} strateji]: {sig}) | "
+            f"Sharpe %95 GA ~= [{ci_low:.2f}, {ci_high:.2f}]"
         )
 
 

@@ -156,7 +156,7 @@ trading-system/
 
 ## Doğrulama durumu
 
-- `python -m pytest -q` → **305/305 test geçiyor** (backtest/veri/sinyal/istatistik/
+- `python -m pytest -q` → **319/319 test geçiyor** (backtest/veri/sinyal/istatistik/
   paper trading/risk/GÖZCÜ; tamamı sentetik/deterministik veri veya mock'lanmış
   yfinance/Telegram çağrılarıyla, gerçek ağ bağlantısı gerektirmez).
 - Donchian + BIST canlı veriyle uçtan uca doğrulandı (2019-01-01 -> bugün, 13 sembol,
@@ -171,6 +171,16 @@ trading-system/
   yalnızca ilk stop mesafesini hafifçe genişletiyor (stop biraz daha uzakta), bu da
   birkaç sınırda kalan işlemin farklı barda kapanmasına yol açtı ama genel istatistiksel
   tabloyu değiştirmedi.
+- **Kart 1 (MA-oylama, `signals/ma_voting.py`, M4) — KODLANDI ve BACKTEST EDİLDİ
+  ama LIVE paper trading'e EKLENMEDİ.** BIST + 13 sembol (2018-01-01 -> bugün):
+  havuzlanmış 467 işlem, t-stat ≈ 2.89. Bu, eski tekil-hipotez eşiğini (2.0)
+  geçer ama Harvey & Liu çoklu-test eşiğini (havuzda 3 strateji ->
+  `multi_test_t_threshold(3)` = 3.0, bkz. `validation/significance.py`) GEÇMEZ.
+  Parametreler Kart 1 metnindeki örnek değerler ((10,50)/(20,100)/(50,200)) —
+  bilinçli olarak eşiği geçmek için ayarlanmadı (bu tam olarak M1'in önlemeye
+  çalıştığı p-hacking olurdu). Strateji `python -m paper_trading.runner
+  --strategies donchian ma_voting` ile isteğe bağlı/deneysel olarak
+  çalıştırılabilir ama varsayılan aktif strateji listesinde DEĞİL.
 
 ## Zamanlama — günlük otomatik çalıştırma (Faz 4)
 
@@ -552,6 +562,8 @@ tutulur — paper trading `state.db`'sine dokunulmaz.
 - `risk/position_sizing.py` (Kelly) — Faz 3.5 SS5'te tanımlanan, henüz
   kodlanmamış modül (`risk/portfolio.py` M2/M3'te kodlanıp paper trading'e
   bağlandı, bkz. yukarıdaki "Evren" ve "Çoklu-sembol equity ilişkisi" notları).
-- Kart 1 (MA oylama), Kart 3 (Bollinger/Keltner fade) — kodlanma sırasında
-  (bkz. proje kökündeki mimari genişletme planı). Kart 2 (VWAP mean
-  reversion, gün-içi) daha düşük öncelikli, henüz planlanmadı.
+- **Kart 1 (MA oylama):** kodlandı (`signals/ma_voting.py`, M4) ama LIVE paper
+  trading'e eklenmedi — çoklu-test anlamlılık eşiğini geçemedi (bkz. yukarıdaki
+  "Doğrulama durumu"). Kart 3 (Bollinger/Keltner fade) kodlanma sırasında (bkz.
+  proje kökündeki mimari genişletme planı). Kart 2 (VWAP mean reversion,
+  gün-içi) daha düşük öncelikli, henüz planlanmadı.

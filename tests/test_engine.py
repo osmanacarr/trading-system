@@ -12,11 +12,24 @@ from backtest.engine import (
     compute_atr,
     compute_position_size,
     run_donchian_backtest,
+    run_ma_voting_backtest,
     run_price_action_backtest,
 )
 from config import DONCHIAN_ATR_STOP_MULT, SLIPPAGE_PCT
-from signals import donchian, price_action
+from signals import donchian, ma_voting, price_action
 from tests.conftest import append_bars, build_donchian_trailing_exit_df, make_flat_range_df
+
+MA_VOTING_SMALL_PAIRS = [(3, 5), (5, 8), (8, 13)]
+
+
+def _ma_voting_trend_df(n: int = 60, start: float = 100.0, step: float = 1.0) -> pd.DataFrame:
+    dates = pd.date_range("2020-01-01", periods=n, freq="B")
+    close = start + step * np.arange(n)
+    high = close + 0.5
+    low = close - 0.5
+    open_ = close - step / 2
+    volume = np.full(n, 1000.0)
+    return pd.DataFrame({"Open": open_, "High": high, "Low": low, "Close": close, "Volume": volume}, index=dates)
 
 
 def test_compute_atr_converges_to_constant_true_range():
@@ -117,6 +130,57 @@ def test_price_action_backtest_target_hit():
     assert trade["exit_reason"] == "target"
     assert trade["pnl"] > 0
     assert trade["r_multiple"] > 0
+
+
+def _ma_voting_up_then_down_df() -> pd.DataFrame:
+    """Sonsuz tek-yonlu trend pozisyonu hic KAPATMAZ (motor sadece
+    KAPANAN islemleri kaydeder, donchian/price_action ile ayni davranis) -
+    bu yuzden testler icin yukselis + geri donus/duzlesme sekli kullanilir."""
+    up = _ma_voting_trend_df(n=40, start=100.0, step=1.0)
+    down_start = up["Close"].iloc[-1]
+    down = _ma_voting_trend_df(n=20, start=down_start, step=-2.0)
+    down.index = pd.date_range(up.index[-1] + pd.tseries.offsets.BDay(1), periods=20, freq="B")
+    return pd.concat([up, down])
+
+
+def test_ma_voting_backtest_opens_long_on_uptrend():
+    df = _ma_voting_up_then_down_df()
+    signals = ma_voting.generate_signals(df, pairs=MA_VOTING_SMALL_PAIRS, atr_period=5)
+    trades, _equity_curve = run_ma_voting_backtest(df, signals, n_pairs=len(MA_VOTING_SMALL_PAIRS))
+
+    assert len(trades) >= 1
+    assert (trades["direction"] == 1).any()
+
+
+def test_ma_voting_backtest_size_scales_with_vote_count():
+    """Her islemin buyuklugu, giris barindaki oy sayisina ORANTILI olmali
+    (Kart 1 - "3 oy = tam pozisyon, 1 oy = 1/3 pozisyon"): giris anindaki
+    taban (carpansiz) boyuta oran, abs(vote_count)/n_pairs'e esit olmali."""
+    df = _ma_voting_up_then_down_df()
+    signals = ma_voting.generate_signals(df, pairs=MA_VOTING_SMALL_PAIRS, atr_period=5)
+    trades, _equity_curve = run_ma_voting_backtest(df, signals, n_pairs=len(MA_VOTING_SMALL_PAIRS))
+
+    assert len(trades) >= 1
+    # Sadece ILK islem icin dogrula: equity o anda hala INITIAL_CAPITAL
+    # (baska bir islemin P&L'inden ETKILENMEMIS) oldugundan taban boyut
+    # tam olarak compute_position_size'a esittir - sonraki islemlerde
+    # equity degistigi icin bu karsilastirma gecerli olmaz.
+    first_trade = trades.iloc[0]
+    vote_at_entry = signals.loc[first_trade["entry_date"], "vote_count"]
+    expected_multiplier = abs(int(vote_at_entry)) / len(MA_VOTING_SMALL_PAIRS)
+    base_size = compute_position_size(100_000.0, 0.01, first_trade["entry_price"], first_trade["stop_price"])
+    assert np.isclose(first_trade["size"], base_size * expected_multiplier, rtol=0.05)
+
+
+def test_ma_voting_backtest_exits_on_signal_reversal():
+    """Guclu yukselis sonrasi keskin bir dusus, acik long'u SINYAL (stop
+    degil) ile kapatmali - Kart 1'in trailing OLMAYAN, sinyal-bazli cikisi."""
+    df = _ma_voting_up_then_down_df()
+    signals = ma_voting.generate_signals(df, pairs=MA_VOTING_SMALL_PAIRS, atr_period=5)
+    trades, _equity_curve = run_ma_voting_backtest(df, signals, n_pairs=len(MA_VOTING_SMALL_PAIRS))
+
+    assert len(trades) >= 1
+    assert (trades["exit_reason"] == "signal").any()
 
 
 def test_trade_columns_include_mae_mfe():

@@ -10,9 +10,11 @@ n=20 (Colab'da test edilen Kart 4 parametresi, config.DONCHIAN_ATR_PERIOD;
 formalizasyon dokumanindaki "ATR_14" ifadesi genel formulu illustre eden bir
 ornekti, bkz. config.py docstring'i), k=2.
 
-Iki strateji tipi desteklenir:
+Uc strateji tipi desteklenir:
 - "donchian": ilk ATR-bazli stop + trailing (kanal) cikis (Kart 4)
 - "price_action": sabit stop + sabit R/R hedef, trailing yok (Kart 5)
+- "ma_voting": ATR-bazli stop + sinyal-bazli (oy sayisi sifirlaninca) cikis,
+  oy sayisina orantili pozisyon buyuklugu (Kart 1)
 
 Basitlestirici varsayimlar (prototip asamasi icin, gunluk bar verisiyle
 calisirken kacinilmaz):
@@ -47,6 +49,7 @@ from config import (
     DONCHIAN_ATR_PERIOD,
     DONCHIAN_ATR_STOP_MULT,
     INITIAL_CAPITAL,
+    MA_VOTING_PAIRS,
     RISK_PER_TRADE,
     SLIPPAGE_PCT,
 )
@@ -458,10 +461,95 @@ def run_price_action_backtest(
     return trades_df, equity_curve
 
 
+def run_ma_voting_backtest(
+    df: pd.DataFrame,
+    signals: pd.DataFrame,
+    initial_capital: float = INITIAL_CAPITAL,
+    risk_pct: float = RISK_PER_TRADE,
+    commission_pct: float = COMMISSION_PCT,
+    slippage_pct: float = SLIPPAGE_PCT,
+    n_pairs: int = len(MA_VOTING_PAIRS),
+) -> tuple[pd.DataFrame, pd.Series]:
+    """MA-oylama (Kart 1) icin islem simulasyonu calistirir.
+
+    Giris kapanista; stop = ATR bazli (signals.ma_voting.generate_signals
+    icinde onceden hesaplanmis stop_long/stop_short); pozisyon buyuklugu
+    oy sayisina ORANTILI kucultulur (Kart 1 - "3 oy = tam pozisyon, 1 oy =
+    1/3 pozisyon", bkz. signals/ma_voting.py). Cikis: stop (gun ici,
+    Low/High bazli) VEYA oy sayisi 0'a/karsi isarete dondugunde
+    (sinyal-bazli, kapanis bazli) - trailing YOK, Price Action gibi sabit
+    hedef de YOK (acik-uclu, sinyal/stop'a kadar tutulur).
+
+    Args:
+        df: ["Open","High","Low","Close","Volume"] kolonlarina sahip fiyat
+            verisi.
+        signals: signals.ma_voting.generate_signals ciktisi (ayni index).
+        initial_capital: Baslangic sermayesi.
+        risk_pct: Islem basina risk orani (rho) - vote-carpanindan ONCEKI
+            taban oran.
+        commission_pct: Tek yonlu komisyon orani.
+        slippage_pct: Fiil fiyatina uygulanan slipaj orani.
+        n_pairs: Oy carpani icin payda (MA_VOTING_PAIRS uzunlugu).
+
+    Returns:
+        (trades, equity_curve): bkz. run_donchian_backtest.
+    """
+    equity = initial_capital
+    equity_curve = pd.Series(index=df.index, dtype=float)
+    trades: list[dict] = []
+    pos: OpenPosition | None = None
+
+    for t in df.index:
+        row = df.loc[t]
+        sig = signals.loc[t]
+
+        if pos is not None and pos.entry_date != t:
+            pos.update_excursion(row["High"], row["Low"])
+
+        if pos is not None:
+            exit_result = resolve_intrabar_exit(
+                pos.direction, row["Open"], row["High"], row["Low"], pos.stop_price, target_price=None
+            )
+            if exit_result is None:
+                exit_flag = sig["exit_long_signal"] if pos.direction == 1 else sig["exit_short_signal"]
+                if bool(exit_flag):
+                    exit_result = (float(row["Close"]), "signal")
+            if exit_result is not None:
+                raw_price, reason = exit_result
+                trade, net_pnl = close_position(pos, t, raw_price, reason, commission_pct, slippage_pct)
+                trades.append(trade)
+                equity += net_pnl
+                pos = None
+
+        if pos is None:
+            direction = 1 if bool(sig["entry_long"]) else (-1 if bool(sig["entry_short"]) else 0)
+            if direction != 0:
+                entry_price = apply_slippage(row["Close"], direction, is_entry=True, slippage_pct=slippage_pct)
+                stop_price = sig["stop_long"] if direction == 1 else sig["stop_short"]
+                valid_stop = (direction == 1 and stop_price < entry_price) or (
+                    direction == -1 and stop_price > entry_price
+                )
+                if valid_stop:
+                    size_multiplier = abs(int(sig["vote_count"])) / n_pairs
+                    size = compute_position_size(equity, risk_pct, entry_price, stop_price) * size_multiplier
+                    if size > 0:
+                        equity -= commission_pct * entry_price * size
+                        pos = OpenPosition(direction, t, entry_price, stop_price, size)
+
+        if pos is not None:
+            unrealized = (row["Close"] - pos.entry_price) * pos.direction * pos.size
+            equity_curve.loc[t] = equity + unrealized
+        else:
+            equity_curve.loc[t] = equity
+
+    trades_df = pd.DataFrame(trades, columns=TRADE_COLUMNS)
+    return trades_df, equity_curve
+
+
 def run_backtest(
     df: pd.DataFrame,
     signals: pd.DataFrame,
-    strategy: Literal["donchian", "price_action"],
+    strategy: Literal["donchian", "price_action", "ma_voting"],
     **kwargs,
 ) -> tuple[pd.DataFrame, pd.Series]:
     """Strateji adina gore uygun backtest fonksiyonuna yonlendirir.
@@ -469,7 +557,7 @@ def run_backtest(
     Args:
         df: OHLCV fiyat verisi.
         signals: Ilgili signals modulunun generate_signals ciktisi.
-        strategy: "donchian" veya "price_action".
+        strategy: "donchian", "price_action" veya "ma_voting".
         **kwargs: Ilgili run_*_backtest fonksiyonuna aktarilan ek parametreler.
 
     Returns:
@@ -482,4 +570,6 @@ def run_backtest(
         return run_donchian_backtest(df, signals, **kwargs)
     if strategy == "price_action":
         return run_price_action_backtest(df, signals, **kwargs)
+    if strategy == "ma_voting":
+        return run_ma_voting_backtest(df, signals, **kwargs)
     raise ValueError(f"Bilinmeyen strateji: {strategy!r}")

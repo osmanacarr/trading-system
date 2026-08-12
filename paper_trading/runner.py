@@ -71,6 +71,7 @@ from config import (
     DONCHIAN_ATR_STOP_MULT,
     FETCH_MAX_ATTEMPTS,
     FETCH_RETRY_BASE_DELAY_SECONDS,
+    MA_VOTING_PAIRS,
     MIN_BARS_REQUIRED,
     PAPER_TRADING_DEFAULT_STRATEGY,
     PAPER_TRADING_LOOKBACK_DAYS,
@@ -91,16 +92,113 @@ from paper_trading.logger import PaperTradingLogger
 from paper_trading.state import PaperTradingState, PositionRecord
 from risk import portfolio as risk_portfolio
 from risk.correlation_clusters import build_correlation_clusters, compute_return_matrix
-from signals import donchian, price_action
+from signals import donchian, ma_voting, price_action
 
 log = logging.getLogger("paper_trading.runner")
 
 STRATEGY_SIGNAL_FN: dict[str, Callable[[pd.DataFrame], pd.DataFrame]] = {
     "donchian": donchian.generate_signals,
     "price_action": price_action.generate_signals,
+    "ma_voting": ma_voting.generate_signals,
 }
 
 FetchFn = Callable[..., pd.DataFrame]
+
+# -- Strateji-basina giris parametreleri (entry_price, stop_price, target_price, size_multiplier) --
+#
+# Her strateji farkli bir giris/stop/hedef mantigina sahip (Donchian: ATR
+# stop + trailing cikis; Price Action: sabit R/R; MA-oylama: ATR stop +
+# sinyal-bazli cikis + oy-sayisina orantili buyukluk) - tek bir if/else
+# yerine bir REGISTRY kullanilir (M4'te 3. strateji eklenince if/else'in
+# okunurlugu/genisleyebilirligi kaybolacagindan bu noktada refactor edildi).
+
+
+def _donchian_entry_params(
+    df: pd.DataFrame, direction: int, last_row: pd.Series, last_signal: pd.Series
+) -> tuple[float | None, float | None, float | None, float]:
+    atr_series = compute_atr(df, period=DONCHIAN_ATR_PERIOD)
+    current_atr = atr_series.iloc[-1]
+    if pd.notna(current_atr) and current_atr > 0:
+        entry_price, stop_price = plan_donchian_entry(
+            last_row["Close"], direction, current_atr, DONCHIAN_ATR_STOP_MULT, SLIPPAGE_PCT
+        )
+        return entry_price, stop_price, None, 1.0
+    return None, None, None, 1.0
+
+
+def _price_action_entry_params(
+    df: pd.DataFrame, direction: int, last_row: pd.Series, last_signal: pd.Series
+) -> tuple[float | None, float | None, float | None, float]:
+    entry_price = apply_slippage(last_row["Close"], direction, is_entry=True, slippage_pct=SLIPPAGE_PCT)
+    stop_price = last_signal["stop_long"] if direction == 1 else last_signal["stop_short"]
+    target_price = last_signal["target_long"] if direction == 1 else last_signal["target_short"]
+    return entry_price, stop_price, target_price, 1.0
+
+
+def _ma_voting_entry_params(
+    df: pd.DataFrame, direction: int, last_row: pd.Series, last_signal: pd.Series
+) -> tuple[float | None, float | None, float | None, float]:
+    entry_price = apply_slippage(last_row["Close"], direction, is_entry=True, slippage_pct=SLIPPAGE_PCT)
+    stop_price = last_signal["stop_long"] if direction == 1 else last_signal["stop_short"]
+    # Kart 1 - "3 oy = tam pozisyon, 1 oy = 1/3 pozisyon": buyukluk carpani
+    # abs(vote_count)/toplam_cift_sayisi (bkz. signals/ma_voting.py modul docstring'i).
+    size_multiplier = abs(int(last_signal["vote_count"])) / len(MA_VOTING_PAIRS)
+    return entry_price, stop_price, None, size_multiplier
+
+
+STRATEGY_ENTRY_PARAMS_FN: dict[
+    str, Callable[[pd.DataFrame, int, pd.Series, pd.Series], tuple[float | None, float | None, float | None, float]]
+] = {
+    "donchian": _donchian_entry_params,
+    "price_action": _price_action_entry_params,
+    "ma_voting": _ma_voting_entry_params,
+}
+
+
+# -- Strateji-basina cikis kontrolu (acik pozisyon -> (fiyat, sebep) | None) --
+
+
+def _donchian_exit(
+    direction: int, last_row: pd.Series, position: PositionRecord, last_signal: pd.Series
+) -> tuple[float, str] | None:
+    trailing_level = last_signal["exit_long_level"] if direction == 1 else last_signal["exit_short_level"]
+    return check_donchian_exit(
+        direction, last_row["Open"], last_row["High"], last_row["Low"], last_row["Close"],
+        position.stop_price, trailing_level,
+    )
+
+
+def _price_action_exit(
+    direction: int, last_row: pd.Series, position: PositionRecord, last_signal: pd.Series
+) -> tuple[float, str] | None:
+    return resolve_intrabar_exit(
+        direction, last_row["Open"], last_row["High"], last_row["Low"], position.stop_price, position.target_price
+    )
+
+
+def _ma_voting_exit(
+    direction: int, last_row: pd.Series, position: PositionRecord, last_signal: pd.Series
+) -> tuple[float, str] | None:
+    # Once stop kontrolu (fiyat-bazli, intrabar) - sinyal HENUZ donmemis
+    # olsa bile stop'a takilmis olabilir.
+    stop_hit = resolve_intrabar_exit(
+        direction, last_row["Open"], last_row["High"], last_row["Low"], position.stop_price, target_price=None
+    )
+    if stop_hit is not None:
+        return stop_hit
+    # Sinyal-bazli cikis: oy sayisi 0'a/karsi isarete donduyse (bkz.
+    # signals/ma_voting.py modul docstring'i).
+    exit_flag = last_signal["exit_long_signal"] if direction == 1 else last_signal["exit_short_signal"]
+    if bool(exit_flag):
+        return float(last_row["Close"]), "signal"
+    return None
+
+
+STRATEGY_EXIT_FN: dict[str, Callable[[int, pd.Series, PositionRecord, pd.Series], tuple[float, str] | None]] = {
+    "donchian": _donchian_exit,
+    "price_action": _price_action_exit,
+    "ma_voting": _ma_voting_exit,
+}
 
 
 def _default_markets() -> dict[str, list[str]]:
@@ -185,6 +283,7 @@ class EntryCandidate:
     signal_date: dt.date
     df: pd.DataFrame  # korelasyon kumelemesi icin (Close kolonu kullanilir)
     target_price: float | None = None
+    size_multiplier: float = 1.0  # Kart 1 oy-sayisi orantili buyukluk (digerlerinde 1.0)
 
 
 def is_bist_trading_day(date: dt.date) -> bool:
@@ -330,17 +429,8 @@ def evaluate_symbol_strategy(
 
     if position is not None:
         direction = position.direction
-        if strategy == "donchian":
-            trailing_level = last_signal["exit_long_level"] if direction == 1 else last_signal["exit_short_level"]
-            exit_result = check_donchian_exit(
-                direction, last_row["Open"], last_row["High"], last_row["Low"], last_row["Close"],
-                position.stop_price, trailing_level,
-            )
-        else:
-            exit_result = resolve_intrabar_exit(
-                direction, last_row["Open"], last_row["High"], last_row["Low"],
-                position.stop_price, position.target_price,
-            )
+        exit_fn = STRATEGY_EXIT_FN[strategy]
+        exit_result = exit_fn(direction, last_row, position, last_signal)
 
         action = "hold"
         detail = ""
@@ -406,19 +496,11 @@ def evaluate_symbol_strategy(
     entry_price: float | None = None
     stop_price: float | None = None
     target_price: float | None = None
+    size_multiplier = 1.0
 
     if direction != 0:
-        if strategy == "donchian":
-            atr_series = compute_atr(df, period=DONCHIAN_ATR_PERIOD)
-            current_atr = atr_series.iloc[-1]
-            if pd.notna(current_atr) and current_atr > 0:
-                entry_price, stop_price = plan_donchian_entry(
-                    last_row["Close"], direction, current_atr, DONCHIAN_ATR_STOP_MULT, SLIPPAGE_PCT
-                )
-        else:
-            entry_price = apply_slippage(last_row["Close"], direction, is_entry=True, slippage_pct=SLIPPAGE_PCT)
-            stop_price = last_signal["stop_long"] if direction == 1 else last_signal["stop_short"]
-            target_price = last_signal["target_long"] if direction == 1 else last_signal["target_short"]
+        entry_params_fn = STRATEGY_ENTRY_PARAMS_FN[strategy]
+        entry_price, stop_price, target_price, size_multiplier = entry_params_fn(df, direction, last_row, last_signal)
 
     valid_stop = (
         entry_price is not None
@@ -437,7 +519,7 @@ def evaluate_symbol_strategy(
     return EntryCandidate(
         symbol=symbol, strategy=strategy, market=market, direction=direction,
         entry_price=entry_price, stop_price=stop_price, target_price=target_price,
-        signal_date=signal_date, df=df,
+        signal_date=signal_date, df=df, size_multiplier=size_multiplier,
     )
 
 
@@ -516,7 +598,9 @@ def allocate_and_open_candidates(
         weight = weights.get(key, 0.0)
         risk_based_size = compute_position_size(equity, RISK_PER_TRADE, candidate.entry_price, candidate.stop_price)
         weight_based_size = (abs(weight) * equity) / candidate.entry_price if candidate.entry_price > 0 else 0.0
-        size = min(risk_based_size, weight_based_size)
+        # size_multiplier: Kart 1 "oy sayisina orantili buyukluk" (bkz.
+        # EntryCandidate.size_multiplier docstring'i); diger stratejilerde 1.0.
+        size = min(risk_based_size, weight_based_size) * candidate.size_multiplier
         last_close = float(candidate.df["Close"].iloc[-1])
 
         if abs(weight) < 1e-6 or size <= 0:

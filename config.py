@@ -77,6 +77,21 @@ DONCHIAN_VOLUME_MULT: float = 1.0  # hacim >= 20 gunluk ortalama
 DONCHIAN_VOLUME_LOOKBACK: int = 20
 
 # ---------------------------------------------------------------------------
+# Kart 1 - Coklu Zaman Dilimi MA Crossover (Oylama Sistemi) parametreleri
+# ---------------------------------------------------------------------------
+
+# (hizli, yavas) MA cift listesi - faz2_strateji_kartlari.md Kart 1'deki
+# ornek degerler ("orn: (10,50), (20,100), (50,200)").
+MA_VOTING_PAIRS: list[tuple[int, int]] = [(10, 50), (20, 100), (50, 200)]
+
+# Kart 1 metni stop-loss icin "son 20 barin en dusugu / ATR(14)x2" diyor
+# (iki secenek arasinda net ayrim yapmiyor) - bu depo, Kart 4 (Donchian)
+# ile TUTARLI olmasi icin ATR bazli olani secer (bkz. signals/ma_voting.py
+# modul docstring'i).
+MA_VOTING_ATR_PERIOD: int = 14
+MA_VOTING_ATR_STOP_MULT: float = 2.0
+
+# ---------------------------------------------------------------------------
 # Kart 5 - Price Action Breakout parametreleri (Model B: hacim onayli
 # dogrudan kirilim - formal dokuman SS3'te kodlanabilir sekilde tanimlanan
 # versiyon; Model A (pullback) bu ilk surumde kapsam disi, bkz README)

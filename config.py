@@ -92,6 +92,23 @@ MA_VOTING_ATR_PERIOD: int = 14
 MA_VOTING_ATR_STOP_MULT: float = 2.0
 
 # ---------------------------------------------------------------------------
+# Kart 3 - Bollinger / Keltner Fade (ortalamaya-donus) parametreleri
+# ---------------------------------------------------------------------------
+
+BOLLINGER_FADE_BAND_PERIOD: int = 20  # Bollinger SMA / Keltner EMA periyodu
+BOLLINGER_FADE_BAND_MULT: float = 2.0  # Bollinger: x std; Keltner: x ATR
+BOLLINGER_FADE_ATR_PERIOD: int = 20  # Keltner bandi VE stop mesafesi icin ATR periyodu
+BOLLINGER_FADE_ATR_STOP_MULT: float = 0.5  # Kart 3: "bandin disina ATRx0.5"
+BOLLINGER_FADE_RSI_PERIOD: int = 14
+BOLLINGER_FADE_RSI_OVERBOUGHT: float = 70.0
+BOLLINGER_FADE_RSI_OVERSOLD: float = 30.0
+# Kart 3 filtresi (ADX(14) < esik iken aktif) AYRI bir
+# BOLLINGER_FADE_ADX_* sabiti TANIMLAMAZ - dogrudan asagidaki
+# RESEARCH_REGIME_ADX_PERIOD / RESEARCH_REGIME_ADX_TREND_THRESHOLD
+# kullanilir (signals/bollinger_fade.py research.regime.compute_adx'i
+# import eder) - iki paralel sabit "manuel senkron" riski tasirdi.
+
+# ---------------------------------------------------------------------------
 # Kart 5 - Price Action Breakout parametreleri (Model B: hacim onayli
 # dogrudan kirilim - formal dokuman SS3'te kodlanabilir sekilde tanimlanan
 # versiyon; Model A (pullback) bu ilk surumde kapsam disi, bkz README)
@@ -302,6 +319,14 @@ RESEARCH_REGIME_ATR_PERIOD: int = 14
 RESEARCH_REGIME_ATR_LOOKBACK: int = 252
 RESEARCH_REGIME_LOW_PCT: float = 33.0  # bu yuzdelik dilimin ALTI -> "dusuk" rejim
 RESEARCH_REGIME_HIGH_PCT: float = 67.0  # bu yuzdelik dilimin USTU -> "yuksek" rejim
+
+# M5 - ADX bazli TREND/RANGE rejim ekseni (yukaridaki ATR-yuzdelik OYNAKLIK
+# eksenine EK, ONU DEGISTIRMEZ - iki ayri/ortogonal rejim boyutu). Kart 3
+# (Bollinger/Keltner fade) filtresi icin gerekli: ADX < esik -> "range"
+# (fade stratejileri aktif), ADX >= esik -> "trend" (Donchian/Kart-1'in
+# calistigi, fade'in DEVRE DISI kalmasi gereken rejim).
+RESEARCH_REGIME_ADX_PERIOD: int = 14
+RESEARCH_REGIME_ADX_TREND_THRESHOLD: float = 20.0  # Kart 3 metni: "ADX(14) < 20"
 
 # ---------------------------------------------------------------------------
 # Model kombinasyonu / ensemble (research/ensemble.py) - Modul 5

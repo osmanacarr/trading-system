@@ -96,3 +96,82 @@ def test_backtest_by_regime_does_not_mutate_input_signals():
 
     regime.backtest_by_regime(df, signals, "donchian", regime_labels)
     pd.testing.assert_frame_equal(signals, signals_copy)
+
+
+# -- M5: ADX / trend-range rejim ekseni ------------------------------------
+
+
+def _trend_df(n: int = 80, step: float = 1.0) -> pd.DataFrame:
+    """Guclu, tek yonlu (dogrusal) trend - yuksek ADX beklenir."""
+    dates = pd.date_range("2020-01-01", periods=n, freq="B")
+    close = 100.0 + step * np.arange(n)
+    high = close + 0.5
+    low = close - 0.5
+    open_ = close - step / 2
+    volume = np.full(n, 1000.0)
+    return pd.DataFrame({"Open": open_, "High": high, "Low": low, "Close": close, "Volume": volume}, index=dates)
+
+
+def _choppy_df(n: int = 80, amplitude: float = 5.0, period_bars: int = 10) -> pd.DataFrame:
+    """Genlik/periyodu sabit bir sinus salinimi - genuine 'yon degistiren'
+    (chop) veri; make_flat_range_df BURADA KULLANILMAZ cunku o fixture'in
+    High/Low'u bar-bar SABIT kaliyor (bkz. tanimi) - bu, gercekci olmayan
+    ("hicbir yon-hareketi yok") dejenere bir girdi ADX icin: DM bilesenleri
+    ilk bardan sonra tam SIFIR kalir, bu da standart DX formulunde
+    (100*|+DI--DI|/(+DI+-DI)) tanimsiz/sinir-durum bir sonuca (100'e
+    kilitlenme) yol acar - GERCEK piyasa verisinde High/Low boyle uzun
+    sure birebir sabit kalmaz, bu yuzden bu, ADX'in degil, o fixture'in
+    ADX testleri icin uygunsuzlugunun bir sonucudur."""
+    dates = pd.date_range("2020-01-01", periods=n, freq="B")
+    t = np.arange(n)
+    close = 100.0 + amplitude * np.sin(2 * np.pi * t / period_bars)
+    high = close + 0.3
+    low = close - 0.3
+    open_ = np.roll(close, 1)
+    open_[0] = 100.0
+    volume = np.full(n, 1000.0)
+    return pd.DataFrame({"Open": open_, "High": high, "Low": low, "Close": close, "Volume": volume}, index=dates)
+
+
+def test_compute_adx_values_within_0_100():
+    df = _trend_df(n=60, step=1.0)
+    adx = regime.compute_adx(df, period=14)
+    valid = adx.dropna()
+    assert not valid.empty
+    assert (valid >= 0).all() and (valid <= 100).all()
+
+
+def test_compute_adx_high_in_strong_trend():
+    df = _trend_df(n=80, step=1.0)
+    adx = regime.compute_adx(df, period=14)
+    assert adx.iloc[-1] > 40  # guclu tek-yonlu trend -> yuksek ADX
+
+
+def test_compute_adx_low_in_choppy_oscillation():
+    df = _choppy_df(n=80, amplitude=5.0, period_bars=10)
+    adx = regime.compute_adx(df, period=14)
+    assert adx.iloc[-1] < 20.0
+
+
+def test_compute_trend_range_labels_classifies_trend_and_range():
+    trend_df = _trend_df(n=80, step=1.0)
+    choppy_df = _choppy_df(n=80, amplitude=5.0, period_bars=10)
+
+    trend_labels = regime.compute_trend_range_labels(trend_df, period=14, trend_threshold=20.0)
+    choppy_labels = regime.compute_trend_range_labels(choppy_df, period=14, trend_threshold=20.0)
+
+    assert trend_labels.iloc[-1] == "trend"
+    assert choppy_labels.iloc[-1] == "range"
+
+
+def test_compute_trend_range_labels_none_during_warmup():
+    df = _trend_df(n=10, step=1.0)
+    labels = regime.compute_trend_range_labels(df, period=14)
+    assert pd.isna(labels.iloc[0])
+
+
+def test_compute_trend_range_labels_only_contains_known_labels_or_none():
+    df = _trend_df(n=80, step=1.0)
+    labels = regime.compute_trend_range_labels(df, period=14)
+    unique = set(labels.dropna().unique())
+    assert unique.issubset(set(regime.TREND_RANGE_LABELS))

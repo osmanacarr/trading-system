@@ -26,6 +26,15 @@ ATR'nin trailing `lookback` pencerelik ATR dagilimindaki sirasi) ama
 BURADA TAM ZAMAN SERISI olarak (vektorize, backtest_by_regime'in TUM
 gecmis barlar icin rejim etiketine ihtiyaci oldugu icin) - gozcu'nun
 kendisi degistirilmedi (bkz. research/factors.py'deki ayni gerekce).
+
+M5 - ADX / TREND-RANGE rejim ekseni: yukaridaki OYNAKLIK (dusuk/normal/
+yuksek ATR-yuzdelik) ekseninden BAGIMSIZ, ORTOGONAL bir ikinci eksen.
+Amac: Kart 3 (Bollinger/Keltner fade, signals/bollinger_fade.py) SADECE
+ADX(14) < esik (yatay/range piyasa) iken aktif olmali - Donchian/Kart-1
+(trend-takip) ise GUCLU trendde (ADX yuksek) calisir. Bu, quant.md'deki
+"rejime gore hero algoritma" fikrinin (bkz. proje kokundeki mimari
+genisletme plani) somut, en hazir uygulamasidir: TEK bir "iyi" strateji
+yerine, HANGI rejimde HANGI stratejinin aktif olacagini ADX belirler.
 """
 
 from __future__ import annotations
@@ -36,6 +45,8 @@ import pandas as pd
 from backtest.engine import compute_atr, run_backtest
 from backtest.metrics import expectancy_r, mae_mfe_summary, median_r, profit_factor, win_rate
 from config import (
+    RESEARCH_REGIME_ADX_PERIOD,
+    RESEARCH_REGIME_ADX_TREND_THRESHOLD,
     RESEARCH_REGIME_ATR_LOOKBACK,
     RESEARCH_REGIME_ATR_PERIOD,
     RESEARCH_REGIME_HIGH_PCT,
@@ -43,6 +54,7 @@ from config import (
 )
 
 REGIME_LABELS: tuple[str, str, str] = ("low", "normal", "high")
+TREND_RANGE_LABELS: tuple[str, str] = ("range", "trend")
 
 
 def _rolling_percentile_rank(window: np.ndarray) -> float:
@@ -146,3 +158,78 @@ def backtest_by_regime(
             "mae_mfe": mae_mfe_summary(group),
         }
     return result
+
+
+def compute_adx(df: pd.DataFrame, period: int = RESEARCH_REGIME_ADX_PERIOD) -> pd.Series:
+    """Wilder'in Ortalama Yon Endeksi'ni (ADX) hesaplar - trend GUCUNU olcer
+    (yon DEGIL - hem guclu yukselis hem guclu dusus YUKSEK ADX verir).
+
+    Wilder'in orijinal smoothing'i yerine, bu depodaki diger tum
+    gostergelerle (compute_atr, research.factors.compute_rsi) TUTARLI
+    olmasi icin ewm(alpha=1/period) yaklasimi kullanilir (bkz. bu
+    fonksiyonlarin docstring'lerindeki ayni gerekce).
+
+    Args:
+        df: ["High","Low","Close"] kolonlarini iceren, kronolojik sirali DataFrame.
+        period: ADX periyodu (varsayilan 14 - Kart 3 metni "ADX(14)").
+
+    Returns:
+        df ile ayni index'e sahip, 0-100 araliginda ADX Series'i. Ilk
+        ~2*period bar NaN'e yakindir (DI/DX/ADX'in UC KATMANLI smoothing'i
+        nedeniyle ATR'den daha uzun isinma suresi gerekir).
+    """
+    high, low, close = df["High"], df["Low"], df["Close"]
+    prev_close = close.shift(1)
+    true_range = pd.concat(
+        [high - low, (high - prev_close).abs(), (low - prev_close).abs()], axis=1
+    ).max(axis=1)
+
+    up_move = high.diff()
+    down_move = -low.diff()
+    plus_dm = pd.Series(
+        np.where((up_move > down_move) & (up_move > 0), up_move, 0.0), index=df.index
+    )
+    minus_dm = pd.Series(
+        np.where((down_move > up_move) & (down_move > 0), down_move, 0.0), index=df.index
+    )
+
+    smoothing = {"alpha": 1.0 / period, "min_periods": period, "adjust": False}
+    smoothed_tr = true_range.ewm(**smoothing).mean()
+    smoothed_plus_dm = plus_dm.ewm(**smoothing).mean()
+    smoothed_minus_dm = minus_dm.ewm(**smoothing).mean()
+
+    plus_di = 100.0 * smoothed_plus_dm / smoothed_tr.replace(0.0, np.nan)
+    minus_di = 100.0 * smoothed_minus_dm / smoothed_tr.replace(0.0, np.nan)
+
+    di_sum = (plus_di + minus_di).replace(0.0, np.nan)
+    dx = 100.0 * (plus_di - minus_di).abs() / di_sum
+
+    adx = dx.ewm(**smoothing).mean()
+    return adx
+
+
+def compute_trend_range_labels(
+    df: pd.DataFrame,
+    period: int = RESEARCH_REGIME_ADX_PERIOD,
+    trend_threshold: float = RESEARCH_REGIME_ADX_TREND_THRESHOLD,
+) -> pd.Series:
+    """Her bar icin "trend"/"range" etiketi (yeterli veri yoksa None).
+
+    Yukaridaki OYNAKLIK rejimi (compute_regime_labels) ile ORTOGONAL bir
+    ikinci eksen (bkz. modul docstring'i "M5"). Kart 3 (Bollinger/Keltner
+    fade) filtresi icin: "range" -> fade stratejileri aktif; "trend" ->
+    devre disi (Donchian/Kart-1'in calistigi rejim).
+
+    Args:
+        df: ["High","Low","Close"] kolonlarina sahip OHLCV DataFrame.
+        period: compute_adx periyodu.
+        trend_threshold: ADX bu esigin USTUNDE -> "trend"; ALTINDA -> "range".
+    """
+    adx = compute_adx(df, period=period)
+
+    def _label(v: float) -> str | None:
+        if pd.isna(v):
+            return None
+        return "trend" if v >= trend_threshold else "range"
+
+    return adx.apply(_label)

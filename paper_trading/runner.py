@@ -92,7 +92,7 @@ from paper_trading.logger import PaperTradingLogger
 from paper_trading.state import PaperTradingState, PositionRecord
 from risk import portfolio as risk_portfolio
 from risk.correlation_clusters import build_correlation_clusters, compute_return_matrix
-from signals import donchian, ma_voting, price_action
+from signals import bollinger_fade, donchian, ma_voting, price_action
 
 log = logging.getLogger("paper_trading.runner")
 
@@ -100,6 +100,7 @@ STRATEGY_SIGNAL_FN: dict[str, Callable[[pd.DataFrame], pd.DataFrame]] = {
     "donchian": donchian.generate_signals,
     "price_action": price_action.generate_signals,
     "ma_voting": ma_voting.generate_signals,
+    "bollinger_fade": bollinger_fade.generate_signals,
 }
 
 FetchFn = Callable[..., pd.DataFrame]
@@ -152,6 +153,11 @@ STRATEGY_ENTRY_PARAMS_FN: dict[
     "donchian": _donchian_entry_params,
     "price_action": _price_action_entry_params,
     "ma_voting": _ma_voting_entry_params,
+    # bollinger_fade (Kart 3), price_action (Kart 5) ile AYNI mekanigi
+    # kullanir: sabit stop + sabit hedef sinyal DataFrame'inden okunur -
+    # ayri bir fonksiyon YAZILMADI (bkz. backtest/engine.py::run_backtest
+    # dispatch'indeki ayni gerekce).
+    "bollinger_fade": _price_action_entry_params,
 }
 
 
@@ -198,6 +204,7 @@ STRATEGY_EXIT_FN: dict[str, Callable[[int, pd.Series, PositionRecord, pd.Series]
     "donchian": _donchian_exit,
     "price_action": _price_action_exit,
     "ma_voting": _ma_voting_exit,
+    "bollinger_fade": _price_action_exit,
 }
 
 

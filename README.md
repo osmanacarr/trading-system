@@ -156,7 +156,7 @@ trading-system/
 
 ## Doğrulama durumu
 
-- `python -m pytest -q` → **319/319 test geçiyor** (backtest/veri/sinyal/istatistik/
+- `python -m pytest -q` → **335/335 test geçiyor** (backtest/veri/sinyal/istatistik/
   paper trading/risk/GÖZCÜ; tamamı sentetik/deterministik veri veya mock'lanmış
   yfinance/Telegram çağrılarıyla, gerçek ağ bağlantısı gerektirmez).
 - Donchian + BIST canlı veriyle uçtan uca doğrulandı (2019-01-01 -> bugün, 13 sembol,
@@ -181,6 +181,23 @@ trading-system/
   çalıştığı p-hacking olurdu). Strateji `python -m paper_trading.runner
   --strategies donchian ma_voting` ile isteğe bağlı/deneysel olarak
   çalıştırılabilir ama varsayılan aktif strateji listesinde DEĞİL.
+- **Kart 3 (Bollinger/Keltner fade, `signals/bollinger_fade.py`, M5) —
+  KODLANDI ve BACKTEST EDİLDİ ama LIVE paper trading'e EKLENMEDİ; sonuç,
+  ma_voting'den daha net bir "HAYIR".** BIST + 13 sembol (2018-01-01 ->
+  bugün), Kart 3 metnindeki parametrelerle (RSI(14), bant(20,2), ADX(14)<20,
+  stop=bant×ATR0.5): **Keltner** varyantı 5 işlem (t-stat ≈ -6.31), **Bollinger**
+  varyantı 10 işlem (t-stat ≈ -29.11) — ikisinde de **%0 kazanma oranı**.
+  Örneklem MIN_TRADES_FOR_RELIABLE_STATS (30) eşiğinin çok altında, bu yüzden
+  tek başına "kesin kötü" denemez, ama tekrarlayan bir mekanik neden var:
+  Kart 3'ün stop mesafesi (bandın dışına yalnızca ATR×0.5) çok dar — giriş
+  zaten bir volatilite ZİRVESİNDE (bant dokunuşu + RSI aşırı bölge) olduğundan,
+  fiyat ortalamaya dönmeden önce birkaç bar daha aleyhte devam etmesi bile
+  stop'u tetiklemeye yetiyor (incelenen işlemlerin çoğu 1-11 gün içinde
+  stop'la kapandı). **Stop mesafesini gevşetmek denenmedi** — bu, M1'in
+  önlemeye çalıştığı p-hacking olurdu; bunun yerine gözlem olarak not
+  düşülüyor, ayrı bir hipotez olarak ileride (yeni bir doğrulama turunda)
+  test edilebilir. Strateji `--strategies donchian bollinger_fade` ile
+  isteğe bağlı/deneysel çalıştırılabilir ama varsayılan DEĞİL.
 
 ## Zamanlama — günlük otomatik çalıştırma (Faz 4)
 
@@ -562,8 +579,9 @@ tutulur — paper trading `state.db`'sine dokunulmaz.
 - `risk/position_sizing.py` (Kelly) — Faz 3.5 SS5'te tanımlanan, henüz
   kodlanmamış modül (`risk/portfolio.py` M2/M3'te kodlanıp paper trading'e
   bağlandı, bkz. yukarıdaki "Evren" ve "Çoklu-sembol equity ilişkisi" notları).
-- **Kart 1 (MA oylama):** kodlandı (`signals/ma_voting.py`, M4) ama LIVE paper
-  trading'e eklenmedi — çoklu-test anlamlılık eşiğini geçemedi (bkz. yukarıdaki
-  "Doğrulama durumu"). Kart 3 (Bollinger/Keltner fade) kodlanma sırasında (bkz.
-  proje kökündeki mimari genişletme planı). Kart 2 (VWAP mean reversion,
-  gün-içi) daha düşük öncelikli, henüz planlanmadı.
+- **Kart 1 (MA oylama)** ve **Kart 3 (Bollinger/Keltner fade):** ikisi de
+  kodlandı (`signals/ma_voting.py` M4, `signals/bollinger_fade.py` M5) ama
+  LIVE paper trading'e eklenmedi — ikisi de çoklu-test anlamlılık eşiğini
+  geçemedi (bkz. yukarıdaki "Doğrulama durumu"; Kart 3'ün sonucu %0 kazanma
+  oranıyla daha net bir "hayır"). Kart 2 (VWAP mean reversion, gün-içi) daha
+  düşük öncelikli, henüz planlanmadı.

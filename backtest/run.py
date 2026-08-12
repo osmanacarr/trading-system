@@ -20,7 +20,7 @@ from backtest.metrics import summarize
 from config import BIST_TICKERS, CRYPTO_TICKERS, INITIAL_CAPITAL, MIN_BARS_REQUIRED
 from data.adjust import adjust_jumps
 from data.fetch import fetch_ohlcv
-from signals import donchian, ma_voting, price_action
+from signals import bollinger_fade, donchian, ma_voting, price_action
 from validation.significance import (
     is_significant_multi_test,
     multi_test_t_threshold,
@@ -32,6 +32,7 @@ STRATEGY_SIGNAL_FN: dict[str, Callable[[pd.DataFrame], pd.DataFrame]] = {
     "donchian": donchian.generate_signals,
     "price_action": price_action.generate_signals,
     "ma_voting": ma_voting.generate_signals,
+    "bollinger_fade": bollinger_fade.generate_signals,
 }
 
 UNIVERSES: dict[str, list[str]] = {

@@ -549,7 +549,7 @@ def run_ma_voting_backtest(
 def run_backtest(
     df: pd.DataFrame,
     signals: pd.DataFrame,
-    strategy: Literal["donchian", "price_action", "ma_voting"],
+    strategy: Literal["donchian", "price_action", "ma_voting", "bollinger_fade"],
     **kwargs,
 ) -> tuple[pd.DataFrame, pd.Series]:
     """Strateji adina gore uygun backtest fonksiyonuna yonlendirir.
@@ -557,7 +557,7 @@ def run_backtest(
     Args:
         df: OHLCV fiyat verisi.
         signals: Ilgili signals modulunun generate_signals ciktisi.
-        strategy: "donchian", "price_action" veya "ma_voting".
+        strategy: "donchian", "price_action", "ma_voting" veya "bollinger_fade".
         **kwargs: Ilgili run_*_backtest fonksiyonuna aktarilan ek parametreler.
 
     Returns:
@@ -568,7 +568,13 @@ def run_backtest(
     """
     if strategy == "donchian":
         return run_donchian_backtest(df, signals, **kwargs)
-    if strategy == "price_action":
+    if strategy in ("price_action", "bollinger_fade"):
+        # bollinger_fade (Kart 3) ve price_action (Kart 5) AYNI giris/cikis
+        # mekanigini paylasir: sabit stop + sabit hedef (trailing YOK) -
+        # run_price_action_backtest STRATEJI-BAGIMSIZ (yalnizca standart
+        # entry_long/entry_short/stop_long/stop_short/target_long/
+        # target_short kolonlarini okur), bu yuzden AYRI bir
+        # run_bollinger_fade_backtest yazilmadi (kod tekrari olurdu).
         return run_price_action_backtest(df, signals, **kwargs)
     if strategy == "ma_voting":
         return run_ma_voting_backtest(df, signals, **kwargs)

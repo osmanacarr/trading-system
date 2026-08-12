@@ -520,6 +520,20 @@ def test_candidate_rejected_when_gross_budget_exhausted(state, trade_logger):
     new_result = next(r for r in summary["results"] if r.symbol == "NEW-USD")
     assert new_result.action == "skip_risk_budget"
     assert state.get_position("NEW-USD", "donchian") is None
+    assert "kaldirac" in new_result.detail.lower()
+
+    # REGRESYON ("En Iyi N Firsat", bkz. paper_trading/opportunities.py):
+    # reddedilen aday KAYBOLMAMALI - trade_logger.log_dir'e (GERCEK uretim
+    # yolu DEGIL, bkz. action_sheet icin ayni KOK NEDEN NOTU) opportunities.json
+    # olarak yazilmali.
+    import json
+
+    opp_path = trade_logger.log_dir / "opportunities.json"
+    assert opp_path.exists()
+    opp_data = json.loads(opp_path.read_text(encoding="utf-8"))
+    assert len(opp_data["entries"]) == 1
+    assert opp_data["entries"][0]["symbol"] == "NEW-USD"
+    assert "kaldirac" in opp_data["entries"][0]["rejection_reason"].lower()
 
 
 def test_correlated_candidates_capped_by_cluster_exposure(state, trade_logger):

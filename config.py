@@ -193,6 +193,13 @@ PAPER_TRADING_LOOKBACK_DAYS: int = 400
 # mesaji gonderilir (karar/islem degistirmez, sadece bilgilendirme).
 STOP_PROXIMITY_WARNING_PCT: float = 0.20
 
+# "En Iyi N Firsat" (bkz. paper_trading/opportunities.py): gunun risk
+# butcesi tarafindan REDDEDILEN (skip_risk_budget) adaylarindan, kirilim
+# kalitesine gore siralanip gosterilecek EN FAZLA aday sayisi. Sabit bir
+# GARANTI degildir - o gun reddedilen aday sayisi bundan azsa (0 dahil)
+# olduğu kadar gosterilir, zorlama YOKTUR.
+OPPORTUNITIES_TOP_N: int = 5
+
 # ---------------------------------------------------------------------------
 # GOZCU - surekli izleme paneli (gozcu/). Paper trading'den TAMAMEN bagimsiz:
 # al-sat sinyali uretmez, sadece dikkat ceken piyasa hareketlerini gosterir.

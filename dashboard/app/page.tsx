@@ -1,6 +1,7 @@
 import { DashboardProvider } from "@/lib/dashboard-context";
 import { StatusBar } from "@/components/StatusBar";
 import { ActionSheetPanel } from "@/components/ActionSheetPanel";
+import { OpportunitiesPanel } from "@/components/OpportunitiesPanel";
 import { StrategySummaryCard } from "@/components/StrategySummaryCard";
 import { SystemLog } from "@/components/SystemLog";
 import { EquityChart } from "@/components/EquityChart";
@@ -29,6 +30,14 @@ export default function Home() {
               hemen sonra), Acik Pozisyonlar tablosunun USTUNDE (yerine degil) */}
           <div id="panel-action-sheet">
             <ActionSheetPanel />
+          </div>
+
+          {/* Risk butcesinin reddettigi ama Donchian'in kendi kirilim
+              olcusune gore guclu adaylar - Action Sheet'in HEMEN altinda
+              ama BILINCLI OLARAK farkli (kirmizi/tehlike) tonla, "yapin"
+              ile "sistem reddetti, siz karar verin" karismasin diye. */}
+          <div id="panel-opportunities">
+            <OpportunitiesPanel />
           </div>
 
           {/* Ana 12-kolon grid: sol (strateji ozeti + gunluk) / orta (equity + pozisyonlar) / sag (islem gecmisi + guven) */}

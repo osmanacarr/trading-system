@@ -1,6 +1,13 @@
 import { readJson, readJsonl, readOpenPositions } from "@/lib/readers";
-import { ACTION_SHEET_JSON_PATH, EQUITY_JSONL_PATH, MANUAL_LOG_PATH, SUMMARY_JSON_PATH, TRADES_JSONL_PATH } from "@/lib/paths";
-import type { ActionSheetData, EquitySnapshot, ManualEntryRecord, Summary, TradeRecord } from "@/lib/types";
+import {
+  ACTION_SHEET_JSON_PATH,
+  EQUITY_JSONL_PATH,
+  MANUAL_LOG_PATH,
+  OPPORTUNITIES_JSON_PATH,
+  SUMMARY_JSON_PATH,
+  TRADES_JSONL_PATH,
+} from "@/lib/paths";
+import type { ActionSheetData, EquitySnapshot, ManualEntryRecord, OpportunitiesData, Summary, TradeRecord } from "@/lib/types";
 import { computeCorrelationWarning, computeRiskBudget, computeStrategyStats } from "@/lib/derive";
 import { sharpeConfidenceInterval } from "@/lib/stats";
 import { BACKTEST_BASELINE } from "@/lib/backtestBaseline";
@@ -20,6 +27,7 @@ export async function GET() {
   const { positions, error: positionsError } = readOpenPositions();
   const manualEntries = readJsonl<ManualEntryRecord>(MANUAL_LOG_PATH);
   const actionSheet = readJson<ActionSheetData>(ACTION_SHEET_JSON_PATH);
+  const opportunities = readJson<OpportunitiesData>(OPPORTUNITIES_JSON_PATH);
 
   const stats = computeStrategyStats(trades);
   const riskBudget = computeRiskBudget(trades);
@@ -45,6 +53,7 @@ export async function GET() {
     positionsError,
     manualEntries,
     actionSheet,
+    opportunities,
     stats,
     riskBudget,
     correlation,

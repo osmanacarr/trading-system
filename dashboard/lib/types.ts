@@ -82,6 +82,32 @@ export interface ActionSheetData {
   entries: ActionSheetEntry[];
 }
 
+// paper_trading/opportunities.py::OpportunityEntry (asdict ciktisi) ile
+// birebir ayni alanlar. atr_distance/volume_ratio/body_ratio KASITLI
+// OLARAK AYRI alanlar (tek bir opak skora sikistirilmaz - bkz. Python
+// tarafi research/opportunity_score.py modul docstring'i).
+export interface OpportunityEntry {
+  symbol: string;
+  strategy: string;
+  direction: 1 | -1;
+  applicable: boolean;
+  entry_price: number;
+  stop_price: number;
+  signal_date: string;
+  rejection_reason: string;
+  atr_distance: number | null;
+  volume_ratio: number | null;
+  body_ratio: number | null;
+}
+
+// paper_trading/opportunities.py::opportunities_to_dict ciktisi.
+export interface OpportunitiesData {
+  generated_at: string;
+  run_date: string;
+  risk_warning: string;
+  entries: OpportunityEntry[];
+}
+
 // paper_trading/manual_log.py MANUAL_LOG_COLUMNS ile birebir ayni alanlar.
 // Kullanicinin sistem sinyaline karsi GERCEKTEN actigi (kendi hesabindan,
 // manuel) islemin kaydi - sistemin sanal trades.jsonl'inden bagimsiz.

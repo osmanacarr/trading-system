@@ -99,7 +99,7 @@ from data.adjust import adjust_jumps
 from data.fetch import fetch_ohlcv
 from gozcu.universe import get_bist_universe
 from notifications.telegram import send_telegram_message
-from paper_trading import action_sheet
+from paper_trading import action_sheet, opportunities
 from paper_trading.logger import PaperTradingLogger
 from paper_trading.state import PaperTradingState, PositionRecord
 from research.regime import compute_weekly_trend_bias
@@ -544,6 +544,55 @@ def evaluate_symbol_strategy(
     )
 
 
+def _classify_rejection_reason(
+    candidate: EntryCandidate,
+    key: str,
+    remaining_budget: float,
+    candidate_clusters: dict[str, str],
+    sector_caps: dict[str, float],
+    existing_net_exposure: float,
+    max_net_exposure: float,
+) -> str:
+    """Bir adayin NEDEN skip_risk_budget oldugunu, ERISILEBILIR kisit
+    durumundan EN IYI ÇABA (best-effort) ile siniflandirir - "En Iyi N
+    Firsat" ozelligi icin (bkz. paper_trading/opportunities.py modul
+    docstring'i, gorev tanimi ADIM 4 "risk katmaninin reddettigi sinyalleri
+    'firsat' diye sunmak tehlikeli - ACIKCA soyle" gerekcesi).
+
+    ONEMLI DURUSTLUK NOTU: SLSQP optimizer'in ortak (joint) cozumunde
+    kisitlar birbirine bagli etkilesir - burada donen tek bir kesin "sebep"
+    DEGIL, KONTROL EDILEBILIR kisit durumuna dayanan en olasi aciklamadir
+    (bkz. asagidaki oncelik sirasi). Cagiran kod (opportunities.py ->
+    dashboard) bunu "olasi neden" olarak sunmali, mutlak kesinlik iddia
+    ETMEMELIDIR.
+
+    Oncelik sirasi (ilk eslesen kullanilir):
+        1. Brut kaldirac butcesi BASTAN tukenmisti (remaining_budget<=0) -
+           optimizer'a hic girmeden TUM adaylar 0 agirlik aldi.
+        2. Adayin korelasyon kumesi ZATEN doluydu (kume basina kalan
+           butce ~0) - M7 capraz-gun kume takibi.
+        3. Net yonlu maruziyet siniri, adayin YONUNE yakindi (portfoy zaten
+           o yone yaslanmis).
+        4. Yukaridakilerin hicbiri acikca binding degilse: portfoy
+           tahsisinde (GECICI esit-agirlik skor, bkz. modul docstring'i
+           "GECICI SKOR") diger adaylara oncelik verildi - genel/varsayilan aciklama.
+    """
+    if remaining_budget <= 1e-9:
+        return "Brut kaldirac sinirina ulasildi (mevcut pozisyonlar butcenin tamamini kullaniyor)"
+
+    cluster_id = candidate_clusters.get(key)
+    if cluster_id is not None and sector_caps.get(cluster_id, 0.0) <= 1e-9:
+        return "Korelasyon kumesi zaten dolu (bu kumede baska pozisyon(lar) var)"
+
+    if max_net_exposure is not None and max_net_exposure > 0:
+        same_direction_as_existing = existing_net_exposure * candidate.direction > 0
+        near_limit = abs(existing_net_exposure) >= max_net_exposure - 1e-6
+        if same_direction_as_existing and near_limit:
+            return "Net yonlu maruziyet sinirina yakin (portfoy zaten bu yone cok yaslanmis)"
+
+    return "Portfoy tahsisinde diger adaylara oncelik verildi (ayni gun birden fazla sinyal, sinirli butce)"
+
+
 def allocate_and_open_candidates(
     candidates: list[EntryCandidate],
     state: PaperTradingState,
@@ -614,6 +663,13 @@ def allocate_and_open_candidates(
     remaining_budget = max(0.0, RISK_MAX_GROSS_LEVERAGE - existing_gross_exposure)
 
     candidate_keys: dict[str, EntryCandidate] = {f"{c.symbol}::{c.strategy}": c for c in candidates}
+    # asagida her iki dalda da (remaining_budget<=0 ISE hesaplanmadan) her
+    # zaman TANIMLI olsun diye burada baslatilir - _classify_rejection_reason
+    # (bkz. asagisi) remaining_budget<=0 durumunu ONCE kontrol ettigi icin
+    # bu ikisi bos kalsa bile guvenli okunur (opportunities.py icin, bkz.
+    # gorev tanimi "En Iyi N Firsat").
+    candidate_clusters: dict[str, str] = {}
+    sector_caps: dict[str, float] = {}
 
     if remaining_budget <= 0:
         weights: dict[str, float] = {key: 0.0 for key in candidate_keys}
@@ -648,7 +704,6 @@ def allocate_and_open_candidates(
         # olmayan hicbir kume icin girdi TUTULMAZ (optimize_portfolio
         # eksik anahtari 0.0 kabul eder - ama buradaki dongu candidate_clusters
         # UZERINDEN gittigi icin her aday kumesi mutlaka bir girdiye sahip olur).
-        sector_caps: dict[str, float] = {}
         for cluster_id in set(candidate_clusters.values()):
             consumed = existing_cluster_exposure.get(cluster_id, 0.0)
             sector_caps[cluster_id] = max(0.0, RISK_MAX_SECTOR_EXPOSURE - consumed)
@@ -677,10 +732,14 @@ def allocate_and_open_candidates(
         if abs(weight) < 1e-6 or size <= 0:
             if not dry_run:
                 state.set_last_processed_date(candidate.symbol, candidate.strategy, candidate.signal_date)
+            reason = _classify_rejection_reason(
+                candidate, key, remaining_budget, candidate_clusters, sector_caps,
+                existing_net_exposure, MAX_NET_EXPOSURE_PCT,
+            )
             results.append(
                 SymbolResult(
                     symbol=candidate.symbol, strategy=candidate.strategy, market=candidate.market,
-                    action="skip_risk_budget", signal_date=candidate.signal_date, last_close=last_close,
+                    action="skip_risk_budget", detail=reason, signal_date=candidate.signal_date, last_close=last_close,
                 )
             )
             continue
@@ -934,6 +993,32 @@ def run_once(
             telegram_summary = action_sheet.format_daily_telegram_summary(sheet_entries, run_date)
             if telegram_summary:
                 send_telegram_message(telegram_summary)
+
+            # "En Iyi N Firsat" (bkz. paper_trading/opportunities.py modul
+            # docstring'i) - SADECE bugun skip_risk_budget olan adaylar,
+            # EntryCandidate'in orijinal df'i (kirilim-kalite metrikleri icin)
+            # ile eslenerek RejectedCandidate'e cevrilir. Ayni yol-turetme
+            # NEDENIYLE (bkz. yukaridaki action_sheet KOK NEDEN NOTU)
+            # trade_logger.log_dir kullanilir.
+            candidate_by_key = {f"{c.symbol}::{c.strategy}": c for c in candidates}
+            rejected: list[opportunities.RejectedCandidate] = []
+            for result in allocation_results:
+                if result.action != "skip_risk_budget":
+                    continue
+                original = candidate_by_key.get(f"{result.symbol}::{result.strategy}")
+                if original is None:
+                    continue
+                rejected.append(
+                    opportunities.RejectedCandidate(
+                        symbol=original.symbol, strategy=original.strategy, direction=original.direction,
+                        entry_price=original.entry_price, stop_price=original.stop_price,
+                        signal_date=original.signal_date, reason=result.detail, df=original.df,
+                    )
+                )
+            opportunity_entries = opportunities.build_opportunities(rejected)
+            opportunities.write_opportunities_json(
+                opportunity_entries, run_date, path=trade_logger.log_dir / "opportunities.json"
+            )
 
         if verbose:
             print("-" * 80)

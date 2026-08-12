@@ -322,6 +322,25 @@ RISK_MAX_POSITION_SIZE: float = 0.2
 # kendi sector_map'ini saglamalidir (bkz. risk/portfolio.py).
 RISK_MAX_SECTOR_EXPOSURE: float = 0.4
 
+# risk/correlation_clusters.py - gercek sektor verisi olmadigindan,
+# sector_map'in YERINE ampirik getiri-korelasyonu kumeleri kullanilir
+# (bkz. faz3.5_matematiksel_formalizasyon.md SS6: BIST sembolleri ortak
+# makro faktore -TL, faiz, endeks- maruz, "sektor" bunu yakalamaz).
+# Bu esigin USTUNDEKI (tek-baglantili/single-linkage) ciftler ayni kumeye
+# konur, sonra mevcut RISK_MAX_SECTOR_EXPOSURE ile kume-basi maruziyet
+# sinirlanir.
+#
+# NOT (gelecekte gozden gecirilecek - kullanici karari, 2026-08-12): 0.6 ile
+# BASLANIYOR ama sabit degil. Birkac hafta paper trading + factor_history
+# verisi biriktikten sonra, kumelere giren sembollerin GERCEKTEN ayni
+# gunlerde ayni yonde hareket edip etmedigi (orn. ayni gun kume-ici birden
+# fazla sembolde esbir giris sinyali sikligi) olculup, 0.6 BIST-geneli
+# ortak faktoru yeterince yakalamiyorsa 0.5'e cekilmesi degerlendirilecek -
+# kucuk sermayede fazla temkinli olmanin maliyeti, az temkinli olmaktan
+# daha dusuktur.
+RISK_CORRELATION_CLUSTER_THRESHOLD: float = 0.6
+RISK_CORRELATION_CLUSTER_LOOKBACK_DAYS: int = 60
+
 # ---------------------------------------------------------------------------
 # Dashboard /research ozet yayinlama (research/publish_summary.py)
 # ---------------------------------------------------------------------------

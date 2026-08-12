@@ -57,13 +57,60 @@ jobs:
         run: python -m gozcu.scanner --market all
 
       - name: Snapshot degisikliklerini commit'le ve pushla
+        # Harici zamanlayici (cron-job.org) 2 dakikada bir workflow_dispatch
+        # tetikledigi icin (bkz. README "Harici tetikleyici"), ardisik iki
+        # calistirma bazen COK yakin gelip concurrency kuyruguna ragmen
+        # push ANI'nda remote'un zaten ilerlemis olmasina yol acabiliyor
+        # (2026-08-12 canli gozlemi: "! [rejected] main -> main (fetch
+        # first)"). Bu dosyalar (snapshot.json/alert_state.json) HER
+        # calistirmada TAMAMEN yeniden uretilir - iki taramanin verisini
+        # SATIR BAZINDA birlestirmek (rebase/merge) anlamsiz VE cakisma
+        # riski tasir; dogru davranis "en TAZE tarama HER ZAMAN kazanir"dir.
+        # Bu yuzden cakisma olursa: bu calistirmanin TARADIGI veriyi (git
+        # durumundan BAGIMSIZ bir yedekten) remote'un EN SON commit'inin
+        # USTUNE yeniden uygulayip tekrar denenir (en fazla 5 kez).
         run: |
           git config user.name "gozcu-bot"
           git config user.email "actions@users.noreply.github.com"
           git add gozcu/data/snapshot.json gozcu/data/alert_state.json
           if git diff --cached --quiet; then
             echo "Degisiklik yok (her iki piyasa da kapali/veri degismedi), commit atlaniyor."
-          else
+            exit 0
+          fi
+
+          backup_dir="$(mktemp -d)"
+          cp gozcu/data/snapshot.json gozcu/data/alert_state.json "$backup_dir/"
+
+          git commit -m "gozcu: otomatik tarama $(date -u +'%Y-%m-%d %H:%M UTC')"
+
+          max_attempts=5
+          attempt=1
+          pushed=0
+          while [ "$attempt" -le "$max_attempts" ]; do
+            if git push; then
+              echo "Push basarili (deneme $attempt/$max_attempts)."
+              pushed=1
+              break
+            fi
+            echo "Push basarisiz (deneme $attempt/$max_attempts) - remote guncellenmis, senkronize edilip bu calistirmanin verisiyle tekrar denenecek."
+            git fetch origin main
+            git reset --hard origin/main
+            cp "$backup_dir/snapshot.json" gozcu/data/snapshot.json
+            cp "$backup_dir/alert_state.json" gozcu/data/alert_state.json
+            git add gozcu/data/snapshot.json gozcu/data/alert_state.json
+            if git diff --cached --quiet; then
+              echo "Remote zaten bu calistirmanin verisiyle ayni/daha taze - commit atlaniyor."
+              pushed=1
+              break
+            fi
             git commit -m "gozcu: otomatik tarama $(date -u +'%Y-%m-%d %H:%M UTC')"
-            git push
+            attempt=$((attempt + 1))
+            sleep 2
+          done
+
+          rm -rf "$backup_dir"
+
+          if [ "$pushed" != "1" ]; then
+            echo "::error::Push $max_attempts denemeden sonra basarisiz oldu."
+            exit 1
           fi

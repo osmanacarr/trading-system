@@ -134,6 +134,35 @@ def test_entry_opens_position(state, trade_logger):
     assert trades.iloc[0]["event_type"] == "entry"
 
 
+def test_action_sheet_json_written_to_injected_log_dir_not_real_production_path(state, trade_logger, tmp_path):
+    """REGRESYON: run_once, action_sheet.json'i trade_logger.log_dir'e
+    (enjekte edilen GECICI dizine) yazmali - action_sheet.ACTION_SHEET_JSON_PATH
+    (GERCEK uretim yolu) DEGIL. Daha once bu ayrim yapilmiyordu ve
+    dry_run=False ile calisan HER TEST (tmp_path enjekte etse bile) sessizce
+    GERCEK paper_trading/logs/action_sheet.json dosyasinin UZERINE
+    yaziyordu (bkz. ilgili konusma - yerel pytest calistirmasi uretim
+    dosyasini 2020-04-08 senkron test tarihiyle ezmisti)."""
+    real_production_path = runner_module.action_sheet.ACTION_SHEET_JSON_PATH
+    real_production_bytes_before = real_production_path.read_bytes() if real_production_path.exists() else None
+
+    df = _breakout_df()
+    run_date = df.index[-1].date()
+    fetch_fn = _make_fetch_fn({"FAKE-USD": df})
+
+    run_once(
+        strategies=["donchian"], run_date=run_date, dry_run=False,
+        state=state, trade_logger=trade_logger, fetch_fn=fetch_fn,
+        markets={"crypto": ["FAKE-USD"]}, verbose=False,
+    )
+
+    injected_path = trade_logger.log_dir / "action_sheet.json"
+    assert injected_path.exists()
+    assert real_production_path != injected_path
+
+    real_production_bytes_after = real_production_path.read_bytes() if real_production_path.exists() else None
+    assert real_production_bytes_after == real_production_bytes_before
+
+
 def test_stop_exit_closes_position(state, trade_logger):
     state.open_position(
         "FAKE-USD", "donchian", direction=1, entry_date=dt.date(2019, 1, 1),

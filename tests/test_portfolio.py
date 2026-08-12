@@ -38,11 +38,37 @@ def test_optimize_portfolio_respects_max_position_size():
         assert abs(w) <= 0.3 + 1e-6
 
 
-def test_optimize_portfolio_favors_higher_score_symbol():
+def test_optimize_portfolio_favors_higher_score_symbol_under_scarce_budget():
+    """A (skor=5) ve B (skor=1) - brut butce (0.6) ikisini de tavana (0.5)
+    tasimaya YETMEDIGINDE (0.5+0.5=1.0 > 0.6), optimizer KITLIK altinda
+    dogru sekilde yuksek skorlu A'yi ONCELIKLENDIRMELI: A tavana (0.5)
+    ulasir, KALAN butce (0.1) B'ye kalir - bu, "yuksek skor daha fazla
+    agirlik alir" iddiasinin GERCEKTEN test edildigi rejim (asagidaki
+    "tavan doyuyor" testiyle KARISTIRILMAMALI - bkz. o testin docstring'i)."""
+    scores = {"A": 5.0, "B": 1.0}
+    weights = portfolio.optimize_portfolio(scores, max_gross_leverage=0.6, max_position_size=0.5)
+    assert weights["A"] == pytest.approx(0.5, abs=1e-6)
+    assert weights["B"] == pytest.approx(0.1, abs=1e-6)
+    assert weights["A"] > weights["B"] > 0
+
+
+def test_optimize_portfolio_ties_at_cap_when_budget_is_abundant():
+    """A (skor=5) ve B (skor=1) - brut butce (1.0) ikisini de AYRI AYRI
+    tavana (0.5+0.5=1.0 <= 1.0) tasimaya YETTIGINDE, dogru/beklenen
+    matematiksel optimum ikisinin de max_position_size'a (0.5) DOYMASIDIR -
+    skor farki bu rejimde agirligi AYIRT ETMEZ (butce kit degil, A'yi daha
+    fazla agirliklandirmanin hicbir maliyeti yok ama B'yi de kismamin bir
+    faydasi yok). Onceki surumde bu ayni senaryo "A > B" bekliyordu ve
+    kirilgandi (scipy SLSQP bazi ortamlarda A=B=0.5 tam esitligine
+    yakinsiyordu) - bu ESITLIK bir HATA DEGIL, dogru davranistir (bkz.
+    risk/portfolio.py modul docstring'i, quant2.md uyarisi: "risk
+    constraining ... it's not necessarily the model's fault"). Test artik
+    bu gercek davranisi DOGRULUYOR, tek bir sayiyi degistirip "gecsin"
+    demiyor."""
     scores = {"A": 5.0, "B": 1.0}
     weights = portfolio.optimize_portfolio(scores, max_gross_leverage=1.0, max_position_size=0.5)
-    assert weights["A"] > weights["B"]
-    assert weights["A"] > 0
+    assert weights["A"] == pytest.approx(0.5, abs=1e-6)
+    assert weights["B"] == pytest.approx(0.5, abs=1e-6)
 
 
 def test_optimize_portfolio_negative_score_gets_short_weight():

@@ -917,8 +917,20 @@ def run_once(
             # ikinci bir veri cekimi YAPMAZ. Acik pozisyon yoksa Telegram
             # ozeti bos string doner (gonderme atlanir - bkz.
             # format_daily_telegram_summary docstring'i).
+            #
+            # KOK NEDEN NOTU: yol MUTLAKA trade_logger.log_dir'DEN turetilir
+            # (varsayilan action_sheet.ACTION_SHEET_JSON_PATH - GERCEK
+            # uretim yolu - KULLANILMAZ). trade_logger enjekte edilebilir
+            # (bkz. testler: PaperTradingLogger(log_dir=tmp_path/"logs")) -
+            # eger burada varsayilan yol kullanilsaydi, dry_run=False ile
+            # calisan HER TEST (gecici log_dir enjekte etse bile) sessizce
+            # GERCEK paper_trading/logs/action_sheet.json dosyasinin
+            # UZERINE yazardi (bkz. ilgili konusma - yerel pytest calistirmasi
+            # gercek dosyayi 2020-04-08 senkron test tarihiyle ezmisti).
             sheet_entries = action_sheet.build_action_sheet(open_positions, run_date, mark_prices)
-            action_sheet.write_action_sheet_json(sheet_entries, run_date)
+            action_sheet.write_action_sheet_json(
+                sheet_entries, run_date, path=trade_logger.log_dir / "action_sheet.json"
+            )
             telegram_summary = action_sheet.format_daily_telegram_summary(sheet_entries, run_date)
             if telegram_summary:
                 send_telegram_message(telegram_summary)

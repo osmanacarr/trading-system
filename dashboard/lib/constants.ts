@@ -1,6 +1,13 @@
 // config.py ile birebir ayni (paper_trading sanal sermaye baslangici)
 export const PAPER_TRADING_INITIAL_CAPITAL = 10_000.0;
 
+// config.py GOZCU_DATA_STALENESS_ESTIMATE_MINUTES ile birebir ayni - turetme
+// icin config.py'deki yorumu oku. Harici tetikleyici (cron-job.org) birkac
+// gun calistiktan SONRA GERCEK araliklar olculup bu sayi GEREKIRSE
+// guncellenmelidir (bkz. research/gozcu_timing.py) - bu sabit bir garanti
+// DEGIL, yeniden kalibre edilecek bir tahmindir.
+export const GOZCU_DATA_STALENESS_ESTIMATE_MINUTES = 6;
+
 // config.py USER_CAN_SHORT ile birebir ayni: kullanicinin GERCEK hesabinda
 // SHORT (acik satis) yapip yapamadigi - BIST'te ozel marjin izni gerekir,
 // kullanicida su an YOK. Bu SADECE gorsel bir bayrak (asagidaki

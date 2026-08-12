@@ -264,6 +264,26 @@ GOZCU_VOLATILITY_REGIME_EXTREME_PCT: float = 0.04
 # al-sat sinyali DEGILDIR.
 GOZCU_ALERT_SCORE_THRESHOLD: float = 8.0
 
+# GOZCU veri gecikme tahmini (dashboard uyarisi icin, bkz. GozcuWarningBanner.tsx
+# / dashboard/lib/constants.ts - Python config'i TS'de mirror'layan AYNI desen).
+# 2026-08-12 teshisi: GitHub Actions'in "*/5" (5 dk) cron'u FIILEN ~40-90 dk
+# araliklarla tetikleniyordu (GitHub'in kendi belgeledigi, yuksek-frekansli
+# schedule event'lerini erteleme/dusurme davranisi - bkz. gozcu_scan.yml
+# yorumu). Cozum: harici bir zamanlayici (cron-job.org, ucretsiz, 1 dk'ya
+# kadar araliklar) artik ayni workflow'un ZATEN var olan workflow_dispatch
+# tetikleyicisini HTTP ile cagiriyor - kod degisikligi gerekmedi.
+#
+# Bu tahmin = tetikleme araligi (2 dk) + gozlemlenen EN KOTU tarama suresi
+# (146s ~ 2.5 dk, 2026-08-12'de 10 canli calistirmadan) + GitHub Actions
+# runner tahsis payi (~0.75 dk) = ~5.25 dk -> guvenlik payiyla 6'ya
+# YUVARLANDI (ASLA asagi yuvarlama - bir gecikme uyarisi gercek gecikmeyi
+# KUCUK GOSTERMEMELI). Harici tetikleyici birkac gun calistiktan SONRA,
+# `python -m research.gozcu_timing` (veya gozcu_scan.yml calistirma
+# zaman damgalari) ile GERCEK araliklar olculup bu sayi GEREKIRSE
+# guncellenmelidir - bu SABIT bir garanti degil, yeniden kalibre edilecek
+# bir tahmindir.
+GOZCU_DATA_STALENESS_ESTIMATE_MINUTES: int = 6
+
 # ---------------------------------------------------------------------------
 # Faktor kutuphanesi (research/factors.py) - Modul 1
 # ---------------------------------------------------------------------------

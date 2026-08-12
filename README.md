@@ -156,7 +156,7 @@ trading-system/
 
 ## Doğrulama durumu
 
-- `python -m pytest -q` → **361/361 test geçiyor** (backtest/veri/sinyal/istatistik/
+- `python -m pytest -q` → **372/372 test geçiyor** (backtest/veri/sinyal/istatistik/
   paper trading/risk/GÖZCÜ; tamamı sentetik/deterministik veri veya mock'lanmış
   yfinance/Telegram çağrılarıyla, gerçek ağ bağlantısı gerektirmez).
 - Donchian + BIST canlı veriyle uçtan uca doğrulandı (2019-01-01 -> bugün, 13 sembol,
@@ -453,6 +453,27 @@ kontrol edip sadece onları tarar. Piyasa kapalıyken boşuna yfinance'e
 gidilmez; o piyasaya ait önceki (açık seanstan kalan) veri snapshot'ta
 korunur, sadece "piyasa kapalı" bayrağı güncellenir — "piyasa kapalı" ile
 "veri bayat/hatalı" durumu kullanıcıya karışmasın diye.
+
+**Harici tetikleyici (2026-08-12'de eklendi) — GitHub Actions `schedule`
+güvenilirlik sınırı:** Teşhis: `*/5` (5 dk) olarak yapılandırılmış cron,
+GERÇEKTE ~40-90 dakika aralıklarla tetikleniyordu — GitHub'ın kendi
+belgelediği, yüksek-frekanslı `schedule` event'lerini yük altında
+erteleme/düşürme davranışı (bkz. `python -m research.gozcu_timing` — bu
+teşhisi yapan analiz aracı). Bu, KOD/formül sorunu DEĞİL, GitHub Actions'ın
+yapısal bir sınırı. Çözüm: `gozcu_scan.yml`'in ZATEN sahip olduğu
+`workflow_dispatch` tetikleyicisi (kod değişikliği YOK), harici, ücretsiz
+bir zamanlayıcı (cron-job.org, 1 dk'ya kadar aralık destekliyor) tarafından
+her 2 dakikada bir HTTP ile çağrılıyor — `workflow_dispatch`, GitHub'ın
+`schedule` event'leri için belgelediği erteleme davranışına TABİ DEĞİL
+(topluluğun bu tür durumlar için önerdiği standart çözüm). Mevcut
+`schedule: "*/5 6-21 * * 1-5"` tetikleyicisi YEDEK olarak KALDI (ücretsiz,
+zararsız). Kurulum: repo Secrets'a GEREK YOK (cron-job.org kendi
+arayüzünde saklanan, bu depoya SADECE `actions:write` izni olan ince-taneli
+bir GitHub PAT kullanır — repo tarafında hiçbir secret/config değişikliği
+gerekmez). `config.GOZCU_DATA_STALENESS_ESTIMATE_MINUTES` (dashboard
+uyarı şeridinde gösterilir) bu yeni kurulumun türetilmiş bir tahminidir —
+birkaç gün gerçek veri biriktikten sonra `research/gozcu_timing.py` ile
+yeniden kalibre edilmelidir.
 
 ### Evrenler
 

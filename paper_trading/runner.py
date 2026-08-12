@@ -21,6 +21,16 @@ girmez: kontrolsuz genis evren + yonetilmeyen korelasyon riski, ayni
 trend gununde onlarca korelasyonlu sembolde es zamanli giris anlamina
 gelip brut kaldiraci fiilen anlamsizlastirabilirdi.
 
+NET YONLU MARUZIYET (M2 eki, 2026-08-12 canli gozlemden sonra eklendi):
+korelasyon-kumesi kisiti FARKLI kumelerdeki pozisyonlari birbirinden
+BAGIMSIZ sayar - ama hepsi FARKLI kumelerde olsa bile AYNI YONDE (orn.
+hepsi SHORT) acilirsa portfoy yine de BIST-geneli/TL yonune tek tarafli
+buyuk bir bahis haline gelebilir (canli calistirmada 5 pozisyonun (4
+SHORT+1 LONG, hepsi farkli kumelerde) %37.8'i net SHORT cikti). Bu yuzden
+optimize_portfolio'ya AYRICA risk.net_exposure ile olusturulan bir kisit
+verilir: |mevcut acik pozisyonlarin net maruziyeti + yeni adaylarin net
+agirligi| <= config.MAX_NET_EXPOSURE_PCT (bkz. risk/net_exposure.py).
+
 GECICI SKOR (M6'dan ONCE): adaylar arasi onceliklendirme su an sadece
 yon isaretiyle ESIT agirlik kullaniyor (research.ensemble.composite_score
 HENUZ baglanmadi - factor_history yeterince birikmeden IC-agirlikli skoru
@@ -72,6 +82,7 @@ from config import (
     FETCH_MAX_ATTEMPTS,
     FETCH_RETRY_BASE_DELAY_SECONDS,
     MA_VOTING_PAIRS,
+    MAX_NET_EXPOSURE_PCT,
     MIN_BARS_REQUIRED,
     PAPER_TRADING_DEFAULT_STRATEGY,
     PAPER_TRADING_LOOKBACK_DAYS,
@@ -589,12 +600,14 @@ def allocate_and_open_candidates(
 
     existing_positions = state.list_open_positions()
     existing_gross_exposure = 0.0
+    existing_net_exposure = 0.0  # isaretli (LONG:+ SHORT:-) - net yonlu maruziyet kisiti icin
     existing_position_exposure: dict[str, float] = {}  # sembol -> |maruziyet|/equity, kume hesabi icin
     if equity > 0:
         for pos in existing_positions:
             mark = mark_prices.get(pos.symbol, pos.entry_price)
             exposure = abs(pos.size * mark) / equity
             existing_gross_exposure += exposure
+            existing_net_exposure += pos.direction * pos.size * mark / equity
             existing_position_exposure[pos.symbol] = existing_position_exposure.get(pos.symbol, 0.0) + exposure
 
     remaining_budget = max(0.0, RISK_MAX_GROSS_LEVERAGE - existing_gross_exposure)
@@ -647,6 +660,8 @@ def allocate_and_open_candidates(
             max_position_size=RISK_MAX_POSITION_SIZE,
             sector_map=candidate_clusters if candidate_clusters else None,
             max_sector_exposure=sector_caps if sector_caps else RISK_MAX_SECTOR_EXPOSURE,
+            existing_net_exposure=existing_net_exposure,
+            max_net_exposure=MAX_NET_EXPOSURE_PCT,
         )
 
     for key, candidate in candidate_keys.items():

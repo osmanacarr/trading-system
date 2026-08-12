@@ -33,6 +33,29 @@ def _breakout_df(n_base: int = 70) -> pd.DataFrame:
     return append_bars(base, [breakout])
 
 
+def _short_breakout_df(n_base: int = 70) -> pd.DataFrame:
+    base = make_flat_range_df(n=n_base, price=100.0, half_range=1.0, volume=1000.0)
+    breakdown = {"Open": 99.0, "High": 99.5, "Low": 84.0, "Close": 85.0, "Volume": 6000.0}
+    return append_bars(base, [breakdown])
+
+
+def _uncorrelated_flat_df(n: int = 71) -> pd.DataFrame:
+    """make_flat_range_df ile AYNI olcekte DEGIL, farkli bir zamansal
+    desene (yavas sinus salinimi) sahip, sinyal-uretmeyen (duz/durgun)
+    bir seri - iki testte AYNI make_flat_range_df cagrisini kullanmak
+    (parametreler farkli olsa bile) mukemmel korelasyonlu (1.0) cikip
+    korelasyon-kume testlerini yanlislikla etkiliyordu."""
+    dates = pd.date_range("2020-01-01", periods=n, freq="B")
+    t = np.arange(n)
+    close = 50.0 + 0.5 * np.sin(2 * np.pi * t / 23.0)
+    high = close + 0.2
+    low = close - 0.2
+    open_ = np.roll(close, 1)
+    open_[0] = 50.0
+    volume = np.full(n, 500.0)
+    return pd.DataFrame({"Open": open_, "High": high, "Low": low, "Close": close, "Volume": volume}, index=dates)
+
+
 def _trend_then_breakout_df(n_base: int = 70, weekly_step: float = -0.5, breakout_up: bool = True) -> pd.DataFrame:
     """N gunluk dogrusal trend (haftalik bias uretmek icin) + kirilim bari.
 
@@ -511,6 +534,68 @@ def test_cross_day_cluster_exposure_limits_new_candidate(state, trade_logger):
         # (0.2) kadar acilabilirdi; kume butcesi ZATEN %35 tuketildigi icin
         # KALAN ~%5'i asmamali (kucuk bir tolerans).
         assert new_exposure <= 0.4 - 0.35 + 0.02
+
+
+# -- Net yonlu maruziyet kisiti (M2 eki, risk/net_exposure.py) -------------
+
+
+def test_net_exposure_limit_caps_new_candidate_same_direction_as_existing(state, trade_logger):
+    """Mevcut acik pozisyonlar ZATEN buyuk oranda SHORT'a yaslanmissa
+    (net maruziyet sinira yakin), AYNI yonde (SHORT) yeni bir aday KUCUK
+    bir boyutla acilmali/reddedilmeli - farkli kumede olsa bile."""
+    # equity 10_000, mevcut SHORT pozisyon net maruziyetin %45'ini kapliyor
+    # (MAX_NET_EXPOSURE_PCT=0.5 -> yeni SHORT adaya kalan pay ~%5)
+    state.open_position(
+        "EXISTING-SHORT", "donchian", direction=-1, entry_date=dt.date(2024, 1, 1),
+        entry_price=100.0, stop_price=105.0, size=45.0,  # 45*100=4500 = equity'nin %45'i
+    )
+
+    existing_df = make_flat_range_df(n=70, price=100.0, half_range=1.0, volume=1000.0)
+    new_df = _short_breakout_df()  # farkli/korelasyonsuz fiyat serisi, YENI bir SHORT sinyali
+    run_date = new_df.index[-1].date()
+    fetch_fn = _make_fetch_fn({"EXISTING-SHORT": existing_df, "NEW-SHORT": new_df})
+
+    run_once(
+        strategies=["donchian"], run_date=run_date, state=state, trade_logger=trade_logger,
+        fetch_fn=fetch_fn, markets={"crypto": ["EXISTING-SHORT", "NEW-SHORT"]}, verbose=False,
+    )
+
+    positions = {p.symbol: p for p in state.list_open_positions()}
+    equity = 10_000.0
+    if "NEW-SHORT" in positions:
+        new_exposure = abs(positions["NEW-SHORT"].size * positions["NEW-SHORT"].entry_price) / equity
+        # Kalan net-maruziyet butcesi ~%5 - yeni pozisyon buna gore KUCUK olmali
+        assert new_exposure <= 0.10 + 0.02
+
+
+def test_net_exposure_limit_allows_opposite_direction_candidate(state, trade_logger):
+    """Mevcut pozisyonlar SHORT'a yaslanmis olsa bile, TERS yonde (LONG)
+    bir aday net maruziyeti DENGELEDIGI icin kisitlanmamali.
+
+    NOT: EXISTING-SHORT ve NEW-LONG icin BILEREK FARKLI (korelasyonsuz)
+    fiyat serileri kullanilir - ikisi de ayni duz taban veriyi paylassaydi
+    (make_flat_range_df) mukemmel korelasyonlu (1.0) cikip AYNI kume
+    kisitina (M7a, yonsuz/mutlak maruziyet takibi) takilirlardi; bu,
+    net-maruziyet kisitinden BAGIMSIZ, ayrica not edilen bir gozlem
+    (kume takibinin yon-farkinda olmamasi) - bu testin odagi DEGIL."""
+    state.open_position(
+        "EXISTING-SHORT", "donchian", direction=-1, entry_date=dt.date(2024, 1, 1),
+        entry_price=100.0, stop_price=105.0, size=45.0,
+    )
+
+    existing_df = _uncorrelated_flat_df()
+    new_df = _breakout_df()  # LONG sinyali (mevcut SHORT'un TERSI), KORELASYONSUZ bir taban veri
+    run_date = new_df.index[-1].date()
+    fetch_fn = _make_fetch_fn({"EXISTING-SHORT": existing_df, "NEW-LONG": new_df})
+
+    summary = run_once(
+        strategies=["donchian"], run_date=run_date, state=state, trade_logger=trade_logger,
+        fetch_fn=fetch_fn, markets={"crypto": ["EXISTING-SHORT", "NEW-LONG"]}, verbose=False,
+    )
+
+    new_result = next(r for r in summary["results"] if r.symbol == "NEW-LONG")
+    assert new_result.action == "entry_long"
+    assert state.get_position("NEW-LONG", "donchian") is not None
 
 
 def test_dry_run_does_not_mutate_last_processed_date_for_candidates(state, trade_logger):

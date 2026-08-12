@@ -18,6 +18,10 @@ et). Kisitlar (quant2.md'deki sirayla, birebir alintilarla):
       don't have anything in energy" (asiri yogunlasmayi onlemek icin)
     - dollar-neutral (opsiyonel): "sector exposures have to be equal...
       this is kind of something that's very hard to achieve"
+    - net yonlu maruziyet (M2 eki, bkz. risk/net_exposure.py): portfoy
+      TOPTAN tek bir yone (LONG'a karsi SHORT) asiri yaslanmasin -
+      korelasyon-kumesinden BAGIMSIZ bir kisit (kumeler farkli olsa bile
+      hepsi ayni yonde acilabilir).
 
 UYARI (birebir, quant2.md - bu modulun KRITIK varsayimi, docstring'de
 KORUNMALI): "it can be the case that risk constraining just completely
@@ -43,6 +47,7 @@ from config import (
     RISK_MAX_POSITION_SIZE,
     RISK_MAX_SECTOR_EXPOSURE,
 )
+from risk.net_exposure import build_constraints as _build_net_exposure_constraints
 
 log = logging.getLogger("risk.portfolio")
 
@@ -77,6 +82,8 @@ def optimize_portfolio(
     sector_map: dict[str, str] | None = None,
     max_sector_exposure: float | dict[str, float] = RISK_MAX_SECTOR_EXPOSURE,
     dollar_neutral: bool = False,
+    existing_net_exposure: float = 0.0,
+    max_net_exposure: float | None = None,
 ) -> dict[str, float]:
     """Kompozit skorlara gore, risk kisitlari altinda agirliklandirilmis-getiriyi maksimize eden portfoy insa eder.
 
@@ -99,6 +106,13 @@ def optimize_portfolio(
             sektoru acikca listelemeli, sessizce sinirsiz birakilmaz).
         dollar_neutral: True ise sum(w_i) == 0 kisiti eklenir (esit
             long/short tutar).
+        existing_net_exposure: Acik pozisyonlarin (optimizasyon disindaki
+            SABIT kisim) net isaretli maruziyeti (bkz. risk/net_exposure.py).
+            max_net_exposure verilmediyse kullanilmaz.
+        max_net_exposure: Verilirse, |existing_net_exposure + sum(w_i)| bu
+            degeri asamaz (bkz. risk/net_exposure.py - korelasyon-
+            kumesinden BAGIMSIZ, portfoyun TOPTAN tek yone yaslanmasini
+            onleyen kisit). None (varsayilan) ise UYGULANMAZ.
 
     Returns:
         {sembol: agirlik}. scores bossa bos sozluk doner. Optimizasyon
@@ -126,6 +140,8 @@ def optimize_portfolio(
     ]
     if dollar_neutral:
         constraints.append({"type": "eq", "fun": lambda w: np.sum(w)})
+    if max_net_exposure is not None:
+        constraints.extend(_build_net_exposure_constraints(existing_net_exposure, max_net_exposure))
 
     if sector_map is not None:
         sectors = sorted({sector_map[s] for s in symbols if s in sector_map})

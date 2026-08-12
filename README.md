@@ -156,7 +156,7 @@ trading-system/
 
 ## Doğrulama durumu
 
-- `python -m pytest -q` → **349/349 test geçiyor** (backtest/veri/sinyal/istatistik/
+- `python -m pytest -q` → **361/361 test geçiyor** (backtest/veri/sinyal/istatistik/
   paper trading/risk/GÖZCÜ; tamamı sentetik/deterministik veri veya mock'lanmış
   yfinance/Telegram çağrılarıyla, gerçek ağ bağlantısı gerektirmez).
 - Donchian + BIST canlı veriyle uçtan uca doğrulandı (2019-01-01 -> bugün, 13 sembol,
@@ -562,8 +562,26 @@ tutulur — paper trading `state.db`'sine dokunulmaz.
   `max_sector_exposure` parametresi bir `{küme: sınır}` sözlüğü de kabul
   ediyor, her kümenin kalan bütçesi (toplam sınır − açık pozisyonların o
   kümede tükettiği pay) hesaplanıp geçiriliyor. Korelasyon eşiği (0.6) sabit
-  değil — bkz. `config.py` `RISK_CORRELATION_CLUSTER_THRESHOLD` yorumu
-  (birkaç hafta veri sonrası 0.5'e çekilmesi değerlendirilecek).
+  değil — bkz. `config.py` `RISK_CORRELATION_CLUSTER_THRESHOLD` yorumu.
+  **2026-08-12 canlı gözlemi**: gerçek korelasyon matrisinde en yüksek ikili
+  değer 0.58 çıktı (0.6'yı geçmedi, o gün için fark yaratmadı) — kullanıcı
+  kararıyla eşiğe DOKUNULMADI, birkaç hafta sonra tekrar değerlendirilecek.
+- **Net yönlü maruziyet (`risk/net_exposure.py`, M2 eki — 2026-08-12 canlı
+  gözlemden sonra eklendi):** Korelasyon-kümesi kısıtı FARKLI kümelerdeki
+  pozisyonları birbirinden bağımsız sayar — ama hepsi farklı kümelerde olsa
+  bile AYNI yönde (örn. hepsi SHORT) açılırsa portföy yine de BIST-geneli/TL
+  yönüne tek taraflı büyük bir bahis haline gelebilir. Canlı çalıştırmada 5
+  pozisyonun (4 SHORT + 1 LONG, hepsi FARKLI kümelerde) net maruziyeti
+  equity'nin **%37.8'i (net SHORT)** çıktı — küme kısıtı bunu hiç görmedi
+  çünkü bakmadığı bir boyuttu. `optimize_portfolio` artık `existing_net_exposure`/
+  `max_net_exposure` parametrelerini kabul ediyor (varsayılan `None` =
+  kısıt YOK, geriye dönük uyumlu); `paper_trading/runner.py` bunu MEVCUT açık
+  pozisyonların net işaretli maruziyeti + BUGÜNKÜ adayların ağırlığı BİRLİKTE
+  değerlendirilecek şekilde çağırıyor (çapraz-gün küme takibiyle AYNI ilke).
+  Sınır `config.MAX_NET_EXPOSURE_PCT = 0.5` (%50) — gözlemlenen %37.8'in
+  biraz üstünde, mevcut pozisyonlara dokunmuyor ama sınırsız da bırakmıyor.
+  2026-08-12 üretim verisiyle doğrulandı: gerçek net maruziyet %-37.1,
+  yeni sınırın altında.
 - **Tek makine/tek process varsayımı:** SQLite dosya kilitleri aynı anda TEK
   bir yazan process'i güvenle destekler; runner'ı aynı state.db üzerinde
   paralel/çakışan zamanlamalarla çalıştırmayın (orn. hem cron hem manuel

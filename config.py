@@ -390,6 +390,25 @@ RISK_MAX_SECTOR_EXPOSURE: float = 0.4
 RISK_CORRELATION_CLUSTER_THRESHOLD: float = 0.6
 RISK_CORRELATION_CLUSTER_LOOKBACK_DAYS: int = 60
 
+# GOZDEN GECIRME NOTU (2026-08-12, canli 5-pozisyonluk gozlem): gercek
+# korelasyon matrisinde en yuksek ikili deger 0.58 (AEFES-MGROS) cikti -
+# 0.6 esigini GECMEDI, o gun icin fark yaratmadi (kumeler ayri ayri
+# olustu). Kullanici karari: SIMDILIK DOKUNMA, birkac hafta daha veri
+# biriktikten sonra 0.5'e cekmeyi TEKRAR degerlendir - bu tek gozlem
+# esigi degistirmek icin yeterli degil.
+
+# M2 EKI (2026-08-12) - net yonlu maruziyet kisiti (risk/net_exposure.py).
+# Ayni gunku canli calistirmada 5 acik pozisyonun (4 SHORT + 1 LONG) NET
+# maruziyeti equity'nin %37.8'i (net SHORT) cikti - korelasyon-kumesi
+# kisitindan TAMAMEN BAGIMSIZ bir risk turu: kume kisiti "ayni kumede COK
+# fazla" der, bu "portfoyun COK fazla TEK YONE (LONG'a karsi SHORT)
+# yaslanmasini" onlemeye calisir - ornegin butun pozisyonlar FARKLI
+# kumelerde olsa bile hepsi ayni yonde (SHORT) olursa, portfoy yine de
+# BIST-geneli/TL yonune tek tarafli bir bahis haline gelebilir.
+# Baslangic degeri (%50), gozlemlenen %37.8'in biraz ustunde - o gunku
+# pozisyonlara DOKUNMAZ ama sinirsiz de birakmaz.
+MAX_NET_EXPOSURE_PCT: float = 0.5
+
 # ---------------------------------------------------------------------------
 # Dashboard /research ozet yayinlama (research/publish_summary.py)
 # ---------------------------------------------------------------------------

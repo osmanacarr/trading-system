@@ -1,28 +1,28 @@
 {
-  "generated_at": "2026-08-13T07:54:49.163804+00:00",
+  "generated_at": "2026-08-13T07:56:55.092034+00:00",
   "markets": {
     "bist": {
       "market_open": true,
-      "scanned_at": "2026-08-13T07:54:49.163804+00:00",
+      "scanned_at": "2026-08-13T07:56:55.092034+00:00",
       "universe_size": 347,
       "scanned_count": 238,
       "error_count": 109,
       "attention_list": [
         {
           "symbol": "KORDS.IS",
-          "score": 45.43,
+          "score": 45.52,
           "last_price": 83.45,
           "daily_change_pct": 0.20942,
           "weekly_change_pct": 0.161447,
-          "rvol": 21.91,
-          "volume_zscore": 1.57,
+          "rvol": 21.99,
+          "volume_zscore": 1.58,
           "momentum_candle": true,
-          "vwap": 82.3633,
-          "vwap_position_pct": 0.013194,
-          "vwap_slope": 0.0013,
+          "vwap": 82.3652,
+          "vwap_position_pct": 0.013171,
+          "vwap_slope": 0.0019,
           "distance_from_52w_high": -0.082967,
           "distance_from_52w_low": 0.749476,
-          "atr_percentile": 93.7,
+          "atr_percentile": 95.2,
           "intraday": {
             "times": [
               "2026-08-13T09:55:00+03:00",
@@ -58,24 +58,24 @@
               82.3594,
               82.3625,
               82.3633,
-              82.3633
+              82.3652
             ]
           }
         },
         {
           "symbol": "MGROS.IS",
-          "score": 22.31,
-          "last_price": 554.0,
-          "daily_change_pct": -0.120635,
-          "weekly_change_pct": -0.122029,
-          "rvol": 11.25,
-          "volume_zscore": -0.21,
+          "score": 22.37,
+          "last_price": 555.0,
+          "daily_change_pct": -0.119048,
+          "weekly_change_pct": -0.120444,
+          "rvol": 11.46,
+          "volume_zscore": -0.16,
           "momentum_candle": false,
-          "vwap": 558.4241,
-          "vwap_position_pct": -0.007922,
-          "vwap_slope": -0.1356,
-          "distance_from_52w_high": -0.234807,
-          "distance_from_52w_low": 0.331328,
+          "vwap": 558.3883,
+          "vwap_position_pct": -0.006068,
+          "vwap_slope": -0.1476,
+          "distance_from_52w_high": -0.233425,
+          "distance_from_52w_low": 0.333731,
           "atr_percentile": 99.6,
           "intraday": {
             "times": [
@@ -100,7 +100,7 @@
               554.0,
               556.5,
               554.0,
-              554.5
+              555.5
             ],
             "vwap": [
               null,
@@ -112,25 +112,25 @@
               558.831,
               558.6278,
               558.4241,
-              558.4241
+              558.3883
             ]
           }
         },
         {
           "symbol": "INTEM.IS",
-          "score": 20.89,
-          "last_price": 263.75,
-          "daily_change_pct": 0.034314,
-          "weekly_change_pct": 0.088976,
-          "rvol": 17.71,
-          "volume_zscore": 0.74,
+          "score": 21.43,
+          "last_price": 263.25,
+          "daily_change_pct": 0.032353,
+          "weekly_change_pct": 0.086912,
+          "rvol": 18.36,
+          "volume_zscore": 0.83,
           "momentum_candle": false,
-          "vwap": 263.8095,
-          "vwap_position_pct": -0.000225,
-          "vwap_slope": 0.0401,
-          "distance_from_52w_high": -0.456466,
-          "distance_from_52w_low": 0.239427,
-          "atr_percentile": 18.7,
+          "vwap": 263.7917,
+          "vwap_position_pct": -0.002053,
+          "vwap_slope": 0.0341,
+          "distance_from_52w_high": -0.457496,
+          "distance_from_52w_low": 0.237077,
+          "atr_percentile": 19.0,
           "intraday": {
             "times": [
               "2026-08-13T09:55:00+03:00",
@@ -154,7 +154,7 @@
               264.0,
               265.0,
               264.5,
-              263.25
+              263.0
             ],
             "vwap": [
               null,
@@ -166,24 +166,72 @@
               263.6893,
               263.7963,
               263.8095,
-              263.8095
+              263.7917
+            ]
+          }
+        },
+        {
+          "symbol": "LUKSK.IS",
+          "score": 21.26,
+          "last_price": 88.55,
+          "daily_change_pct": 0.001131,
+          "weekly_change_pct": -0.020465,
+          "rvol": 18.24,
+          "volume_zscore": 1.91,
+          "momentum_candle": true,
+          "vwap": 89.518,
+          "vwap_position_pct": -0.010813,
+          "vwap_slope": -0.0641,
+          "distance_from_52w_high": -0.337696,
+          "distance_from_52w_low": 0.009692,
+          "atr_percentile": 3.2,
+          "intraday": {
+            "times": [
+              "2026-08-13T09:55:00+03:00",
+              "2026-08-13T10:10:00+03:00",
+              "2026-08-13T10:15:00+03:00",
+              "2026-08-13T10:20:00+03:00",
+              "2026-08-13T10:25:00+03:00",
+              "2026-08-13T10:30:00+03:00",
+              "2026-08-13T10:35:00+03:00",
+              "2026-08-13T10:40:00+03:00"
+            ],
+            "price": [
+              95.95,
+              89.7,
+              88.95,
+              89.05,
+              89.4,
+              88.6,
+              88.55,
+              88.6
+            ],
+            "vwap": [
+              null,
+              90.3833,
+              89.9633,
+              89.7682,
+              89.7101,
+              89.5637,
+              89.5404,
+              89.518
             ]
           }
         },
         {
           "symbol": "AEFES.IS",
-          "score": 19.51,
-          "last_price": 19.05,
-          "daily_change_pct": -0.09372,
-          "weekly_change_pct": -0.106473,
-          "rvol": 11.14,
-          "volume_zscore": -0.34,
+          "score": 19.61,
+          "last_price": 19.07,
+          "daily_change_pct": -0.092769,
+          "weekly_change_pct": -0.105535,
+          "rvol": 11.34,
+          "volume_zscore": -0.26,
           "momentum_candle": false,
-          "vwap": 18.9795,
-          "vwap_position_pct": 0.003716,
-          "vwap_slope": 0.0095,
-          "distance_from_52w_high": -0.143435,
-          "distance_from_52w_low": 0.434571,
+          "vwap": 18.9805,
+          "vwap_position_pct": 0.004718,
+          "vwap_slope": 0.0098,
+          "distance_from_52w_high": -0.142536,
+          "distance_from_52w_low": 0.436077,
           "atr_percentile": 98.8,
           "intraday": {
             "times": [
@@ -208,7 +256,7 @@
               18.98,
               19.09,
               19.05,
-              19.05
+              19.07
             ],
             "vwap": [
               null,
@@ -220,73 +268,25 @@
               18.951,
               18.9654,
               18.9795,
-              18.9795
-            ]
-          }
-        },
-        {
-          "symbol": "LUKSK.IS",
-          "score": 18.21,
-          "last_price": 88.55,
-          "daily_change_pct": 0.001131,
-          "weekly_change_pct": -0.020465,
-          "rvol": 16.1,
-          "volume_zscore": 0.99,
-          "momentum_candle": true,
-          "vwap": 89.5404,
-          "vwap_position_pct": -0.011061,
-          "vwap_slope": -0.0566,
-          "distance_from_52w_high": -0.337696,
-          "distance_from_52w_low": 0.009692,
-          "atr_percentile": 3.6,
-          "intraday": {
-            "times": [
-              "2026-08-13T09:55:00+03:00",
-              "2026-08-13T10:10:00+03:00",
-              "2026-08-13T10:15:00+03:00",
-              "2026-08-13T10:20:00+03:00",
-              "2026-08-13T10:25:00+03:00",
-              "2026-08-13T10:30:00+03:00",
-              "2026-08-13T10:35:00+03:00",
-              "2026-08-13T10:40:00+03:00"
-            ],
-            "price": [
-              95.95,
-              89.7,
-              88.95,
-              89.05,
-              89.4,
-              88.6,
-              88.55,
-              88.45
-            ],
-            "vwap": [
-              null,
-              90.3833,
-              89.9633,
-              89.7682,
-              89.7101,
-              89.5637,
-              89.5404,
-              89.5404
+              18.9805
             ]
           }
         },
         {
           "symbol": "ECILC.IS",
-          "score": 17.53,
-          "last_price": 77.6,
-          "daily_change_pct": 0.103841,
-          "weekly_change_pct": 0.125453,
-          "rvol": 8.15,
-          "volume_zscore": -1.09,
+          "score": 17.79,
+          "last_price": 77.75,
+          "daily_change_pct": 0.105974,
+          "weekly_change_pct": 0.127629,
+          "rvol": 8.19,
+          "volume_zscore": -1.1,
           "momentum_candle": false,
-          "vwap": 77.7201,
-          "vwap_position_pct": -0.001546,
-          "vwap_slope": -0.0043,
-          "distance_from_52w_high": -0.396666,
-          "distance_from_52w_low": 0.4469,
-          "atr_percentile": 16.7,
+          "vwap": 77.7206,
+          "vwap_position_pct": 0.000378,
+          "vwap_slope": -0.0042,
+          "distance_from_52w_high": -0.3955,
+          "distance_from_52w_low": 0.47942,
+          "atr_percentile": 17.5,
           "intraday": {
             "times": [
               "2026-08-13T09:55:00+03:00",
@@ -310,7 +310,7 @@
               77.7,
               77.5,
               77.6,
-              77.55
+              77.85
             ],
             "vwap": [
               null,
@@ -322,24 +322,24 @@
               77.7331,
               77.723,
               77.7201,
-              77.7201
+              77.7206
             ]
           }
         },
         {
           "symbol": "DOAS.IS",
-          "score": 17.21,
-          "last_price": 176.7,
-          "daily_change_pct": -0.088706,
-          "weekly_change_pct": -0.078728,
-          "rvol": 9.33,
-          "volume_zscore": -0.5,
+          "score": 17.71,
+          "last_price": 176.4,
+          "daily_change_pct": -0.090253,
+          "weekly_change_pct": -0.080292,
+          "rvol": 9.69,
+          "volume_zscore": -0.39,
           "momentum_candle": false,
-          "vwap": 176.7145,
-          "vwap_position_pct": -8.2e-05,
-          "vwap_slope": 0.0233,
-          "distance_from_52w_high": -0.212567,
-          "distance_from_52w_low": 0.124507,
+          "vwap": 176.7062,
+          "vwap_position_pct": -0.001733,
+          "vwap_slope": 0.0205,
+          "distance_from_52w_high": -0.213903,
+          "distance_from_52w_low": 0.122598,
           "atr_percentile": 73.8,
           "intraday": {
             "times": [
@@ -364,7 +364,7 @@
               177.2,
               177.7,
               176.6,
-              176.6
+              176.3
             ],
             "vwap": [
               null,
@@ -376,79 +376,25 @@
               176.6447,
               176.6971,
               176.7145,
-              176.7145
-            ]
-          }
-        },
-        {
-          "symbol": "GEREL.IS",
-          "score": 16.63,
-          "last_price": 45.76,
-          "daily_change_pct": 0.138308,
-          "weekly_change_pct": 0.061717,
-          "rvol": 3.8,
-          "volume_zscore": -1.21,
-          "momentum_candle": false,
-          "vwap": 45.4976,
-          "vwap_position_pct": 0.005768,
-          "vwap_slope": 0.0028,
-          "distance_from_52w_high": -0.021386,
-          "distance_from_52w_low": 1.854647,
-          "atr_percentile": 98.8,
-          "intraday": {
-            "times": [
-              "2026-08-13T09:55:00+03:00",
-              "2026-08-13T10:00:00+03:00",
-              "2026-08-13T10:05:00+03:00",
-              "2026-08-13T10:10:00+03:00",
-              "2026-08-13T10:15:00+03:00",
-              "2026-08-13T10:20:00+03:00",
-              "2026-08-13T10:25:00+03:00",
-              "2026-08-13T10:30:00+03:00",
-              "2026-08-13T10:35:00+03:00",
-              "2026-08-13T10:40:00+03:00"
-            ],
-            "price": [
-              44.42,
-              45.76,
-              45.62,
-              45.58,
-              45.74,
-              45.32,
-              45.5,
-              45.58,
-              45.76,
-              45.72
-            ],
-            "vwap": [
-              null,
-              45.4,
-              45.4498,
-              45.458,
-              45.4893,
-              45.4921,
-              45.4892,
-              45.4914,
-              45.4976,
-              45.4976
+              176.7062
             ]
           }
         },
         {
           "symbol": "OTKAR.IS",
-          "score": 16.55,
-          "last_price": 320.0,
-          "daily_change_pct": 0.098712,
-          "weekly_change_pct": 0.101549,
-          "rvol": 7.68,
-          "volume_zscore": -0.6,
+          "score": 16.52,
+          "last_price": 319.25,
+          "daily_change_pct": 0.096137,
+          "weekly_change_pct": 0.098967,
+          "rvol": 7.91,
+          "volume_zscore": -0.55,
           "momentum_candle": false,
-          "vwap": 319.9903,
-          "vwap_position_pct": 3e-05,
+          "vwap": 319.9904,
+          "vwap_position_pct": -0.002314,
           "vwap_slope": -0.0129,
-          "distance_from_52w_high": -0.443478,
-          "distance_from_52w_low": 0.172161,
-          "atr_percentile": 40.1,
+          "distance_from_52w_high": -0.444783,
+          "distance_from_52w_low": 0.169414,
+          "atr_percentile": 39.7,
           "intraday": {
             "times": [
               "2026-08-13T09:55:00+03:00",
@@ -472,7 +418,7 @@
               318.25,
               319.5,
               320.0,
-              319.75
+              320.0
             ],
             "vwap": [
               null,
@@ -484,25 +430,79 @@
               320.0291,
               319.9921,
               319.9903,
-              319.9903
+              319.9904
+            ]
+          }
+        },
+        {
+          "symbol": "GEREL.IS",
+          "score": 16.02,
+          "last_price": 45.48,
+          "daily_change_pct": 0.131343,
+          "weekly_change_pct": 0.05522,
+          "rvol": 3.89,
+          "volume_zscore": -1.19,
+          "momentum_candle": false,
+          "vwap": 45.5,
+          "vwap_position_pct": -0.000439,
+          "vwap_slope": 0.0035,
+          "distance_from_52w_high": -0.027374,
+          "distance_from_52w_low": 1.83718,
+          "atr_percentile": 99.6,
+          "intraday": {
+            "times": [
+              "2026-08-13T09:55:00+03:00",
+              "2026-08-13T10:00:00+03:00",
+              "2026-08-13T10:05:00+03:00",
+              "2026-08-13T10:10:00+03:00",
+              "2026-08-13T10:15:00+03:00",
+              "2026-08-13T10:20:00+03:00",
+              "2026-08-13T10:25:00+03:00",
+              "2026-08-13T10:30:00+03:00",
+              "2026-08-13T10:35:00+03:00",
+              "2026-08-13T10:40:00+03:00"
+            ],
+            "price": [
+              44.42,
+              45.76,
+              45.62,
+              45.58,
+              45.74,
+              45.32,
+              45.5,
+              45.58,
+              45.76,
+              45.58
+            ],
+            "vwap": [
+              null,
+              45.4,
+              45.4501,
+              45.4583,
+              45.4898,
+              45.4925,
+              45.4895,
+              45.4918,
+              45.4979,
+              45.5
             ]
           }
         },
         {
           "symbol": "ADEL.IS",
-          "score": 15.34,
-          "last_price": 33.08,
-          "daily_change_pct": 0.039598,
-          "weekly_change_pct": 0.120596,
-          "rvol": 12.37,
-          "volume_zscore": 0.01,
+          "score": 15.22,
+          "last_price": 32.98,
+          "daily_change_pct": 0.036455,
+          "weekly_change_pct": 0.117209,
+          "rvol": 12.55,
+          "volume_zscore": 0.02,
           "momentum_candle": false,
-          "vwap": 32.9397,
-          "vwap_position_pct": 0.004259,
-          "vwap_slope": 0.0059,
-          "distance_from_52w_high": -0.420665,
-          "distance_from_52w_low": 0.161517,
-          "atr_percentile": 25.4,
+          "vwap": 32.9402,
+          "vwap_position_pct": 0.001209,
+          "vwap_slope": 0.006,
+          "distance_from_52w_high": -0.422417,
+          "distance_from_52w_low": 0.158006,
+          "atr_percentile": 26.6,
           "intraday": {
             "times": [
               "2026-08-13T09:55:00+03:00",
@@ -526,7 +526,7 @@
               33.2,
               33.04,
               33.06,
-              33.04
+              32.96
             ],
             "vwap": [
               null,
@@ -538,25 +538,25 @@
               32.9221,
               32.934,
               32.9397,
-              32.9397
+              32.9402
             ]
           }
         },
         {
           "symbol": "KRDMB.IS",
-          "score": 13.9,
-          "last_price": 137.7,
-          "daily_change_pct": 0.115883,
-          "weekly_change_pct": 0.043182,
-          "rvol": 3.31,
-          "volume_zscore": -1.48,
+          "score": 13.52,
+          "last_price": 137.1,
+          "daily_change_pct": 0.111021,
+          "weekly_change_pct": 0.038636,
+          "rvol": 3.42,
+          "volume_zscore": -1.51,
           "momentum_candle": false,
-          "vwap": 135.8759,
-          "vwap_position_pct": 0.013425,
-          "vwap_slope": 0.2684,
-          "distance_from_52w_high": -0.053608,
-          "distance_from_52w_low": 5.404651,
-          "atr_percentile": 96.4,
+          "vwap": 135.9845,
+          "vwap_position_pct": 0.008203,
+          "vwap_slope": 0.3046,
+          "distance_from_52w_high": -0.057732,
+          "distance_from_52w_low": 5.376744,
+          "atr_percentile": 97.6,
           "intraday": {
             "times": [
               "2026-08-13T09:55:00+03:00",
@@ -580,7 +580,7 @@
               137.9,
               137.4,
               137.7,
-              137.8
+              137.2
             ],
             "vwap": [
               null,
@@ -592,75 +592,24 @@
               135.0707,
               135.634,
               135.8759,
-              135.8759
-            ]
-          }
-        },
-        {
-          "symbol": "GLRYH.IS",
-          "score": 13.3,
-          "last_price": 3.07,
-          "daily_change_pct": 0.054983,
-          "weekly_change_pct": 0.023333,
-          "rvol": 8.8,
-          "volume_zscore": -0.74,
-          "momentum_candle": false,
-          "vwap": 3.0082,
-          "vwap_position_pct": 0.020546,
-          "vwap_slope": 0.0067,
-          "distance_from_52w_high": -0.379798,
-          "distance_from_52w_low": 0.054983,
-          "atr_percentile": 1.6,
-          "intraday": {
-            "times": [
-              "2026-08-13T09:55:00+03:00",
-              "2026-08-13T10:00:00+03:00",
-              "2026-08-13T10:05:00+03:00",
-              "2026-08-13T10:10:00+03:00",
-              "2026-08-13T10:15:00+03:00",
-              "2026-08-13T10:20:00+03:00",
-              "2026-08-13T10:25:00+03:00",
-              "2026-08-13T10:30:00+03:00",
-              "2026-08-13T10:35:00+03:00"
-            ],
-            "price": [
-              2.96,
-              2.96,
-              2.95,
-              2.98,
-              3.01,
-              3.05,
-              3.05,
-              3.07,
-              3.07
-            ],
-            "vwap": [
-              null,
-              2.9533,
-              2.946,
-              2.9607,
-              2.9768,
-              2.9882,
-              2.9953,
-              3.0051,
-              3.0082
+              135.9845
             ]
           }
         },
         {
           "symbol": "KRTEK.IS",
-          "score": 13.3,
-          "last_price": 6.13,
-          "daily_change_pct": -0.069803,
-          "weekly_change_pct": -0.036164,
-          "rvol": 7.32,
+          "score": 12.85,
+          "last_price": 6.1,
+          "daily_change_pct": -0.074355,
+          "weekly_change_pct": -0.040881,
+          "rvol": 6.41,
           "volume_zscore": -0.4,
           "momentum_candle": false,
           "vwap": 6.1439,
-          "vwap_position_pct": -0.002265,
-          "vwap_slope": -0.0072,
-          "distance_from_52w_high": -0.415996,
-          "distance_from_52w_low": 0.108499,
+          "vwap_position_pct": -0.007143,
+          "vwap_slope": -0.0068,
+          "distance_from_52w_high": -0.418854,
+          "distance_from_52w_low": 0.103074,
           "atr_percentile": 70.2,
           "intraday": {
             "times": [
@@ -672,7 +621,8 @@
               "2026-08-13T10:20:00+03:00",
               "2026-08-13T10:25:00+03:00",
               "2026-08-13T10:30:00+03:00",
-              "2026-08-13T10:35:00+03:00"
+              "2026-08-13T10:35:00+03:00",
+              "2026-08-13T10:40:00+03:00"
             ],
             "price": [
               6.2,
@@ -683,7 +633,8 @@
               6.12,
               6.15,
               6.09,
-              6.13
+              6.13,
+              6.1
             ],
             "vwap": [
               null,
@@ -694,25 +645,26 @@
               6.1655,
               6.1643,
               6.1452,
+              6.1439,
               6.1439
             ]
           }
         },
         {
           "symbol": "HURGZ.IS",
-          "score": 11.59,
-          "last_price": 7.84,
-          "daily_change_pct": 0.072503,
-          "weekly_change_pct": 0.056604,
-          "rvol": 5.34,
-          "volume_zscore": -0.92,
+          "score": 12.09,
+          "last_price": 7.86,
+          "daily_change_pct": 0.075239,
+          "weekly_change_pct": 0.059299,
+          "rvol": 5.57,
+          "volume_zscore": -0.84,
           "momentum_candle": false,
-          "vwap": 7.7633,
-          "vwap_position_pct": 0.009882,
-          "vwap_slope": 0.0018,
-          "distance_from_52w_high": -0.179916,
-          "distance_from_52w_low": 0.516441,
-          "atr_percentile": 65.9,
+          "vwap": 7.7644,
+          "vwap_position_pct": 0.012308,
+          "vwap_slope": 0.0022,
+          "distance_from_52w_high": -0.177824,
+          "distance_from_52w_low": 0.520309,
+          "atr_percentile": 63.9,
           "intraday": {
             "times": [
               "2026-08-13T09:55:00+03:00",
@@ -736,7 +688,7 @@
               7.79,
               7.83,
               7.84,
-              7.84
+              7.87
             ],
             "vwap": [
               null,
@@ -748,25 +700,154 @@
               7.7578,
               7.7623,
               7.7633,
-              7.7633
+              7.7644
+            ]
+          }
+        },
+        {
+          "symbol": "GLRYH.IS",
+          "score": 11.9,
+          "last_price": 3.06,
+          "daily_change_pct": 0.051546,
+          "weekly_change_pct": 0.02,
+          "rvol": 7.75,
+          "volume_zscore": -0.73,
+          "momentum_candle": false,
+          "vwap": 3.0083,
+          "vwap_position_pct": 0.017174,
+          "vwap_slope": 0.0043,
+          "distance_from_52w_high": -0.381818,
+          "distance_from_52w_low": 0.051546,
+          "atr_percentile": 1.6,
+          "intraday": {
+            "times": [
+              "2026-08-13T09:55:00+03:00",
+              "2026-08-13T10:00:00+03:00",
+              "2026-08-13T10:05:00+03:00",
+              "2026-08-13T10:10:00+03:00",
+              "2026-08-13T10:15:00+03:00",
+              "2026-08-13T10:20:00+03:00",
+              "2026-08-13T10:25:00+03:00",
+              "2026-08-13T10:30:00+03:00",
+              "2026-08-13T10:35:00+03:00",
+              "2026-08-13T10:40:00+03:00"
+            ],
+            "price": [
+              2.96,
+              2.96,
+              2.95,
+              2.98,
+              3.01,
+              3.05,
+              3.05,
+              3.07,
+              3.07,
+              3.06
+            ],
+            "vwap": [
+              null,
+              2.9533,
+              2.946,
+              2.9607,
+              2.9768,
+              2.9882,
+              2.9953,
+              3.0051,
+              3.0083,
+              3.0083
+            ]
+          }
+        },
+        {
+          "symbol": "ISKUR.IS",
+          "score": 11.36,
+          "last_price": 4125000.0,
+          "daily_change_pct": 0.1,
+          "weekly_change_pct": 0.415094,
+          "rvol": null,
+          "volume_zscore": 1.36,
+          "momentum_candle": false,
+          "vwap": null,
+          "vwap_position_pct": null,
+          "vwap_slope": null,
+          "distance_from_52w_high": -0.236111,
+          "distance_from_52w_low": 0.754489,
+          "atr_percentile": 67.3,
+          "intraday": {
+            "times": [],
+            "price": [],
+            "vwap": []
+          }
+        },
+        {
+          "symbol": "GOZDE.IS",
+          "score": 11.07,
+          "last_price": 23.64,
+          "daily_change_pct": -0.094946,
+          "weekly_change_pct": -0.058917,
+          "rvol": 2.57,
+          "volume_zscore": -1.76,
+          "momentum_candle": false,
+          "vwap": 23.9859,
+          "vwap_position_pct": -0.014422,
+          "vwap_slope": -0.0203,
+          "distance_from_52w_high": -0.168776,
+          "distance_from_52w_low": 0.304636,
+          "atr_percentile": 100.0,
+          "intraday": {
+            "times": [
+              "2026-08-13T09:55:00+03:00",
+              "2026-08-13T10:00:00+03:00",
+              "2026-08-13T10:05:00+03:00",
+              "2026-08-13T10:10:00+03:00",
+              "2026-08-13T10:15:00+03:00",
+              "2026-08-13T10:20:00+03:00",
+              "2026-08-13T10:25:00+03:00",
+              "2026-08-13T10:30:00+03:00",
+              "2026-08-13T10:35:00+03:00",
+              "2026-08-13T10:40:00+03:00"
+            ],
+            "price": [
+              23.72,
+              24.18,
+              24.08,
+              24.08,
+              24.06,
+              23.98,
+              23.94,
+              23.86,
+              23.86,
+              23.58
+            ],
+            "vwap": [
+              null,
+              24.0667,
+              24.0667,
+              24.0778,
+              24.0766,
+              24.0552,
+              24.0467,
+              24.031,
+              24.0235,
+              23.9859
             ]
           }
         },
         {
           "symbol": "ASELS.IS",
-          "score": 10.2,
-          "last_price": 386.25,
-          "daily_change_pct": 0.084211,
-          "weekly_change_pct": 0.113915,
-          "rvol": 2.78,
-          "volume_zscore": -3.33,
+          "score": 10.41,
+          "last_price": 386.5,
+          "daily_change_pct": 0.084912,
+          "weekly_change_pct": 0.114636,
+          "rvol": 2.92,
+          "volume_zscore": -3.71,
           "momentum_candle": false,
-          "vwap": 385.9316,
-          "vwap_position_pct": 0.000825,
-          "vwap_slope": 0.0381,
-          "distance_from_52w_high": -0.110023,
-          "distance_from_52w_low": 1.274954,
-          "atr_percentile": 88.5,
+          "vwap": 385.9382,
+          "vwap_position_pct": 0.001456,
+          "vwap_slope": 0.0403,
+          "distance_from_52w_high": -0.109447,
+          "distance_from_52w_low": 1.276426,
+          "atr_percentile": 88.1,
           "intraday": {
             "times": [
               "2026-08-13T09:55:00+03:00",
@@ -790,7 +871,7 @@
               387.5,
               387.0,
               386.25,
-              386.0
+              386.25
             ],
             "vwap": [
               null,
@@ -802,25 +883,25 @@
               385.8174,
               385.9014,
               385.9316,
-              385.9316
+              385.9382
             ]
           }
         },
         {
           "symbol": "METRO.IS",
-          "score": 10.05,
-          "last_price": 8.39,
-          "daily_change_pct": 0.075641,
-          "weekly_change_pct": 0.166899,
-          "rvol": 3.49,
-          "volume_zscore": -2.64,
+          "score": 9.9,
+          "last_price": 8.4,
+          "daily_change_pct": 0.076923,
+          "weekly_change_pct": 0.168289,
+          "rvol": 3.2,
+          "volume_zscore": -1.78,
           "momentum_candle": false,
           "vwap": 8.3744,
-          "vwap_position_pct": 0.001864,
+          "vwap_position_pct": 0.003055,
           "vwap_slope": 0.0003,
-          "distance_from_52w_high": -0.105544,
-          "distance_from_52w_low": 1.225464,
-          "atr_percentile": 80.2,
+          "distance_from_52w_high": -0.104478,
+          "distance_from_52w_low": 1.228117,
+          "atr_percentile": 81.0,
           "intraday": {
             "times": [
               "2026-08-13T09:55:00+03:00",
@@ -861,20 +942,20 @@
           }
         },
         {
-          "symbol": "GOZDE.IS",
-          "score": 9.88,
-          "last_price": 23.86,
-          "daily_change_pct": -0.086524,
-          "weekly_change_pct": -0.050159,
-          "rvol": 2.22,
-          "volume_zscore": -2.01,
+          "symbol": "SAHOL.IS",
+          "score": 9.79,
+          "last_price": 90.95,
+          "daily_change_pct": 0.038242,
+          "weekly_change_pct": 0.020763,
+          "rvol": 6.96,
+          "volume_zscore": -1.8,
           "momentum_candle": false,
-          "vwap": 24.0235,
-          "vwap_position_pct": -0.006804,
-          "vwap_slope": -0.0077,
-          "distance_from_52w_high": -0.161041,
-          "distance_from_52w_low": 0.316777,
-          "atr_percentile": 100.0,
+          "vwap": 91.1578,
+          "vwap_position_pct": -0.00228,
+          "vwap_slope": -0.0015,
+          "distance_from_52w_high": -0.179297,
+          "distance_from_52w_low": 0.228872,
+          "atr_percentile": 32.5,
           "intraday": {
             "times": [
               "2026-08-13T09:55:00+03:00",
@@ -889,46 +970,46 @@
               "2026-08-13T10:40:00+03:00"
             ],
             "price": [
-              23.72,
-              24.18,
-              24.08,
-              24.08,
-              24.06,
-              23.98,
-              23.94,
-              23.86,
-              23.86,
-              23.86
+              90.6,
+              91.05,
+              91.15,
+              91.45,
+              91.2,
+              91.65,
+              91.4,
+              91.25,
+              90.95,
+              90.95
             ],
             "vwap": [
               null,
-              24.0667,
-              24.0667,
-              24.0778,
-              24.0766,
-              24.0552,
-              24.0467,
-              24.031,
-              24.0235,
-              24.0235
+              90.9667,
+              91.0365,
+              91.096,
+              91.1094,
+              91.1464,
+              91.1622,
+              91.1698,
+              91.1628,
+              91.1578
             ]
           }
         },
         {
           "symbol": "FLAP.IS",
-          "score": 9.76,
-          "last_price": 10.93,
-          "daily_change_pct": 0.062196,
-          "weekly_change_pct": 0.102926,
-          "rvol": 4.54,
-          "volume_zscore": -1.88,
+          "score": 9.5,
+          "last_price": 10.9,
+          "daily_change_pct": 0.059281,
+          "weekly_change_pct": 0.099899,
+          "rvol": 4.58,
+          "volume_zscore": -1.84,
           "momentum_candle": false,
-          "vwap": 10.8296,
-          "vwap_position_pct": 0.009266,
-          "vwap_slope": 0.0011,
-          "distance_from_52w_high": -0.316875,
-          "distance_from_52w_low": 0.262125,
-          "atr_percentile": 48.0,
+          "vwap": 10.8299,
+          "vwap_position_pct": 0.00647,
+          "vwap_slope": 0.0012,
+          "distance_from_52w_high": -0.31875,
+          "distance_from_52w_low": 0.25866,
+          "atr_percentile": 45.6,
           "intraday": {
             "times": [
               "2026-08-13T09:55:00+03:00",
@@ -964,122 +1045,17 @@
               10.8263,
               10.8246,
               10.8296,
-              10.8296
-            ]
-          }
-        },
-        {
-          "symbol": "SAHOL.IS",
-          "score": 9.62,
-          "last_price": 90.9,
-          "daily_change_pct": 0.037671,
-          "weekly_change_pct": 0.020202,
-          "rvol": 6.85,
-          "volume_zscore": -1.94,
-          "momentum_candle": false,
-          "vwap": 91.1628,
-          "vwap_position_pct": -0.002883,
-          "vwap_slope": 0.0002,
-          "distance_from_52w_high": -0.179748,
-          "distance_from_52w_low": 0.228196,
-          "atr_percentile": 32.5,
-          "intraday": {
-            "times": [
-              "2026-08-13T09:55:00+03:00",
-              "2026-08-13T10:00:00+03:00",
-              "2026-08-13T10:05:00+03:00",
-              "2026-08-13T10:10:00+03:00",
-              "2026-08-13T10:15:00+03:00",
-              "2026-08-13T10:20:00+03:00",
-              "2026-08-13T10:25:00+03:00",
-              "2026-08-13T10:30:00+03:00",
-              "2026-08-13T10:35:00+03:00",
-              "2026-08-13T10:40:00+03:00"
-            ],
-            "price": [
-              90.6,
-              91.05,
-              91.15,
-              91.45,
-              91.2,
-              91.65,
-              91.4,
-              91.25,
-              90.95,
-              91.0
-            ],
-            "vwap": [
-              null,
-              90.9667,
-              91.0365,
-              91.096,
-              91.1094,
-              91.1464,
-              91.1622,
-              91.1698,
-              91.1628,
-              91.1628
-            ]
-          }
-        },
-        {
-          "symbol": "AVGYO.IS",
-          "score": 9.49,
-          "last_price": 16.03,
-          "daily_change_pct": 0.08678,
-          "weekly_change_pct": 0.155732,
-          "rvol": 1.81,
-          "volume_zscore": -0.57,
-          "momentum_candle": false,
-          "vwap": 16.0681,
-          "vwap_position_pct": -0.002371,
-          "vwap_slope": -0.0019,
-          "distance_from_52w_high": -0.168137,
-          "distance_from_52w_low": 0.705319,
-          "atr_percentile": 79.4,
-          "intraday": {
-            "times": [
-              "2026-08-13T09:55:00+03:00",
-              "2026-08-13T10:00:00+03:00",
-              "2026-08-13T10:05:00+03:00",
-              "2026-08-13T10:10:00+03:00",
-              "2026-08-13T10:15:00+03:00",
-              "2026-08-13T10:20:00+03:00",
-              "2026-08-13T10:25:00+03:00",
-              "2026-08-13T10:30:00+03:00",
-              "2026-08-13T10:35:00+03:00"
-            ],
-            "price": [
-              15.8,
-              15.8,
-              16.24,
-              16.16,
-              15.98,
-              15.97,
-              16.07,
-              16.0,
-              16.03
-            ],
-            "vwap": [
-              null,
-              15.79,
-              16.0304,
-              16.0825,
-              16.0775,
-              16.0738,
-              16.0728,
-              16.0694,
-              16.0681
+              10.8299
             ]
           }
         }
       ],
       "psychology": {
-        "breadth_pct": 66.8,
+        "breadth_pct": 65.7,
         "volatility_regime": "yuksek"
       },
       "correlation": {
-        "average_correlation": 0.321,
+        "average_correlation": 0.311,
         "reference_ticker": "XU100.IS"
       }
     },

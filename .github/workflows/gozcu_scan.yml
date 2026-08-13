@@ -79,9 +79,30 @@ jobs:
         # TARADIGI veriyi (git durumundan BAGIMSIZ bir yedekten) remote'un
         # EN SON commit'inin USTUNE yeniden uygulayip tekrar denenir (en
         # fazla 5 kez).
+        #
+        # COMMIT-DEBOUNCE (2026-08-13, Vercel deploy-kotasi tukendigi icin
+        # eklendi - bkz. ilgili konusma): HER 2 dakikalik tarama artik HER
+        # ZAMAN commit/push YAPMAZ - Vercel "her push = yeni deploy"
+        # tetikledigi icin (dashboard/next.config.ts::outputFileTracingIncludes,
+        # veri build-time'a gomulur - bkz. ilgili konusma, bu KOK NEDEN),
+        # 2 dk'da bir push GUNDE ~350+ deploy demek, Hobby plan kotasini
+        # tukettiyor ("Deployment rate limited"). Tarama/skorlama/Telegram
+        # "dikkat" uyarisi mantigi DEGISMEDI (HER ZAMAN 2 dk'da bir calisir,
+        # bkz. yukaridaki adim) - SADECE git'e YAZMA/PUSH sikligi ayrildi:
+        # DEBOUNCE_SECONDS (varsayilan 900s = 15dk) gecmediyse push atlanir.
+        # ISTISNA: alert_state.json DEGISTIYSE (yani bu calistirma yeni bir
+        # Telegram "dikkat" uyarisi gonderdiyse) debounce ATLANIR, HER ZAMAN
+        # hemen commit'lenir - aksi halde bir sonraki calistirma (2 dk sonra)
+        # ESKI (henuz commit'lenmemis) alert_state.json'dan basladigi icin
+        # AYNI sembole tekrar-tekrar uyari gonderebilirdi (idempotency
+        # SADECE commit'lenmis state'e dayanir). Bu, dashboard veri
+        # tazeliginden (~5-6dk -> ~15-30dk, kabul edilen bir odun) BAGIMSIZ
+        # olarak Telegram bildirimlerinin dogrulugunu KORUR.
         run: |
           git config user.name "gozcu-bot"
           git config user.email "actions@users.noreply.github.com"
+
+          DEBOUNCE_SECONDS=900
 
           TRACKED_FILES="gozcu/data/snapshot.json gozcu/data/alert_state.json paper_trading/logs/action_sheet.json"
           existing_files() {
@@ -94,6 +115,19 @@ jobs:
           if git diff --cached --quiet; then
             echo "Degisiklik yok, commit atlaniyor."
             exit 0
+          fi
+
+          if git diff --cached --quiet -- gozcu/data/alert_state.json; then
+            LAST_COMMIT_TS=$(git log -1 --format=%ct -- gozcu/data/snapshot.json 2>/dev/null || echo 0)
+            NOW_TS=$(date -u +%s)
+            ELAPSED=$((NOW_TS - LAST_COMMIT_TS))
+            if [ "$LAST_COMMIT_TS" != "0" ] && [ "$ELAPSED" -lt "$DEBOUNCE_SECONDS" ]; then
+              echo "Son commit ${ELAPSED}sn once yapildi (esik: ${DEBOUNCE_SECONDS}sn), alert_state.json degismedi - push atlaniyor (Vercel deploy-kotasi tasarrufu)."
+              git reset
+              exit 0
+            fi
+          else
+            echo "alert_state.json degisti (yeni bir Telegram uyarisi gonderilmis olabilir) - debounce ATLANIYOR, hemen commit'leniyor."
           fi
 
           backup_dir="$(mktemp -d)"

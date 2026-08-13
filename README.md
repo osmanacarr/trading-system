@@ -641,6 +641,31 @@ tutulur — paper trading `state.db`'sine dokunulmaz.
 
 ## Bilinen riskler / öneriler
 
+- **TODO (2026-08-13) — Vercel deploy'unu veri commit'lerinden AYRIŞTIR (Seçenek 2, henüz yapılmadı):**
+  `dashboard/next.config.ts`'deki `outputFileTracingIncludes`, `paper_trading/logs/**`
+  ve `paper_trading/data/**`'ı BUILD-TIME'da serverless fonksiyon paketine
+  gömüyor — `dashboard/app/api/*/route.ts`'ler `force-dynamic` olsa da
+  (her istekte handler çalışır) OKUDUKLARI VERİ o dağıtımın build anına
+  DONMUŞ durumda. Sonuç: yeni veri görünmesi için HER ZAMAN yeni bir Vercel
+  deploy gerekiyor — bu yüzden Gözcü'nün sık commit'leri Vercel Hobby
+  plan deploy-kotasını tüketip "Deployment rate limited" hatasına yol açtı.
+  **Acil çözüm olarak (Seçenek 1) uygulandı:** `gozcu_scan.yml`'e
+  commit-debounce eklendi (tarama/Telegram uyarısı hâlâ 2 dk'da bir çalışır,
+  ama git commit/push — dolayısıyla Vercel deploy — en fazla 15 dk'da bir
+  yapılır; `alert_state.json` değiştiyse debounce ATLANIR, idempotency
+  korunur). **Ama kök neden ÇÖZÜLMEDİ** — commit hacmi tekrar artarsa
+  (özellikle NASDAQ RSI2 mean-reversion bir gün canlıya alınıp kendi
+  otomatik taraması eklenirse) aynı sorun geri gelir. **Gerçek/kalıcı çözüm
+  (Seçenek 2, AYRI bir iş turu olarak planlanmalı):** ilgili API route'ları
+  (`/api/gozcu`, `/api/opportunities`, `/api/action-sheet`, `/api/summary`,
+  `/api/trades`, `/api/equity`, `/api/research`, ...) build-time'a gömülü
+  yerel dosya okumaktan, RUNTIME'da GitHub raw content CDN'inden (veya
+  benzeri her zaman güncel bir kaynaktan) fetch etmeye geçirmek — böylece
+  deploy sıklığı veri değişikliğinden TAMAMEN bağımsızlaşır (sadece kod
+  değişince deploy gerekir). Ağ hatasına karşı yerel bundled kopyaya
+  fallback ekleyerek (bu depoda zaten yaygın olan "sessizce eskiye düş"
+  felsefesiyle tutarlı) uygulanmalı. ~10 route'u kapsadığı için kendi
+  başına bir doğrulama turu gerektirir, aceleye getirilmemeli.
 - **State dosyası kaybı/bozulması:** `state.db` tek bir dosyadır; disk arızası
   veya yanlışlıkla silinme açık pozisyon bilgisini tamamen kaybettirir. Öneri:
   `paper_trading/data/` dizinini düzenli olarak (GitHub Actions senaryosunda

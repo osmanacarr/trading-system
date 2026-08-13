@@ -48,6 +48,20 @@ CRYPTO_TICKERS: list[str] = [
     "BTC-USD",
 ]
 
+# NASDAQ evreni (Asama 2 dogrulama - Donchian BIST'te dogrulandi, NASDAQ'ta
+# HENUZ test edilmedi). GOZCU_NASDAQ100_FALLBACK ile AYNI listeyi yeniden
+# kullanir (asagida tanimli) - iki ayri "NASDAQ buyuk isimler" listesi
+# tutmak manuel senkron riski tasirdi. BIST_TICKERS ile ayni ruhta: sabit,
+# likit, kucuk bir evren (dinamik Gozcu evreni degil) - ilk dogrulama
+# kosusu icin en temiz karsilastirma.
+NASDAQ_TICKERS: list[str] = [
+    "AAPL", "MSFT", "AMZN", "NVDA", "GOOGL", "GOOG", "META", "TSLA", "AVGO",
+    "COST", "PEP", "ADBE", "NFLX", "CSCO", "AMD", "INTC", "QCOM", "TXN",
+    "AMGN", "HON", "INTU", "SBUX", "GILD", "MDLZ", "BKNG", "ADI", "REGN",
+    "VRTX", "PYPL", "LRCX", "PANW", "MU", "SNPS", "CDNS", "KLAC", "MAR",
+    "ORLY", "CSX", "ABNB",
+]
+
 # BIST icin TL -> USD donusumu istenirse kullanilacak FX sembolu (yfinance)
 USDTRY_TICKER: str = "USDTRY=X"
 
@@ -122,6 +136,46 @@ PA_VOLUME_LOOKBACK: int = 20
 PA_RISK_REWARD: float = 2.0  # sabit R/R cikis (2:1)
 
 # ---------------------------------------------------------------------------
+# NASDAQ kisa-vadeli ortalamaya-donus (RSI2/IBS) - DENEYSEL (2026-08-13)
+# ---------------------------------------------------------------------------
+#
+# GEREKCE: Donchian (Kart 4), NASDAQ'ta IKI ayri parametre setiyle (N=20/10
+# VE Turtle System-2 N=55/20) basarisiz oldu (t=-0.80, t=-0.62) - hem
+# NASDAQ-100 mega-cap'te hem piyasa-degerine gore genisletilmis (large/mid/
+# small) bir ornek evrende. Kaynaklarda (quant2.md) bulunmayan, arastirmaci
+# muhakemesiyle onerilen alternatif: yavas/teknik trend sinyalleri (herkesin
+# gordugu 20/55 gunluk kirilim) kurumsal/algoritmik rekabetin en cok
+# arbitraj ettigi tur; COK KISA vadeli (1-3 gun) asiri-tepki farkli bir
+# mekanizma (likidite saglayicilarin anlik dengesizligi ustlenme karsiligi
+# istedigi kisa vadeli prim), 2009 sonrasi HFT rekabetiyle zayiflasa da
+# KISMEN var olabilir.
+#
+# SONUC (NASDAQ-100 mega-cap, 39 sembol, 2015-2026): havuzlanmis t-stat=3.63
+# (havuzda 5. strateji, esik 3.0 - GECTI), n=2448 islem, win_rate=%61.3,
+# E[R]=+0.067. Uc kronolojik alt-donemde (2015-2018/2019-2021/2022-2026)
+# TUTARLI pozitif yon (E[R] +0.092 -> +0.082 -> +0.038 - kucumsenemeyecek
+# bir azalma egilimi, olasi alpha-decay, DURUSTCE not dusuluyor). Mid/small-
+# cap NASDAQ orneginde (80 sembol) ayni sinyal ANLAMLI DEGIL (t=1.38) - bu
+# yuzden evren SADECE NASDAQ_TICKERS (mega-cap) ile sinirlanir, genis
+# evrene ACILMAZ.
+#
+# COZULMEMIS SINIR: hayatta-kalma yanliligi (bugunun NASDAQ-100 listesi
+# 2015'e geri uygulaniyor, o donemde endeksten cikmis/iflas etmis isimler
+# orneklemde YOK) - tarihsel/point-in-time uyelik listesi bulunamadi.
+#
+# KARAR: BIST Donchian ile AYNI guven seviyesinde SAYILMAZ (MA-voting/
+# Bollinger-fade ile AYNI muamele: kodlandi, test edildi, paper_trading'de
+# --strategies mean_reversion ile ISTEGE BAGLI calisir, VARSAYILAN DEGIL).
+MEAN_REVERSION_RSI_PERIOD: int = 2  # Connors RSI2
+MEAN_REVERSION_RSI_OVERSOLD: float = 10.0  # bu esigin ALTI -> asiri kisa-vadeli dusus
+MEAN_REVERSION_RSI_EXIT: float = 70.0  # bu esigin USTU -> donus tamamlandi, cik
+MEAN_REVERSION_IBS_THRESHOLD: float = 0.3  # (Close-Low)/(High-Low) bu esigin ALTI -> zayif kapanis onayi
+MEAN_REVERSION_SMA_TREND_PERIOD: int = 200  # Close > SMA(200) -> sadece yukselis trendinde al (Connors filtresi)
+MEAN_REVERSION_ATR_PERIOD: int = 14  # kisa-vadeli strateji icin kisa-donemli ATR (Donchian'in 20'sinden farkli, kasitli)
+MEAN_REVERSION_ATR_STOP_MULT: float = 1.5  # Donchian'in k=2'sinden DAHA DAR - mean-reversion'in beklenen hareketi kucuk, test ONCESI belirlendi
+MEAN_REVERSION_MAX_HOLD_DAYS: int = 10  # bu kadar islem gunu icinde donus olmazsa zorunlu kapanis
+
+# ---------------------------------------------------------------------------
 # Istatistiksel anlamlilik (validation/significance.py) varsayilan degerleri
 # ---------------------------------------------------------------------------
 
@@ -193,6 +247,20 @@ PAPER_TRADING_LOOKBACK_DAYS: int = 400
 # mesaji gonderilir (karar/islem degistirmez, sadece bilgilendirme).
 STOP_PROXIMITY_WARNING_PCT: float = 0.20
 
+# Strateji dogrulama durumu - dashboard/Telegram/opportunities.py'nin
+# "DOGRULANMIS" (canli varsayilan, uzun donemli/coklu-donem kanit) ile
+# "DENEYSEL" (kodlandi+test edildi ama --strategies ile ISTEGE BAGLI, bkz.
+# paper_trading.runner modul docstring'i) ayrimini TEK bir yerden okumasi
+# icin (bkz. ilgili konusma, "Gozcu'nun panelinden GORSEL VE ISIMSEL NET
+# AYRIK" gerekcesi). Burada YOK sayilan (dict'te olmayan) bir strateji
+# GUVENLI VARSAYILAN olarak "deneysel" sayilir (cagiran kod .get(strategy,
+# "deneysel") kullanmali) - bilinmeyen bir stratejiyi yanlislikla
+# "dogrulanmis" gostermemek icin.
+STRATEGY_VALIDATION_STATUS: dict[str, str] = {
+    "donchian": "dogrulanmis",  # BIST t=4.41/673 islem + BTC-USD Sharpe=0.92, canli varsayilan
+    "mean_reversion": "deneysel",  # NASDAQ mega-cap t=3.63-4.47, hayatta-kalma yanliligi COZULMEDI, opt-in
+}
+
 # "En Iyi N Firsat" (bkz. paper_trading/opportunities.py): gunun risk
 # butcesi tarafindan REDDEDILEN (skip_risk_budget) adaylarindan, kirilim
 # kalitesine gore siralanip gosterilecek EN FAZLA aday sayisi. Sabit bir
@@ -221,13 +289,10 @@ GOZCU_BIST_WIKI_URL: str = "https://en.wikipedia.org/wiki/List_of_companies_list
 GOZCU_NASDAQ100_WIKI_URL: str = "https://en.wikipedia.org/wiki/List_of_NASDAQ-100_companies"
 
 # Her iki dinamik kaynak da basarisiz olursa dusulecek statik yedek listeler.
-GOZCU_NASDAQ100_FALLBACK: list[str] = [
-    "AAPL", "MSFT", "AMZN", "NVDA", "GOOGL", "GOOG", "META", "TSLA", "AVGO",
-    "COST", "PEP", "ADBE", "NFLX", "CSCO", "AMD", "INTC", "QCOM", "TXN",
-    "AMGN", "HON", "INTU", "SBUX", "GILD", "MDLZ", "BKNG", "ADI", "REGN",
-    "VRTX", "PYPL", "LRCX", "PANW", "MU", "SNPS", "CDNS", "KLAC", "MAR",
-    "ORLY", "CSX", "ABNB",
-]
+# NASDAQ_TICKERS ile AYNI liste (yukarida tanimli) - GOZCU'nun kendi
+# modullere bagimsiz olma ilkesi geregi burada AYRI bir isimle yeniden
+# baglaniyor (deger tekrari degil, referans).
+GOZCU_NASDAQ100_FALLBACK: list[str] = NASDAQ_TICKERS
 
 # Referans endeks/ETF sembolleri (korelasyon ozeti icin, gozcu/correlation.py).
 GOZCU_BIST_REFERENCE_TICKER: str = "XU100.IS"

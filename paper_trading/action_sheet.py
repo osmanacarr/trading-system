@@ -39,7 +39,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Callable
 
-from config import PAPER_TRADING_LOG_DIR, STOP_PROXIMITY_WARNING_PCT, USER_CAN_SHORT
+from config import PAPER_TRADING_LOG_DIR, STOP_PROXIMITY_WARNING_PCT, STRATEGY_VALIDATION_STATUS, USER_CAN_SHORT
 from paper_trading.state import PositionRecord
 
 ACTION_SHEET_JSON_PATH: Path = PAPER_TRADING_LOG_DIR / "action_sheet.json"
@@ -57,6 +57,7 @@ class ActionSheetEntry:
 
     symbol: str
     strategy: str
+    validation_status: str  # "dogrulanmis" | "deneysel" (bkz. config.STRATEGY_VALIDATION_STATUS)
     direction: int  # +1 long, -1 short
     applicable: bool  # config.USER_CAN_SHORT'a gore (bkz. modul docstring'i)
     entry_price: float
@@ -144,6 +145,7 @@ def build_action_sheet(
             ActionSheetEntry(
                 symbol=pos.symbol,
                 strategy=pos.strategy,
+                validation_status=STRATEGY_VALIDATION_STATUS.get(pos.strategy, "deneysel"),
                 direction=pos.direction,
                 applicable=applicable,
                 entry_price=pos.entry_price,
@@ -201,13 +203,21 @@ def format_daily_telegram_summary(entries: list[ActionSheetEntry], run_date: dt.
 
     if actionable:
         lines.append(f"Bugun uygulanabilir {len(actionable)} pozisyon var:")
-        for e in actionable:
-            flag = " ⚠ STOP'A YAKIN" if e.is_near_stop else ""
-            new_flag = " 🆕 YENI FIRSAT" if e.is_new_today else ""
-            lines.append(
-                f"- {e.symbol} [{e.strategy}] LONG | giris {e.entry_price:.2f} | "
-                f"stop {e.stop_price:.2f}{flag}{new_flag}"
-            )
+        # Dogrulanmis/deneysel ayrimi (bkz. config.STRATEGY_VALIDATION_STATUS,
+        # "Gozcu'nun panelinden gorsel VE isimsel net ayrik" gerekcesi) -
+        # tek listede karisik gostermek yerine iki ayri baslik altinda.
+        for status, title in (("dogrulanmis", "✅ DOGRULANMIS"), ("deneysel", "🧪 DENEYSEL")):
+            group = [e for e in actionable if e.validation_status == status]
+            if not group:
+                continue
+            lines.append(f"  {title}:")
+            for e in group:
+                flag = " ⚠ STOP'A YAKIN" if e.is_near_stop else ""
+                new_flag = " 🆕 YENI FIRSAT" if e.is_new_today else ""
+                lines.append(
+                    f"  - {e.symbol} [{e.strategy}] LONG | giris {e.entry_price:.2f} | "
+                    f"stop {e.stop_price:.2f}{flag}{new_flag}"
+                )
     else:
         lines.append("Bugun uygulanabilir (LONG) pozisyon yok.")
 

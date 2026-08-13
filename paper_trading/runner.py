@@ -83,7 +83,9 @@ from config import (
     FETCH_RETRY_BASE_DELAY_SECONDS,
     MA_VOTING_PAIRS,
     MAX_NET_EXPOSURE_PCT,
+    MEAN_REVERSION_MAX_HOLD_DAYS,
     MIN_BARS_REQUIRED,
+    NASDAQ_TICKERS,
     PAPER_TRADING_DEFAULT_STRATEGY,
     PAPER_TRADING_LOOKBACK_DAYS,
     RISK_CORRELATION_CLUSTER_LOOKBACK_DAYS,
@@ -106,7 +108,7 @@ from research.regime import compute_weekly_trend_bias
 from risk import portfolio as risk_portfolio
 from risk import correlation_clusters
 from risk.correlation_clusters import build_correlation_clusters, compute_return_matrix
-from signals import bollinger_fade, donchian, ma_voting, price_action
+from signals import bollinger_fade, donchian, ma_voting, mean_reversion, price_action
 
 log = logging.getLogger("paper_trading.runner")
 
@@ -115,7 +117,24 @@ STRATEGY_SIGNAL_FN: dict[str, Callable[[pd.DataFrame], pd.DataFrame]] = {
     "price_action": price_action.generate_signals,
     "ma_voting": ma_voting.generate_signals,
     "bollinger_fade": bollinger_fade.generate_signals,
+    # DENEYSEL (bkz. config.py "NASDAQ kisa-vadeli ortalamaya-donus") -
+    # SADECE nasdaq_mega piyasasinda calisir, bkz. STRATEGY_MARKETS.
+    "mean_reversion": mean_reversion.generate_signals,
 }
+
+# Hangi stratejinin hangi piyasa(lar)da CALISMASINA IZIN VERILDIGI (bkz.
+# backtest/run.py STRATEGY_UNIVERSE_WHITELIST ile AYNI gerekce). run_once
+# bu haritayi kullanarak uyumsuz (strateji, piyasa) ciftlerini SESSIZCE
+# atlar - ORNEGIN mean_reversion'in "bist"e, donchian'in "nasdaq_mega"ya
+# YANLISLIKLA sizmasini onler (Donchian NASDAQ'ta t=-0.80/-0.62 ile
+# basarisiz oldu; mean_reversion SADECE NASDAQ mega-cap'te anlamli, t=3.63).
+# Burada listelenmeyen stratejiler (varsayilan) TUM piyasalarda calisir -
+# bu, mevcut donchian/price_action/ma_voting/bollinger_fade davranisini
+# DEGISTIRMEZ (hepsi zaten yalniz bist+crypto'da test edildi/kullaniliyor).
+STRATEGY_MARKETS: dict[str, set[str]] = {
+    "mean_reversion": {"nasdaq_mega"},
+}
+DEFAULT_STRATEGY_MARKETS: set[str] = {"bist", "crypto"}
 
 FetchFn = Callable[..., pd.DataFrame]
 
@@ -161,6 +180,14 @@ def _ma_voting_entry_params(
     return entry_price, stop_price, None, size_multiplier
 
 
+def _mean_reversion_entry_params(
+    df: pd.DataFrame, direction: int, last_row: pd.Series, last_signal: pd.Series
+) -> tuple[float | None, float | None, float | None, float]:
+    entry_price = apply_slippage(last_row["Close"], direction, is_entry=True, slippage_pct=SLIPPAGE_PCT)
+    stop_price = last_signal["stop_long"]  # LONG-only, bkz. signals/mean_reversion.py
+    return entry_price, stop_price, None, 1.0
+
+
 STRATEGY_ENTRY_PARAMS_FN: dict[
     str, Callable[[pd.DataFrame, int, pd.Series, pd.Series], tuple[float | None, float | None, float | None, float]]
 ] = {
@@ -172,6 +199,7 @@ STRATEGY_ENTRY_PARAMS_FN: dict[
     # ayri bir fonksiyon YAZILMADI (bkz. backtest/engine.py::run_backtest
     # dispatch'indeki ayni gerekce).
     "bollinger_fade": _price_action_entry_params,
+    "mean_reversion": _mean_reversion_entry_params,
 }
 
 
@@ -214,11 +242,37 @@ def _ma_voting_exit(
     return None
 
 
+def _mean_reversion_exit(
+    direction: int, last_row: pd.Series, position: PositionRecord, last_signal: pd.Series
+) -> tuple[float, str] | None:
+    # Once stop (fiyat-bazli, intrabar) - AYNI oncelik sirasi diger stratejilerle.
+    stop_hit = resolve_intrabar_exit(
+        direction, last_row["Open"], last_row["High"], last_row["Low"], position.stop_price, target_price=None
+    )
+    if stop_hit is not None:
+        return stop_hit
+    # Sinyal-bazli cikis: RSI(2) donus esigini gectiyse.
+    if bool(last_signal["exit_long_signal"]):
+        return float(last_row["Close"]), "signal"
+    # Zaman-bazli zorunlu cikis: backtest (backtest/engine.py::
+    # run_mean_reversion_backtest) ISLEM GUNU sayar; burada canli/gunluk
+    # calisma icin TAKVIM gunu kullanilir (position.entry_date her zaman
+    # mevcut, bar-index sayaci STATE'te tutulmuyor) - bu, hafta sonlarini
+    # da saydigi icin backtest'teki 10 islem-gununden biraz DAHA SIKI bir
+    # sinir (daha erken kapanir) - GUVENLI yondeki bir yaklastirma, gevsek degil.
+    current_date = last_row.name.date() if hasattr(last_row.name, "date") else last_row.name
+    hold_calendar_days = (current_date - position.entry_date).days
+    if hold_calendar_days >= MEAN_REVERSION_MAX_HOLD_DAYS:
+        return float(last_row["Close"]), "max_hold"
+    return None
+
+
 STRATEGY_EXIT_FN: dict[str, Callable[[int, pd.Series, PositionRecord, pd.Series], tuple[float, str] | None]] = {
     "donchian": _donchian_exit,
     "price_action": _price_action_exit,
     "ma_voting": _ma_voting_exit,
     "bollinger_fade": _price_action_exit,
+    "mean_reversion": _mean_reversion_exit,
 }
 
 
@@ -227,8 +281,11 @@ def _default_markets() -> dict[str, list[str]]:
     Wikipedia cekimi; basarisiz/bos donerse gozcu.universe kendi icinde
     config.BIST_TICKERS - 13 likit sembol - yedegine duser), kripto icin
     sabit CRYPTO_TICKERS (M3 - evren genisletme, risk/correlation_clusters.py
-    ile ATOMIK teslim edildi - bkz. modul docstring'i "PORTFOY TAHSISI")."""
-    return {"bist": get_bist_universe(), "crypto": list(CRYPTO_TICKERS)}
+    ile ATOMIK teslim edildi - bkz. modul docstring'i "PORTFOY TAHSISI").
+    nasdaq_mega: SADECE mean_reversion (DENEYSEL) icin, config.NASDAQ_TICKERS
+    (39 sembol, sabit - Gozcu'nun dinamik NASDAQ-100 evreni DEGIL, cunku
+    dogrulama TAM OLARAK bu sabit listeyle yapildi, bkz. STRATEGY_MARKETS)."""
+    return {"bist": get_bist_universe(), "crypto": list(CRYPTO_TICKERS), "nasdaq_mega": list(NASDAQ_TICKERS)}
 
 
 def _format_entry_telegram_message(
@@ -906,6 +963,12 @@ def run_once(
                 weekly_bias = compute_weekly_trend_bias(df).iloc[-1] if weekly_bias_filter else None
 
                 for strategy in strategies:
+                    # bkz. STRATEGY_MARKETS modul-seviyesi yorumu: uyumsuz
+                    # (strateji, piyasa) ciftleri SESSIZCE atlanir (orn.
+                    # mean_reversion + bist) - capraz-kirlenmeyi (test
+                    # edilmemis kombinasyonun canliya sizmasini) onler.
+                    if market not in STRATEGY_MARKETS.get(strategy, DEFAULT_STRATEGY_MARKETS):
+                        continue
                     outcome = evaluate_symbol_strategy(
                         symbol, market, strategy, df, state, trade_logger, run_date, dry_run
                     )

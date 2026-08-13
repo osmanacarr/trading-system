@@ -50,6 +50,7 @@ from config import (
     DONCHIAN_ATR_STOP_MULT,
     INITIAL_CAPITAL,
     MA_VOTING_PAIRS,
+    MEAN_REVERSION_MAX_HOLD_DAYS,
     RISK_PER_TRADE,
     SLIPPAGE_PCT,
 )
@@ -546,10 +547,93 @@ def run_ma_voting_backtest(
     return trades_df, equity_curve
 
 
+def run_mean_reversion_backtest(
+    df: pd.DataFrame,
+    signals: pd.DataFrame,
+    initial_capital: float = INITIAL_CAPITAL,
+    risk_pct: float = RISK_PER_TRADE,
+    commission_pct: float = COMMISSION_PCT,
+    slippage_pct: float = SLIPPAGE_PCT,
+    max_hold_bars: int = MEAN_REVERSION_MAX_HOLD_DAYS,
+) -> tuple[pd.DataFrame, pd.Series]:
+    """NASDAQ RSI2/IBS mean-reversion (signals/mean_reversion.py, DENEYSEL)
+    icin islem simulasyonu calistirir.
+
+    Giris kapanista; stop = signals.stop_long (ATR bazli, sinyal barinda
+    onceden hesaplanmis). Cikis UC yoldan biri: (1) stop (gun ici, Low ile,
+    ma_voting/price_action ile AYNI resolve_intrabar_exit), (2)
+    exit_long_signal (RSI donus esigi, kapanis bazli), (3) max_hold_bars
+    islem gunu gecince ZORUNLU kapanis (kapanista) - Donchian/Price
+    Action/MA-oylamada YOK, bu stratejiye ozgu (bkz. signals/
+    mean_reversion.py modul docstring'i). LONG-ONLY (signals.entry_short
+    her zaman False, bkz. signals/mean_reversion.py).
+
+    Args:
+        df: ["Open","High","Low","Close","Volume"] kolonlarina sahip fiyat verisi.
+        signals: signals.mean_reversion.generate_signals ciktisi (ayni index).
+        initial_capital: Baslangic sermayesi.
+        risk_pct: Islem basina risk orani.
+        commission_pct: Tek yonlu komisyon orani.
+        slippage_pct: Fiil fiyatina uygulanan slipaj orani.
+        max_hold_bars: Zorunlu kapanis icin azami tutma suresi (islem gunu).
+
+    Returns:
+        (trades, equity_curve): bkz. run_donchian_backtest.
+    """
+    equity = initial_capital
+    equity_curve = pd.Series(index=df.index, dtype=float)
+    trades: list[dict] = []
+    pos: OpenPosition | None = None
+    entry_bar_idx: int | None = None
+
+    for bar_idx, t in enumerate(df.index):
+        row = df.loc[t]
+        sig = signals.loc[t]
+
+        if pos is not None and pos.entry_date != t:
+            pos.update_excursion(row["High"], row["Low"])
+
+        if pos is not None:
+            exit_result = resolve_intrabar_exit(
+                pos.direction, row["Open"], row["High"], row["Low"], pos.stop_price, target_price=None
+            )
+            if exit_result is None and bool(sig["exit_long_signal"]):
+                exit_result = (float(row["Close"]), "signal")
+            if exit_result is None and entry_bar_idx is not None and (bar_idx - entry_bar_idx) >= max_hold_bars:
+                exit_result = (float(row["Close"]), "max_hold")
+            if exit_result is not None:
+                raw_price, reason = exit_result
+                trade, net_pnl = close_position(pos, t, raw_price, reason, commission_pct, slippage_pct)
+                trades.append(trade)
+                equity += net_pnl
+                pos = None
+                entry_bar_idx = None
+
+        if pos is None:
+            if bool(sig["entry_long"]):
+                entry_price = apply_slippage(row["Close"], 1, is_entry=True, slippage_pct=slippage_pct)
+                stop_price = sig["stop_long"]
+                if pd.notna(stop_price) and stop_price < entry_price:
+                    size = compute_position_size(equity, risk_pct, entry_price, stop_price)
+                    if size > 0:
+                        equity -= commission_pct * entry_price * size
+                        pos = OpenPosition(1, t, entry_price, stop_price, size)
+                        entry_bar_idx = bar_idx
+
+        if pos is not None:
+            unrealized = (row["Close"] - pos.entry_price) * pos.direction * pos.size
+            equity_curve.loc[t] = equity + unrealized
+        else:
+            equity_curve.loc[t] = equity
+
+    trades_df = pd.DataFrame(trades, columns=TRADE_COLUMNS)
+    return trades_df, equity_curve
+
+
 def run_backtest(
     df: pd.DataFrame,
     signals: pd.DataFrame,
-    strategy: Literal["donchian", "price_action", "ma_voting", "bollinger_fade"],
+    strategy: Literal["donchian", "price_action", "ma_voting", "bollinger_fade", "mean_reversion"],
     **kwargs,
 ) -> tuple[pd.DataFrame, pd.Series]:
     """Strateji adina gore uygun backtest fonksiyonuna yonlendirir.
@@ -557,7 +641,8 @@ def run_backtest(
     Args:
         df: OHLCV fiyat verisi.
         signals: Ilgili signals modulunun generate_signals ciktisi.
-        strategy: "donchian", "price_action", "ma_voting" veya "bollinger_fade".
+        strategy: "donchian", "price_action", "ma_voting", "bollinger_fade"
+            veya "mean_reversion".
         **kwargs: Ilgili run_*_backtest fonksiyonuna aktarilan ek parametreler.
 
     Returns:
@@ -578,4 +663,6 @@ def run_backtest(
         return run_price_action_backtest(df, signals, **kwargs)
     if strategy == "ma_voting":
         return run_ma_voting_backtest(df, signals, **kwargs)
+    if strategy == "mean_reversion":
+        return run_mean_reversion_backtest(df, signals, **kwargs)
     raise ValueError(f"Bilinmeyen strateji: {strategy!r}")

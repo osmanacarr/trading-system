@@ -45,8 +45,13 @@ from config import (
     DONCHIAN_BODY_LOOKBACK,
     DONCHIAN_ENTRY_N,
     DONCHIAN_VOLUME_LOOKBACK,
+    MEAN_REVERSION_IBS_THRESHOLD,
+    MEAN_REVERSION_RSI_OVERSOLD,
+    MEAN_REVERSION_RSI_PERIOD,
 )
+from research.factors import compute_rsi
 from signals.donchian import compute_donchian_channels
+from signals.mean_reversion import compute_ibs
 
 
 def compute_donchian_breakout_quality(
@@ -104,4 +109,46 @@ def compute_donchian_breakout_quality(
         "atr_distance": float(atr_distance) if atr_distance is not None and pd.notna(atr_distance) else None,
         "volume_ratio": volume_ratio,
         "body_ratio": body_ratio,
+    }
+
+
+def compute_mean_reversion_quality(
+    df: pd.DataFrame,
+    rsi_period: int = MEAN_REVERSION_RSI_PERIOD,
+    rsi_oversold: float = MEAN_REVERSION_RSI_OVERSOLD,
+    ibs_threshold: float = MEAN_REVERSION_IBS_THRESHOLD,
+) -> dict[str, float] | None:
+    """Bugunku barin RSI2/IBS mean-reversion (DENEYSEL, bkz. config.py)
+    sinyalinin NE KADAR guclu oldugunu (SUREKLI versiyon) hesaplar - "En
+    Iyi N Firsat" icin, compute_donchian_breakout_quality ile AYNI ruhta
+    (bkz. modul docstring'i madde 2-3: signals/mean_reversion.py'ye
+    DOKUNULMAZ, burada SADECE okunur; tek bir opak skora SIKISTIRILMAZ).
+
+    Args:
+        df: signals.mean_reversion.generate_signals ile AYNI OHLCV DataFrame'i.
+        rsi_period, rsi_oversold, ibs_threshold: signals/mean_reversion.py
+            ile AYNI varsayilanlar (config.py).
+
+    Returns:
+        {"rsi_oversold_depth", "ibs"} - rsi_oversold_depth = rsi_oversold -
+        guncel_RSI (BUYUK deger = DAHA asiri kisa-vadeli dusus, siralama
+        icin kullanilir - atr_distance'in bu stratejideki analogu). ibs
+        AYRI dondurulur (kullanici NEDEN yuksek siraladigini gorebilsin,
+        tek sayiya karistirilmaz - opportunity_score.py'nin genel ilkesi).
+        RSI hesaplanamiyorsa (yetersiz veri) None doner.
+    """
+    if len(df) < rsi_period + 1:
+        return None
+
+    rsi_series = compute_rsi(df, period=rsi_period)
+    current_rsi = rsi_series.iloc[-1]
+    if pd.isna(current_rsi):
+        return None
+
+    ibs_series = compute_ibs(df)
+    current_ibs = ibs_series.iloc[-1]
+
+    return {
+        "rsi_oversold_depth": float(rsi_oversold - current_rsi),
+        "ibs": float(current_ibs) if pd.notna(current_ibs) else None,
     }

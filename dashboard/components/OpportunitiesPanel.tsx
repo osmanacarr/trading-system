@@ -5,6 +5,7 @@ import { useDashboard } from "@/lib/dashboard-context";
 import { formatNumber } from "@/lib/format";
 import { Badge } from "./ui/Badge";
 import { EmptyState } from "./ui/EmptyState";
+import { ValidationBadge } from "./ui/ValidationBadge";
 import type { OpportunityEntry } from "@/lib/types";
 
 // "En Iyi N Firsat" - paper_trading/opportunities.py::RISK_WARNING ile AYNI
@@ -24,12 +25,35 @@ function QualityMetric({ label, value, suffix = "" }: { label: string; value: nu
   );
 }
 
+function QualityMetrics({ entry }: { entry: OpportunityEntry }) {
+  // Donchian ve mean_reversion FARKLI olcekli kalite metrikleri kullanir
+  // (bkz. paper_trading/opportunities.py modul docstring'i madde 2) -
+  // strateji-bazinda dogru alanlar gosterilir, HICBIRI tek bir skora
+  // KARISTIRILMAZ.
+  if (entry.strategy === "mean_reversion") {
+    return (
+      <div className="mt-2 grid grid-cols-2 gap-1 rounded-sm border border-term-border-soft bg-term-bg-1/40 py-1.5">
+        <QualityMetric label="RSI asiri-satim derinligi" value={entry.rsi_oversold_depth} />
+        <QualityMetric label="IBS (dip yakinligi)" value={entry.ibs} />
+      </div>
+    );
+  }
+  return (
+    <div className="mt-2 grid grid-cols-3 gap-1 rounded-sm border border-term-border-soft bg-term-bg-1/40 py-1.5">
+      <QualityMetric label="kirilim (ATR)" value={entry.atr_distance} suffix="x" />
+      <QualityMetric label="hacim orani" value={entry.volume_ratio} suffix="x" />
+      <QualityMetric label="govde orani" value={entry.body_ratio} suffix="x" />
+    </div>
+  );
+}
+
 function OpportunityCard({ entry }: { entry: OpportunityEntry }) {
   return (
     <div className="rounded-sm border border-term-red/30 bg-term-panel/60 p-3">
       <div className="flex items-center justify-between gap-2">
         <span className="mono-tabular text-sm font-semibold text-term-text">{entry.symbol}</span>
         <div className="flex items-center gap-1.5">
+          <ValidationBadge status={entry.validation_status} />
           <Badge tone={entry.direction === 1 ? "green" : "red"}>{entry.direction === 1 ? "LONG" : "SHORT"}</Badge>
           <Badge tone={entry.applicable ? "green" : "amber"}>{entry.applicable ? "UYGULANABILIR" : "SADECE IZLEME"}</Badge>
         </div>
@@ -46,11 +70,7 @@ function OpportunityCard({ entry }: { entry: OpportunityEntry }) {
         </div>
       </div>
 
-      <div className="mt-2 grid grid-cols-3 gap-1 rounded-sm border border-term-border-soft bg-term-bg-1/40 py-1.5">
-        <QualityMetric label="kirilim (ATR)" value={entry.atr_distance} suffix="x" />
-        <QualityMetric label="hacim orani" value={entry.volume_ratio} suffix="x" />
-        <QualityMetric label="govde orani" value={entry.body_ratio} suffix="x" />
-      </div>
+      <QualityMetrics entry={entry} />
 
       <div className="mt-2 rounded-sm border border-term-red/30 bg-term-red-dim px-2 py-1.5">
         <p className="text-[10px] leading-relaxed text-term-red">

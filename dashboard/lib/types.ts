@@ -56,6 +56,7 @@ export type Market = "bist" | "crypto";
 export interface ActionSheetEntry {
   symbol: string;
   strategy: string;
+  validation_status: ValidationStatus; // bkz. config.STRATEGY_VALIDATION_STATUS
   direction: 1 | -1;
   applicable: boolean; // config.USER_CAN_SHORT'a gore (bkz. lib/constants.ts::directionApplicability)
   entry_price: number;
@@ -83,12 +84,18 @@ export interface ActionSheetData {
 }
 
 // paper_trading/opportunities.py::OpportunityEntry (asdict ciktisi) ile
-// birebir ayni alanlar. atr_distance/volume_ratio/body_ratio KASITLI
-// OLARAK AYRI alanlar (tek bir opak skora sikistirilmaz - bkz. Python
-// tarafi research/opportunity_score.py modul docstring'i).
+// birebir ayni alanlar. atr_distance/volume_ratio/body_ratio (donchian) ve
+// rsi_oversold_depth/ibs (mean_reversion) KASITLI OLARAK AYRI alanlar (tek
+// bir opak skora sikistirilmaz - bkz. Python tarafi research/
+// opportunity_score.py modul docstring'i); strateji-uyumsuz alanlar null
+// gelir (bkz. paper_trading/opportunities.py::_donchian_quality /
+// _mean_reversion_quality).
+export type ValidationStatus = "dogrulanmis" | "deneysel";
+
 export interface OpportunityEntry {
   symbol: string;
   strategy: string;
+  validation_status: ValidationStatus; // bkz. config.STRATEGY_VALIDATION_STATUS
   direction: 1 | -1;
   applicable: boolean;
   entry_price: number;
@@ -98,6 +105,8 @@ export interface OpportunityEntry {
   atr_distance: number | null;
   volume_ratio: number | null;
   body_ratio: number | null;
+  rsi_oversold_depth: number | null;
+  ibs: number | null;
 }
 
 // paper_trading/opportunities.py::opportunities_to_dict ciktisi.

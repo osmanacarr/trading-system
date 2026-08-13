@@ -17,10 +17,10 @@ import pandas as pd
 
 from backtest.engine import run_backtest
 from backtest.metrics import summarize
-from config import BIST_TICKERS, CRYPTO_TICKERS, INITIAL_CAPITAL, MIN_BARS_REQUIRED
+from config import BIST_TICKERS, CRYPTO_TICKERS, INITIAL_CAPITAL, MIN_BARS_REQUIRED, NASDAQ_TICKERS
 from data.adjust import adjust_jumps
 from data.fetch import fetch_ohlcv
-from signals import bollinger_fade, donchian, ma_voting, price_action
+from signals import bollinger_fade, donchian, ma_voting, mean_reversion, price_action
 from validation.significance import (
     is_significant_multi_test,
     multi_test_t_threshold,
@@ -33,11 +33,30 @@ STRATEGY_SIGNAL_FN: dict[str, Callable[[pd.DataFrame], pd.DataFrame]] = {
     "price_action": price_action.generate_signals,
     "ma_voting": ma_voting.generate_signals,
     "bollinger_fade": bollinger_fade.generate_signals,
+    # DENEYSEL (bkz. config.py "NASDAQ kisa-vadeli ortalamaya-donus") - SADECE
+    # nasdaq evreninde anlamli (t=3.63); bist/crypto'da HIC test edilmedi,
+    # STRATEGY_UNIVERSE_WHITELIST asagida bunu ZORUNLU kilar.
+    "mean_reversion": mean_reversion.generate_signals,
+}
+
+# Bazi stratejiler SADECE belirli evrenlerde test edildi/gecerli - CLI'nin
+# yanlislikla (orn. "--strategy mean_reversion --universe bist") test
+# EDILMEMIS bir kombinasyonu sessizce calistirmasini ONLER (bkz. Donchian'in
+# NASDAQ'ta t=-0.80/-0.62 ile basarisiz oldugu, mean_reversion'in ise SADECE
+# NASDAQ mega-cap'te anlamli oldugu - bu tur bir capraz-kirlenme gercek bir
+# hata sinifi, bkz. paper_trading/runner.py STRATEGY_MARKETS ile AYNI gerekce).
+STRATEGY_UNIVERSE_WHITELIST: dict[str, set[str]] = {
+    "mean_reversion": {"nasdaq"},
 }
 
 UNIVERSES: dict[str, list[str]] = {
     "bist": BIST_TICKERS,
     "crypto": CRYPTO_TICKERS,
+    # Asama 2 dogrulama (2026-08-13) - Donchian NASDAQ'ta HENUZ dogrulanmadi;
+    # bkz. config.NASDAQ_TICKERS. Jump-adjustment BIST'e ozgu kaldigi icin
+    # (apply_jump_adjustment = universe == "bist"), burada uygulanmaz -
+    # yfinance auto_adjust=True zaten split/temettu duzeltmesi yapiyor.
+    "nasdaq": NASDAQ_TICKERS,
 }
 
 
@@ -83,6 +102,13 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--start", default="2018-01-01")
     parser.add_argument("--end", default=None)
     args = parser.parse_args(argv)
+
+    allowed_universes = STRATEGY_UNIVERSE_WHITELIST.get(args.strategy)
+    if allowed_universes is not None and args.universe not in allowed_universes:
+        parser.error(
+            f"strateji {args.strategy!r} SADECE {sorted(allowed_universes)} evreninde "
+            f"test edildi/gecerli - {args.universe!r} desteklenmiyor (bkz. STRATEGY_UNIVERSE_WHITELIST)"
+        )
 
     tickers = UNIVERSES[args.universe]
     apply_jump_adjustment = args.universe == "bist"

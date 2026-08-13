@@ -8,6 +8,7 @@ import { RISK_PER_TRADE } from "@/lib/constants";
 import { computePositionSize } from "@/lib/positionSizing";
 import { Badge } from "./ui/Badge";
 import { EmptyState } from "./ui/EmptyState";
+import { ValidationBadge } from "./ui/ValidationBadge";
 import type { ActionSheetEntry } from "@/lib/types";
 
 // Gercek sermaye SADECE bu tarayicida saklanir, sunucuya HIC gonderilmez
@@ -81,6 +82,7 @@ function ActionStepCard({ entry, capital }: { entry: ActionSheetEntry; capital: 
         <div className="flex items-center gap-1.5">
           {entry.is_new_today && <Badge tone="green">YENİ FIRSAT</Badge>}
           {entry.is_near_stop && <Badge tone="amber">⚠ STOP&apos;A YAKIN</Badge>}
+          <ValidationBadge status={entry.validation_status} />
           <Badge tone="green">LONG</Badge>
         </div>
       </div>
@@ -128,6 +130,7 @@ function WatchOnlyRow({ entry }: { entry: ActionSheetEntry }) {
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-sm border border-term-border-soft bg-term-bg-1/40 px-3 py-1.5">
       <span className="flex items-center gap-2">
         <span className="mono-tabular text-xs text-term-text-dim">{entry.symbol}</span>
+        <ValidationBadge status={entry.validation_status} />
         <Badge tone="red">SHORT</Badge>
         <Badge tone="amber">SADECE İZLEME</Badge>
       </span>

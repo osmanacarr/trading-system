@@ -49,6 +49,10 @@ python -m paper_trading.runner --strategies donchian
 # Birden fazla strateji paralel calistirilabilir (M3 - coklu strateji destegi)
 python -m paper_trading.runner --strategies donchian price_action
 
+# NASDAQ mean-reversion (M8, DENEYSEL - bkz. "Dogrulama durumu") istege bagli eklenebilir;
+# piyasa-izolasyonu otomatik (mean_reversion SADECE nasdaq_mega'da, donchian ORAYA hic sizmaz)
+python -m paper_trading.runner --strategies donchian mean_reversion
+
 # Once ne yapacagini gormek icin (HICBIR state/log degisikligi yapmaz)
 python -m paper_trading.runner --strategies donchian --dry-run
 
@@ -229,6 +233,62 @@ trading-system/
   LONG için "UYGULANABİLİR" (yeşil), SHORT için "SADECE İZLEME" (amber,
   üzerine gelince "açık satış hesabı gerekir" ipucu) rozeti ekliyor —
   bkz. `dashboard/lib/constants.ts` `directionApplicability()`.
+
+- **NASDAQ Donchian — REDDEDİLDİ, iki ayrı parametre setinde de (2026-08-13).**
+  Kullanıcının "hem BIST hem NASDAQ" isteği üzerine Donchian, NASDAQ-100
+  mega-cap'te (39 sembol, `config.NASDAQ_TICKERS`) sıfır parametre değişikliğiyle
+  test edildi: t-stat=**-0.80** (2069 işlem). Turtle "System 2" (N=55/20)
+  parametreleriyle tekrarlandı: t-stat=**-0.62** (1137 işlem). Piyasa-değerine
+  göre segmentlenmiş bir örnek evrende (large/mid/small, `api.nasdaq.com`
+  screener'ından) de test edildi — küçük-cap'e inildikçe sonuç İYİLEŞMEDİ,
+  KÖTÜLEŞTİ (small-cap t=-2.59). Yorum: BIST'teki edge, TL zayıflaması + BIST'in
+  yapısal sürekli-yükseliş eğilimine bağlı — NASDAQ'ın verimli/kurumsal-ağırlıklı
+  mikroyapısında AYNI kırılım sinyali çalışmıyor. **NASDAQ + Donchian kombinasyonu
+  canlıya HİÇ eklenmedi**, `backtest.run` CLI'ı bu kombinasyonu
+  `STRATEGY_UNIVERSE_WHITELIST` ile YAPISAL olarak reddediyor (yanlışlıkla
+  denenmesin diye).
+- **NASDAQ kısa-vadeli ortalamaya-dönüş (RSI2/IBS, `signals/mean_reversion.py`,
+  M8) — KODLANDI ve BACKTEST EDİLDİ, DENEYSEL statüde canlıya eklendi
+  (2026-08-13).** Donchian'ın NASDAQ'ta başarısız olmasından sonra kaynaklarda
+  bulunmayan (arastırmacı muhakemesiyle önerilen) alternatif bir mekanizma
+  test edildi: RSI(2)<10 (aşırı kısa-vadeli düşüş) + Close>SMA(200) (sadece
+  yükseliş trendinde) + IBS<0.3 (zayıf kapanış onayı), stop=1.5×ATR(14),
+  çıkış=RSI(2)≥70 veya 10 işlem günü sonunda zorunlu kapanış. NASDAQ-100
+  mega-cap'te (2015-2026): havuzlanmış t-stat=**3.63-4.47** (havuzda 5.
+  strateji, eşik 3.0 — GEÇTİ), n≈2450-2650 işlem, win_rate≈%61,
+  E[R]≈+0.07. Üç kronolojik alt-dönemde (2015-2018/2019-2021/2022-2026)
+  TUTARLI pozitif yön ama E[R] zamanla azalıyor (+0.092→+0.038, olası
+  alpha-decay). Mid/small-cap NASDAQ örneğinde (80 sembol) AYNI sinyal
+  anlamlı DEĞİL (t=1.38) — bu yüzden evren SADECE `NASDAQ_TICKERS`
+  (mega-cap, 39 sembol) ile sınırlı. **ÇÖZÜLMEMİŞ SINIR: hayatta-kalma
+  yanlılığı** — bugünün NASDAQ-100 listesi 2015'e geri uygulanıyor, o
+  dönemde endeksten çıkmış/iflas etmiş isimler örneklemde YOK; tarihsel/
+  point-in-time üyelik listesi bulunamadı. Bu yüzden **BIST Donchian ile AYNI
+  güven seviyesinde SAYILMAZ** — MA-voting/Bollinger-fade ile AYNI muamele:
+  `python -m paper_trading.runner --strategies donchian mean_reversion` ile
+  İSTEĞE BAĞLI çalıştırılabilir ama **varsayılan/canlı cron listesinde
+  DEĞİL** (`.github/workflows/paper_trading.yml` hâlâ sadece
+  `--strategies donchian` çalıştırıyor — bilinçli, kanıt daha da
+  biriktikten sonra terfi değerlendirilecek). `paper_trading/runner.py`
+  `STRATEGY_MARKETS` ile piyasa-izolasyonu ZORUNLU kılıyor: mean_reversion
+  SADECE `nasdaq_mega` piyasasında çalışır, Donchian ORAYA hiç sızamaz (ve
+  tersi) — bkz. `backtest/run.py` `STRATEGY_UNIVERSE_WHITELIST` ile AYNI
+  gerekçe. Dashboard/Telegram'da her pozisyon/fırsat kartı
+  `config.STRATEGY_VALIDATION_STATUS`'a göre "✅ DOĞRULANMIŞ" veya
+  "🧪 DENEYSEL" rozetiyle işaretlenir, hiçbir yerde gizlenmez.
+- **Day-trade (gün-içi, aynı-gün-giriş+çıkış) — İKİ AYRI denemede de
+  KANIT ÜRETMEDİ (2026-08-13).** Kullanıcı "gerçek day-trade" istedi;
+  dürüstçe test edildi, iki bağımsız mekanizma denendi: (1) açılış-aralığı
+  kırılımı + hacim onayı + VWAP konumu (60dk bar, 2 yıl): t-stat=**-8.26**
+  (n=1916, BIST+NASDAQ havuzu, TÜM 13 BIST sembolü ayrı ayrı da negatif);
+  (2) gap-up + ilk-15dk hacim patlaması (5dk bar, 60 gün — yfinance'in bu
+  interval için sınırı): t-stat=**-1.39** (n=42, küçük örneklem ama yine
+  negatif nokta tahmini). Mekanizma her ikisinde de aynı: işlemlerin
+  büyük çoğunluğu hedefe/stopa değmeden gün sonunda zorla kapanıyor —
+  gün-içi kırılımı kovalamak tipik olarak günün ortasında yerel bir
+  zirveden almak ve kapanışa kadar geri sönmesini izlemek anlamına
+  geliyor. **Day-trade tamamen KAPSAM DIŞI bırakıldı** — sistem SWING
+  olarak kalıyor (Donchian'ın trailing çıkışı günler/haftalar sürebilir).
 
 ## Zamanlama — günlük otomatik çalıştırma (Faz 4)
 

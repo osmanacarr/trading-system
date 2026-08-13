@@ -13,10 +13,11 @@ from backtest.engine import (
     compute_position_size,
     run_donchian_backtest,
     run_ma_voting_backtest,
+    run_mean_reversion_backtest,
     run_price_action_backtest,
 )
 from config import DONCHIAN_ATR_STOP_MULT, SLIPPAGE_PCT
-from signals import donchian, ma_voting, price_action
+from signals import donchian, ma_voting, mean_reversion, price_action
 from tests.conftest import append_bars, build_donchian_trailing_exit_df, make_flat_range_df
 
 MA_VOTING_SMALL_PAIRS = [(3, 5), (5, 8), (8, 13)]
@@ -235,3 +236,86 @@ def test_close_position_computes_mae_mfe_r():
     )
     assert np.isclose(trade["mfe_r"], 6.0 / 5.0)
     assert np.isclose(trade["mae_r"], 3.0 / 5.0)
+
+
+# -- run_mean_reversion_backtest (DENEYSEL, bkz. config.py) --
+
+
+def _mr_uptrend_df(n: int = 250) -> pd.DataFrame:
+    dates = pd.date_range("2020-01-01", periods=n, freq="B")
+    close = 100 + np.arange(n) * 0.3
+    return pd.DataFrame(
+        {"Open": close - 0.1, "High": close + 0.15, "Low": close - 0.15, "Close": close, "Volume": np.full(n, 1000.0)},
+        index=dates,
+    )
+
+
+def test_mean_reversion_backtest_exits_on_rsi_recovery_signal():
+    base = _mr_uptrend_df()
+    lc = float(base["Close"].iloc[-1])
+    df = append_bars(
+        base,
+        [
+            {"Open": lc, "High": lc + 0.2, "Low": lc - 6.0, "Close": lc - 5.8, "Volume": 5000.0},
+            {"Open": lc - 5.8, "High": lc + 2.0, "Low": lc - 5.9, "Close": lc + 1.5, "Volume": 5000.0},
+            {"Open": lc + 1.5, "High": lc + 5.0, "Low": lc + 1.4, "Close": lc + 4.5, "Volume": 5000.0},
+        ],
+    )
+    signals = mean_reversion.generate_signals(df)
+    trades, _equity_curve = run_mean_reversion_backtest(df, signals)
+
+    assert len(trades) == 1
+    assert trades.iloc[0]["exit_reason"] == "signal"
+    assert trades.iloc[0]["r_multiple"] > 0
+
+
+def test_mean_reversion_backtest_exits_on_stop():
+    base = _mr_uptrend_df()
+    lc = float(base["Close"].iloc[-1])
+    df = append_bars(
+        base,
+        [
+            {"Open": lc, "High": lc + 0.2, "Low": lc - 6.0, "Close": lc - 5.8, "Volume": 5000.0},
+            {"Open": lc - 5.8, "High": lc - 5.7, "Low": lc - 15.0, "Close": lc - 14.5, "Volume": 5000.0},
+        ],
+    )
+    signals = mean_reversion.generate_signals(df)
+    trades, _equity_curve = run_mean_reversion_backtest(df, signals)
+
+    assert len(trades) == 1
+    assert trades.iloc[0]["exit_reason"] == "stop"
+    assert trades.iloc[0]["r_multiple"] < 0
+
+
+def test_mean_reversion_backtest_forces_exit_at_max_hold():
+    from config import MEAN_REVERSION_MAX_HOLD_DAYS
+
+    base = _mr_uptrend_df()
+    lc = float(base["Close"].iloc[-1])
+    entry_bar = {"Open": lc, "High": lc + 0.2, "Low": lc - 6.0, "Close": lc - 5.8, "Volume": 5000.0}
+    # RSI donmuyor (duz seyir) VE stop'a degmiyor - sadece zaman-asimi tetiklenmeli
+    flat_bars = [
+        {"Open": lc - 5.8, "High": lc - 5.7, "Low": lc - 5.9, "Close": lc - 5.8, "Volume": 1000.0}
+        for _ in range(MEAN_REVERSION_MAX_HOLD_DAYS + 3)
+    ]
+    df = append_bars(base, [entry_bar] + flat_bars)
+    signals = mean_reversion.generate_signals(df)
+    trades, _equity_curve = run_mean_reversion_backtest(df, signals)
+
+    assert len(trades) == 1
+    trade = trades.iloc[0]
+    assert trade["exit_reason"] == "max_hold"
+    entry_idx = df.index.get_loc(trade["entry_date"])
+    exit_idx = df.index.get_loc(trade["exit_date"])
+    assert exit_idx - entry_idx == MEAN_REVERSION_MAX_HOLD_DAYS
+
+
+def test_mean_reversion_backtest_no_short_trades():
+    """LONG-only tasarim: entry_short her zaman False oldugu icin uretilen
+    hicbir islem SHORT (direction=-1) olmamali."""
+    base = _mr_uptrend_df()
+    lc = float(base["Close"].iloc[-1])
+    df = append_bars(base, [{"Open": lc, "High": lc + 0.2, "Low": lc - 6.0, "Close": lc - 5.8, "Volume": 5000.0}])
+    signals = mean_reversion.generate_signals(df)
+    trades, _equity_curve = run_mean_reversion_backtest(df, signals)
+    assert not (trades["direction"] == -1).any()

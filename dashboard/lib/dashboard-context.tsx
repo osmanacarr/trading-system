@@ -5,8 +5,8 @@ import type {
   ActionSheetData,
   EquitySnapshot,
   ManualEntryRecord,
-  OpenPosition,
   OpportunitiesData,
+  PricedOpenPosition,
   Summary,
   TradeRecord,
 } from "./types";
@@ -19,7 +19,7 @@ export interface DashboardData {
   summary: Summary | null;
   trades: TradeRecord[];
   equity: EquitySnapshot[];
-  positions: OpenPosition[];
+  positions: PricedOpenPosition[];
   positionsError: string | null;
   manualEntries: ManualEntryRecord[];
   actionSheet: ActionSheetData | null;

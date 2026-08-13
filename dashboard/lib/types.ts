@@ -37,7 +37,9 @@ export interface Summary {
   error?: string;
 }
 
-// paper_trading/state.py positions tablosu
+// paper_trading/state.py positions tablosu - state.db'nin KENDİSİNDE
+// fiyat kolonu YOK (bkz. paper_trading/state.py _SCHEMA), bu yuzden ham
+// SQL okumasi (lib/readers.ts::readOpenPositions) bu alanlari asla ICERMEZ.
 export interface OpenPosition {
   symbol: string;
   strategy: string;
@@ -47,6 +49,19 @@ export interface OpenPosition {
   stop_price: number;
   target_price: number | null;
   size: number;
+}
+
+// app/api/dashboard/route.ts, OpenPosition[]'i action_sheet.json'daki AYNI
+// (symbol,strategy) icin CANLI fiyat tasiyan girdilerle JOIN edip bu tipi
+// uretir (2026-08-13, "iki ayri veri kaynagi -> ActionSheetPanel fiyatli
+// ama ana tablo 'n/a' gosteriyor" tutarsizliginin duzeltmesi, bkz. ilgili
+// konusma). Eslesme yoksa (henuz action_sheet uretilmediyse) null/false
+// kalir - "n/a" ARTIK HARDCODE EDILMEZ, gercek durumu yansitir.
+export interface PricedOpenPosition extends OpenPosition {
+  current_price: number | null;
+  unrealized_pnl_pct: number | null;
+  stop_distance_pct: number | null;
+  is_near_stop: boolean;
 }
 
 export type Market = "bist" | "crypto";

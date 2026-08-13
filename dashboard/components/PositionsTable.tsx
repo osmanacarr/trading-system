@@ -6,12 +6,14 @@ import { useDashboard } from "@/lib/dashboard-context";
 import { formatDaysSince, formatNumber } from "@/lib/format";
 import { classifyMarket } from "@/lib/market";
 import { directionApplicability } from "@/lib/constants";
+import { estimateRemainingHold } from "@/lib/holdingEstimate";
 import { Panel } from "./ui/Panel";
 import { EmptyState } from "./ui/EmptyState";
 import { Badge } from "./ui/Badge";
-import type { OpenPosition } from "@/lib/types";
+import { FlashNumber } from "./ui/FlashNumber";
+import type { PricedOpenPosition } from "@/lib/types";
 
-type SortKey = "symbol" | "direction" | "entry_price" | "stop_dist" | "entry_date";
+type SortKey = "symbol" | "direction" | "entry_price" | "stop_dist" | "entry_date" | "pnl";
 
 const COLUMNS: { key: SortKey; label: string }[] = [
   { key: "symbol", label: "sembol" },
@@ -21,7 +23,7 @@ const COLUMNS: { key: SortKey; label: string }[] = [
   { key: "entry_date", label: "sure" },
 ];
 
-function stopDistancePct(pos: OpenPosition): number {
+function stopDistancePct(pos: PricedOpenPosition): number {
   return ((pos.stop_price - pos.entry_price) / pos.entry_price) * pos.direction * -1;
 }
 
@@ -50,6 +52,7 @@ export function PositionsTable() {
       else if (sortKey === "entry_price") cmp = a.entry_price - b.entry_price;
       else if (sortKey === "stop_dist") cmp = stopDistancePct(a) - stopDistancePct(b);
       else if (sortKey === "entry_date") cmp = a.entry_date.localeCompare(b.entry_date);
+      else if (sortKey === "pnl") cmp = (a.unrealized_pnl_pct ?? -Infinity) - (b.unrealized_pnl_pct ?? -Infinity);
       return cmp * sortDir;
     });
     return copy;
@@ -65,7 +68,7 @@ export function PositionsTable() {
 
   return (
     <Panel
-      title="strateji ligi / acik pozisyonlar"
+      title="açık pozisyonlarım — canlı"
       right={
         <span className="flex items-center gap-1.5">
           {(positionsError || mismatch) && (
@@ -103,23 +106,38 @@ export function PositionsTable() {
                   </th>
                 ))}
                 <th className="px-3 py-1.5 text-left label-xs text-[9px]">guncel fiyat</th>
-                <th className="px-3 py-1.5 text-left label-xs text-[9px]">p&amp;l</th>
+                <th
+                  onClick={() => toggleSort("pnl")}
+                  className="cursor-pointer select-none px-3 py-1.5 text-left label-xs text-[9px] hover:text-term-cyan"
+                >
+                  p&amp;l{sortKey === "pnl" && <span className="ml-1 text-term-cyan">{sortDir === 1 ? "↑" : "↓"}</span>}
+                </th>
+                <th className="px-3 py-1.5 text-left label-xs text-[9px]">ne zaman kapanabilir</th>
                 <th className="px-3 py-1.5 text-left label-xs text-[9px]">piyasa</th>
               </tr>
             </thead>
             <tbody>
               {sorted.map((pos) => {
                 const isSelected = selectedSymbol === pos.symbol;
+                const eta = estimateRemainingHold(pos.strategy, pos.direction, pos.entry_date);
                 return (
                   <tr
-                    key={pos.symbol}
+                    key={`${pos.symbol}::${pos.strategy}`}
                     onClick={() => setSelectedSymbol(isSelected ? null : pos.symbol)}
                     className={clsx(
                       "cursor-pointer border-b border-term-border-soft/60 transition-colors hover:bg-white/[0.02]",
-                      isSelected && "bg-term-cyan-dim"
+                      isSelected && "bg-term-cyan-dim",
+                      pos.is_near_stop && !isSelected && "bg-term-amber-dim/30"
                     )}
                   >
-                    <td className="px-3 py-1.5 font-medium text-term-text mono-tabular">{pos.symbol}</td>
+                    <td className="px-3 py-1.5 font-medium text-term-text mono-tabular">
+                      {pos.symbol}
+                      {pos.is_near_stop && (
+                        <span className="ml-1.5" title="Stop'a yaklasiyor">
+                          <Badge tone="amber">⚠ STOP&apos;A YAKIN</Badge>
+                        </span>
+                      )}
+                    </td>
                     <td className="px-3 py-1.5">
                       <span className="flex items-center gap-1">
                         <Badge tone={pos.direction === 1 ? "green" : "red"}>{pos.direction === 1 ? "LONG" : "SHORT"}</Badge>
@@ -138,11 +156,29 @@ export function PositionsTable() {
                     <td className="px-3 py-1.5 mono-tabular text-term-text-dim" title="Acilis tarihinden bu yana">
                       {formatDaysSince(pos.entry_date)}
                     </td>
-                    <td className="px-3 py-1.5 mono-tabular text-term-text-faint" title="Canli fiyat akisi bu surumde yok (yalnizca kalici dosyalar okunuyor)">
-                      n/a
+                    <td className="px-3 py-1.5">
+                      {pos.current_price !== null ? (
+                        <FlashNumber value={pos.current_price} format={(v) => formatNumber(v, 4)} className="text-term-text" />
+                      ) : (
+                        <span className="text-term-text-faint" title="action_sheet.json henuz bu sembol icin fiyat icermiyor (ilk gunluk calistirma bekleniyor)">
+                          fiyat bekleniyor
+                        </span>
+                      )}
                     </td>
-                    <td className="px-3 py-1.5 mono-tabular text-term-text-faint" title="Guncel fiyat olmadan hesaplanamaz">
-                      —
+                    <td className="px-3 py-1.5">
+                      {pos.unrealized_pnl_pct !== null ? (
+                        <FlashNumber
+                          value={pos.unrealized_pnl_pct}
+                          format={(v) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`}
+                          colorByValue
+                          pulse
+                        />
+                      ) : (
+                        <span className="text-term-text-faint">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-1.5 text-[10px] leading-snug text-term-text-dim" style={{ maxWidth: 220 }}>
+                      {eta ?? <span className="text-term-text-faint">—</span>}
                     </td>
                     <td className="px-3 py-1.5">
                       <span className="label-xs text-[9px]">{classifyMarket(pos.symbol)}</span>

@@ -30,9 +30,15 @@ export interface GozcuSymbolMetrics {
   atr_percentile: number | null;
   // "Gec kalma" uyarisi (bkz. gozcu/metrics.py::compute_lateness_warning) -
   // genel GozcuWarningBanner'in YANINDA, karta OZEL/SAYISAL bir ek uyari.
-  session_elapsed_pct: number;
-  vwap_distance_pct: number | null;
-  lateness_warning: string;
+  // OPSIYONEL: kod deploy'u ile bir sonraki GERCEK Gozcu taramasi arasinda
+  // (debounce nedeniyle ~15-30 dk'ya kadar, bkz. gozcu_scan.yml) snapshot.json
+  // BU alanlari HENUZ icermeyen ESKI formatta olabilir - "TypeError: cannot
+  // read properties of undefined" ile TUM sayfayi cokertmemek icin (canli
+  // gozlemlendi, 2026-08-13) opsiyonel isaretlendi, cagiran kod HER YERDE
+  // undefined durumunu ele almali.
+  session_elapsed_pct?: number;
+  vwap_distance_pct?: number | null;
+  lateness_warning?: string;
   intraday: GozcuIntradaySeries;
 }
 

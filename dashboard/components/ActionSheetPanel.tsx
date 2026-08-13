@@ -65,7 +65,9 @@ function PriceAndPnl({ entry }: { entry: ActionSheetEntry }) {
   );
 }
 
-function ActionStepCard({ entry, capital }: { entry: ActionSheetEntry; capital: number | null }) {
+export { useRealCapital };
+
+export function ActionStepCard({ entry, capital }: { entry: ActionSheetEntry; capital: number | null }) {
   const stopPct = entry.entry_price > 0 ? (Math.abs(entry.entry_price - entry.stop_price) / entry.entry_price) * 100 : 0;
   const size = capital !== null ? computePositionSize(capital, RISK_PER_TRADE, entry.entry_price, entry.stop_price) : null;
   const quantity = size !== null ? Math.floor(size) : null; // kesirli hisse yok

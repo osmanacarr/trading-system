@@ -21,8 +21,8 @@ const COLUMNS: { key: SortKey; label: string }[] = [
 // bkz. gozcu/metrics.py::compute_lateness_warning - metnin kendisi zaten
 // esigi uyguluyor, burada TEKRAR bir esik sayisi TUTULMAZ (tek kaynak Python
 // tarafi) - sadece "GEC KALINMIS" ifadesi geçiyor mu diye bakilir.
-function isLate(entry: { lateness_warning: string }): boolean {
-  return entry.lateness_warning.includes("GEC KALINMIS");
+function isLate(entry: { lateness_warning?: string }): boolean {
+  return entry.lateness_warning?.includes("GEC KALINMIS") ?? false;
 }
 
 function pctColor(v: number | null): string {

@@ -7,7 +7,15 @@ import {
   SUMMARY_JSON_PATH,
   TRADES_JSONL_PATH,
 } from "@/lib/paths";
-import type { ActionSheetData, EquitySnapshot, ManualEntryRecord, OpportunitiesData, Summary, TradeRecord } from "@/lib/types";
+import type {
+  ActionSheetData,
+  EquitySnapshot,
+  ManualEntryRecord,
+  OpportunitiesData,
+  PricedOpenPosition,
+  Summary,
+  TradeRecord,
+} from "@/lib/types";
 import { computeCorrelationWarning, computeRiskBudget, computeStrategyStats } from "@/lib/derive";
 import { sharpeConfidenceInterval } from "@/lib/stats";
 import { BACKTEST_BASELINE } from "@/lib/backtestBaseline";
@@ -24,10 +32,31 @@ export async function GET() {
   const summary = readJson<Summary>(SUMMARY_JSON_PATH);
   const trades = readJsonl<TradeRecord>(TRADES_JSONL_PATH);
   const equity = readJsonl<EquitySnapshot>(EQUITY_JSONL_PATH);
-  const { positions, error: positionsError } = readOpenPositions();
+  const { positions: rawPositions, error: positionsError } = readOpenPositions();
   const manualEntries = readJsonl<ManualEntryRecord>(MANUAL_LOG_PATH);
   const actionSheet = readJson<ActionSheetData>(ACTION_SHEET_JSON_PATH);
   const opportunities = readJson<OpportunitiesData>(OPPORTUNITIES_JSON_PATH);
+
+  // 2026-08-13: state.db'nin acik pozisyon listesi (rawPositions) fiyatsizdir
+  // (bkz. lib/types.ts OpenPosition yorumu); action_sheet.json ise AYNI
+  // sembolleri (symbol,strategy) icin CANLI fiyatla tasir (Python tarafinda
+  // refresh_live_prices() ile ~2 dk'da bir tazelenir). Iki ayri panel iki
+  // ayri kaynaktan besleninceye kadar tutarsiz gorunuyordu (ActionSheetPanel
+  // fiyatli, ana tablo "n/a") - burada TEK SEFERDE join edilip TUM cagiran
+  // bilesenlere (PositionsTable dahil) ayni, fiyatli obje verilir.
+  const priceBySymbolStrategy = new Map(
+    (actionSheet?.entries ?? []).map((e) => [`${e.symbol}::${e.strategy}`, e])
+  );
+  const positions: PricedOpenPosition[] = rawPositions.map((pos) => {
+    const priced = priceBySymbolStrategy.get(`${pos.symbol}::${pos.strategy}`);
+    return {
+      ...pos,
+      current_price: priced?.current_price ?? null,
+      unrealized_pnl_pct: priced?.unrealized_pnl_pct ?? null,
+      stop_distance_pct: priced?.stop_distance_pct ?? null,
+      is_near_stop: priced?.is_near_stop ?? false,
+    };
+  });
 
   const stats = computeStrategyStats(trades);
   const riskBudget = computeRiskBudget(trades);

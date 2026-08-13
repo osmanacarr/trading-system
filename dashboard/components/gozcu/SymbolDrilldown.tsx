@@ -98,19 +98,20 @@ export function SymbolDrilldown() {
         </div>
         <div
           className={
-            entry.lateness_warning.includes("GEC KALINMIS")
+            entry.lateness_warning?.includes("GEC KALINMIS")
               ? "rounded-sm border border-term-red/30 bg-term-red-dim px-2 py-1.5"
               : "rounded-sm border border-term-border-soft bg-term-bg-1/40 px-2 py-1.5"
           }
         >
           <p
             className={
-              entry.lateness_warning.includes("GEC KALINMIS")
+              entry.lateness_warning?.includes("GEC KALINMIS")
                 ? "text-[10px] leading-relaxed text-term-red"
                 : "text-[10px] leading-relaxed text-term-text-dim"
             }
           >
-            <span className="font-semibold">⏱ GEÇ KALMA KONTROLÜ:</span> {entry.lateness_warning}
+            <span className="font-semibold">⏱ GEÇ KALMA KONTROLÜ:</span>{" "}
+            {entry.lateness_warning ?? "henüz hesaplanmadı (bu sembol için tarama bekleniyor)"}
           </p>
         </div>
         <div className="rounded-sm border border-term-border-soft">

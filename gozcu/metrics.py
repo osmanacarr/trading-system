@@ -20,7 +20,12 @@ import numpy as np
 import pandas as pd
 
 from backtest.engine import compute_atr
-from config import GOZCU_ATR_PERIOD, GOZCU_VOLUME_ZSCORE_LOOKBACK, GOZCU_WEEKLY_LOOKBACK_TRADING_DAYS
+from config import (
+    GOZCU_ATR_PERIOD,
+    GOZCU_LATENESS_VWAP_THRESHOLD_PCT,
+    GOZCU_VOLUME_ZSCORE_LOOKBACK,
+    GOZCU_WEEKLY_LOOKBACK_TRADING_DAYS,
+)
 from signals.donchian import compute_breakout_filters
 
 
@@ -180,6 +185,78 @@ def distance_from_52w_low(daily_df: pd.DataFrame, lookback: int = 252) -> float 
     if low == 0:
         return None
     return (close.iloc[-1] - low) / low
+
+
+def compute_lateness_warning(
+    daily_change_pct: float | None,
+    vwap_position_pct: float | None,
+    elapsed_fraction: float,
+    vwap_threshold_pct: float = GOZCU_LATENESS_VWAP_THRESHOLD_PCT,
+) -> dict:
+    """Karta OZEL, SOMUT/SAYISAL bir "gec kalma" uyarisi uretir (2026-08-13,
+    kullanici talebi - genel "yatirim tavsiyesi degildir" banner'i tek basina
+    yetersiz kaldi, GEC KALINMIS OLABILECEGINI acikca soyleyen bir metin
+    istendi).
+
+    Metodoloji (dogru olani ONEMLI - GELECEGI TAHMIN ETMEZ, sadece GECMISI
+    raporlar): "bugunku hareketin ne kadari zaten oldu" sorusuna DOGRUDAN
+    cevap veren guvenilir bir yontem yok (fiyat hareketleri lineer degil,
+    seans ilerleme oranindan lineer ekstrapolasyon YAPILMAZ - bu OVERCLAIM
+    olurdu). Bunun yerine iki OBJEKTIF, zaten hesaplanmis rakam birlikte
+    sunulur:
+      1. Seansin ne kadarinin GECTIGI (elapsed_fraction) - bilgi amacli.
+      2. Fiyatin BUGUNUN VWAP'ina gore mesafesi (vwap_position_pct) - bu,
+         "bugun islem yapan ORTALAMA katilimciya gore ne kadar pahali/ucuza
+         aldiginizin" DOGRUDAN, gecmise-donuk-bakmayan bir olcusu (VWAP
+         zaten TANIM GEREGI bugunku tum islemlerin hacim-agirlikli
+         ortalamasidir).
+
+    Args:
+        daily_change_pct: gozcu.metrics.daily_change_pct ciktisi (metinde
+            baglam icin kullanilir, esik hesabinda kullanilmaz).
+        vwap_position_pct: gozcu.metrics.vwap_position_pct ciktisi.
+        elapsed_fraction: Seansin ne kadarinin gectigi (0-1), bkz.
+            gozcu/market_hours.py.
+        vwap_threshold_pct: Bu esigi (mutlak deger, yuzde puan) asan VWAP
+            mesafesi "GIRIS ICIN GEC KALINMIS OLABILIR" cumlesini tetikler
+            (varsayilan config.GOZCU_LATENESS_VWAP_THRESHOLD_PCT - SERT
+            bir kural degil, sezgisel bir esik).
+
+    Returns:
+        {"session_elapsed_pct", "vwap_distance_pct", "warning_text"}.
+        vwap_position_pct None ise (gun-ici veri yok/piyasa kapali)
+        vwap_distance_pct de None doner, warning_text bunu ACIKCA belirtir
+        (sessizce atlanmaz).
+    """
+    session_elapsed_pct = elapsed_fraction * 100.0
+
+    if vwap_position_pct is None:
+        return {
+            "session_elapsed_pct": round(session_elapsed_pct, 1),
+            "vwap_distance_pct": None,
+            "warning_text": (
+                f"Seansin %{session_elapsed_pct:.0f}'i gecti - VWAP verisi henuz yok, "
+                "bu barda hareketin ne kadarinin gerceklestigi olculemiyor."
+            ),
+        }
+
+    vwap_distance_pct = vwap_position_pct * 100.0
+    direction_word = "uzerinde" if vwap_distance_pct >= 0 else "altinda"
+    cost_word = "pahaliya" if vwap_distance_pct >= 0 else "ucuza"
+
+    warning_text = (
+        f"Seansin %{session_elapsed_pct:.0f}'i gecti. Fiyat bugunun VWAP'inin "
+        f"%{abs(vwap_distance_pct):.1f} {direction_word} - bugun islem yapan ORTALAMA "
+        f"katilimcidan %{abs(vwap_distance_pct):.1f} daha {cost_word} giriyorsunuz."
+    )
+    if abs(vwap_distance_pct) >= vwap_threshold_pct:
+        warning_text += " GIRIS ICIN GEC KALINMIS OLABILIR."
+
+    return {
+        "session_elapsed_pct": round(session_elapsed_pct, 1),
+        "vwap_distance_pct": round(vwap_distance_pct, 2),
+        "warning_text": warning_text,
+    }
 
 
 def atr_percentile(daily_df: pd.DataFrame, period: int = GOZCU_ATR_PERIOD, lookback: int = 252) -> float | None:

@@ -175,6 +175,33 @@ MEAN_REVERSION_ATR_PERIOD: int = 14  # kisa-vadeli strateji icin kisa-donemli AT
 MEAN_REVERSION_ATR_STOP_MULT: float = 1.5  # Donchian'in k=2'sinden DAHA DAR - mean-reversion'in beklenen hareketi kucuk, test ONCESI belirlendi
 MEAN_REVERSION_MAX_HOLD_DAYS: int = 10  # bu kadar islem gunu icinde donus olmazsa zorunlu kapanis
 
+# GEC KALMA OLCUMU (2026-08-13, canliya almadan ONCE yapilan seffaflik
+# kontrolu - kullanicinin talebi): RSI2 sinyali de, Donchian gibi, GUNUN
+# KAPANISINDA hesaplanir (RSI2/IBS/SMA200 icin o barin Close/High/Low'u
+# gerekir) - ama backtest/paper_trading motoru "kapanista gir" varsayar
+# (TUM stratejilerde AYNI, onceden var olan bir modelleme kisiti - burada
+# ILK KEZ olculdu). GERCEKTE en erken islem firsati bir SONRAKI islem
+# gununun ACILISIDIR. Bu "sinyal kapanisi -> ertesi gun acilisi" kaymasi
+# HEM Donchian (BIST) HEM RSI2 (NASDAQ) icin dogrudan/karsilastirilabilir
+# yontemle olculdu:
+#   Donchian (BIST, n=1138 ham sinyal, 2018-2026): ortalama kayma +%0.40,
+#     medyan +%0.23; %69.8 ihtimalle fiyat SIZ girmeden ONCE aleyhinize
+#     hareket ediyor; stop mesafesine oranla ortalama +0.065R, medyan +0.042R.
+#   RSI2 (NASDAQ mega-cap, n=2534 ham sinyal, 2015-2026): ortalama kayma
+#     +%0.17, medyan +%0.15; %58.5 ihtimalle aleyhe; ortalama +0.025R,
+#     medyan +0.041R.
+# YORUM: RSI2 AYNI yapisal sorunu tasiyor (kapanista hesapla, ertesi gun
+# acilisinda gir) AMA olculen etkisi Donchian'in KABA OLARAK YARISI kadar -
+# muhtemelen mean-reversion sinyalinin (asiri-satim sonrasi) yon
+# belirsizliginin, momentum/kirilim sinyaline (Donchian, zaten devam eden
+# bir harekette) gore daha dengeli olmasindan kaynaklaniyor. Bu, Donchian'in
+# ZATEN CANLI oldugu ve bu olcumun YENI ortaya cikardigi bir modelleme
+# kisitini (backtest sonuclarinin TEORIK "kapanista giris" varsayimiyla
+# uretildigini, GERCEK giris fiyatlarinin BIRAZ daha kotu olmasinin
+# BEKLENDIGINI) hem RSI2 hem Donchian icin ACIKCA belirtir - RSI2'ye ozgu
+# YENI bir sorun DEGIL, ama canliya alinmadan once bilinmesi gereken bir
+# sinir. Olcum scripti bu depoda KALICI DEGIL (bkz. ilgili konusma).
+
 # ---------------------------------------------------------------------------
 # Istatistiksel anlamlilik (validation/significance.py) varsayilan degerleri
 # ---------------------------------------------------------------------------
@@ -335,6 +362,16 @@ GOZCU_VOLATILITY_REGIME_EXTREME_PCT: float = 0.04
 # esigi gecen bir sembol icin GUNDE BIR KEZ bilgi mesaji gonderilir. Bu bir
 # al-sat sinyali DEGILDIR.
 GOZCU_ALERT_SCORE_THRESHOLD: float = 8.0
+
+# "Geç kalma" uyarisi (2026-08-13, kullanici talebi - genel "yatirim tavsiyesi
+# degildir" banner'i yetersiz kaliyordu, karta OZEL/SAYISAL bir uyari istendi).
+# Fiyatin bugunun VWAP'ina gore mesafesi bu esigi (mutlak deger, yuzde puan)
+# ASARSA "GIRIS ICIN GEC KALINMIS OLABILIR" cumlesi eklenir (bkz.
+# gozcu/metrics.py::compute_lateness_warning). SERT bir kural DEGIL, sezgisel
+# bir kirmizi-bayrak esigi (PROFIT_FACTOR_OVERFIT_WARNING_THRESHOLD ile AYNI
+# ruhta) - veriyle optimize EDILMEDI, gunluk tipik gurultu bandinin biraz
+# uzerinde makul bir baslangic degeri.
+GOZCU_LATENESS_VWAP_THRESHOLD_PCT: float = 1.0
 
 # GOZCU veri gecikme tahmini (dashboard uyarisi icin, bkz. GozcuWarningBanner.tsx
 # / dashboard/lib/constants.ts - Python config'i TS'de mirror'layan AYNI desen).

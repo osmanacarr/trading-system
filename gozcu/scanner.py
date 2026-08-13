@@ -132,6 +132,8 @@ def _compute_symbol_metrics(
     momentum_flag = momentum["body_ok"] and momentum["volume_ok"]
 
     score = scoring.compute_attention_score(daily_change, vol_z, rvol, momentum_flag)
+    vwap_pos_pct = metrics.vwap_position_pct(last_price, vwap_last)
+    lateness = metrics.compute_lateness_warning(daily_change, vwap_pos_pct, elapsed_fraction)
 
     return {
         "symbol": symbol,
@@ -143,11 +145,16 @@ def _compute_symbol_metrics(
         "volume_zscore": _safe_float(vol_z, 2),
         "momentum_candle": bool(momentum_flag),
         "vwap": _safe_float(vwap_last, 4),
-        "vwap_position_pct": _safe_float(metrics.vwap_position_pct(last_price, vwap_last)),
+        "vwap_position_pct": _safe_float(vwap_pos_pct),
         "vwap_slope": _safe_float(metrics.vwap_slope(vwap_series), 4),
         "distance_from_52w_high": _safe_float(metrics.distance_from_52w_high(daily_df)),
         "distance_from_52w_low": _safe_float(metrics.distance_from_52w_low(daily_df)),
         "atr_percentile": _safe_float(metrics.atr_percentile(daily_df), 1),
+        # "Gec kalma" uyarisi (bkz. metrics.compute_lateness_warning docstring'i) -
+        # her karta OZEL, SAYISAL - genel GozcuWarningBanner'in YANINDA, YERINE DEGIL.
+        "session_elapsed_pct": lateness["session_elapsed_pct"],
+        "vwap_distance_pct": lateness["vwap_distance_pct"],
+        "lateness_warning": lateness["warning_text"],
         "_vwap_series": vwap_series,
         "_intraday_today": today_intraday,
     }

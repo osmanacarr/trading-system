@@ -18,6 +18,13 @@ const COLUMNS: { key: SortKey; label: string }[] = [
   { key: "score", label: "dikkat skoru" },
 ];
 
+// bkz. gozcu/metrics.py::compute_lateness_warning - metnin kendisi zaten
+// esigi uyguluyor, burada TEKRAR bir esik sayisi TUTULMAZ (tek kaynak Python
+// tarafi) - sadece "GEC KALINMIS" ifadesi geçiyor mu diye bakilir.
+function isLate(entry: { lateness_warning: string }): boolean {
+  return entry.lateness_warning.includes("GEC KALINMIS");
+}
+
 function pctColor(v: number | null): string {
   if (v === null) return "text-term-text-faint";
   return v >= 0 ? "text-term-green" : "text-term-red";
@@ -80,6 +87,7 @@ export function AttentionTable() {
                   </th>
                 ))}
                 <th className="px-3 py-1.5 text-left label-xs text-[9px]">momentum</th>
+                <th className="px-3 py-1.5 text-left label-xs text-[9px]">geç kalma</th>
               </tr>
             </thead>
             <tbody>
@@ -108,6 +116,9 @@ export function AttentionTable() {
                       {row.score !== null ? formatNumber(row.score, 1) : "—"}
                     </td>
                     <td className="px-3 py-1.5">{row.momentum_candle && <Badge tone="amber">momentum</Badge>}</td>
+                    <td className="px-3 py-1.5" title={row.lateness_warning}>
+                      {isLate(row) && <Badge tone="red">⚠ GEÇ</Badge>}
+                    </td>
                   </tr>
                 );
               })}

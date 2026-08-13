@@ -28,6 +28,11 @@ export interface GozcuSymbolMetrics {
   distance_from_52w_high: number | null;
   distance_from_52w_low: number | null;
   atr_percentile: number | null;
+  // "Gec kalma" uyarisi (bkz. gozcu/metrics.py::compute_lateness_warning) -
+  // genel GozcuWarningBanner'in YANINDA, karta OZEL/SAYISAL bir ek uyari.
+  session_elapsed_pct: number;
+  vwap_distance_pct: number | null;
+  lateness_warning: string;
   intraday: GozcuIntradaySeries;
 }
 

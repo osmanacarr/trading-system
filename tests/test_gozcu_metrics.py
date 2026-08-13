@@ -152,3 +152,38 @@ def test_atr_percentile_none_when_insufficient_data():
     dates = pd.date_range("2024-01-01", periods=n, freq="B")
     df = pd.DataFrame({"High": np.full(n, 11.0), "Low": np.full(n, 9.0), "Close": np.full(n, 10.0)}, index=dates)
     assert metrics.atr_percentile(df, period=14) is None
+
+
+def test_lateness_warning_none_vwap_reports_data_gap_explicitly():
+    result = metrics.compute_lateness_warning(daily_change_pct=0.05, vwap_position_pct=None, elapsed_fraction=0.5)
+    assert result["vwap_distance_pct"] is None
+    assert result["session_elapsed_pct"] == 50.0
+    assert "VWAP verisi henuz yok" in result["warning_text"]
+
+
+def test_lateness_warning_below_threshold_no_late_clause():
+    result = metrics.compute_lateness_warning(
+        daily_change_pct=0.02, vwap_position_pct=0.003, elapsed_fraction=0.6, vwap_threshold_pct=1.0
+    )
+    assert np.isclose(result["vwap_distance_pct"], 0.3)
+    assert "GEC KALINMIS" not in result["warning_text"]
+
+
+def test_lateness_warning_above_threshold_positive_says_pahaliya():
+    result = metrics.compute_lateness_warning(
+        daily_change_pct=0.06, vwap_position_pct=0.025, elapsed_fraction=0.8, vwap_threshold_pct=1.0
+    )
+    assert np.isclose(result["vwap_distance_pct"], 2.5)
+    assert "GEC KALINMIS OLABILIR" in result["warning_text"]
+    assert "pahaliya" in result["warning_text"]
+    assert "uzerinde" in result["warning_text"]
+
+
+def test_lateness_warning_above_threshold_negative_says_ucuza():
+    result = metrics.compute_lateness_warning(
+        daily_change_pct=-0.05, vwap_position_pct=-0.02, elapsed_fraction=0.4, vwap_threshold_pct=1.0
+    )
+    assert np.isclose(result["vwap_distance_pct"], -2.0)
+    assert "GEC KALINMIS OLABILIR" in result["warning_text"]
+    assert "ucuza" in result["warning_text"]
+    assert "altinda" in result["warning_text"]

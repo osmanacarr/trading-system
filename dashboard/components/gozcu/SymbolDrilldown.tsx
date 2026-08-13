@@ -96,6 +96,23 @@ export function SymbolDrilldown() {
           {entry.momentum_candle && <Badge tone="amber">momentum mumu</Badge>}
           <Badge tone="cyan">skor {num(entry.score, 1)}</Badge>
         </div>
+        <div
+          className={
+            entry.lateness_warning.includes("GEC KALINMIS")
+              ? "rounded-sm border border-term-red/30 bg-term-red-dim px-2 py-1.5"
+              : "rounded-sm border border-term-border-soft bg-term-bg-1/40 px-2 py-1.5"
+          }
+        >
+          <p
+            className={
+              entry.lateness_warning.includes("GEC KALINMIS")
+                ? "text-[10px] leading-relaxed text-term-red"
+                : "text-[10px] leading-relaxed text-term-text-dim"
+            }
+          >
+            <span className="font-semibold">⏱ GEÇ KALMA KONTROLÜ:</span> {entry.lateness_warning}
+          </p>
+        </div>
         <div className="rounded-sm border border-term-border-soft">
           <MetricRow label="son fiyat" value={num(entry.last_price, 4)} />
           <MetricRow label="günlük % değişim" value={pct(entry.daily_change_pct)} />

@@ -260,11 +260,25 @@ trading-system/
   TUTARLI pozitif yön ama E[R] zamanla azalıyor (+0.092→+0.038, olası
   alpha-decay). Mid/small-cap NASDAQ örneğinde (80 sembol) AYNI sinyal
   anlamlı DEĞİL (t=1.38) — bu yüzden evren SADECE `NASDAQ_TICKERS`
-  (mega-cap, 39 sembol) ile sınırlı. **ÇÖZÜLMEMİŞ SINIR: hayatta-kalma
+  (mega-cap, 39 sembol) ile sınırlı. **ÇÖZÜLMEMİŞ SINIR 1: hayatta-kalma
   yanlılığı** — bugünün NASDAQ-100 listesi 2015'e geri uygulanıyor, o
   dönemde endeksten çıkmış/iflas etmiş isimler örneklemde YOK; tarihsel/
-  point-in-time üyelik listesi bulunamadı. Bu yüzden **BIST Donchian ile AYNI
-  güven seviyesinde SAYILMAZ** — MA-voting/Bollinger-fade ile AYNI muamele:
+  point-in-time üyelik listesi bulunamadı. **ÇÖZÜLMEMİŞ SINIR 2: "geç kalma"
+  (2026-08-13'te canlıya almadan ÖNCE ölçüldü)** — sinyal GÜNÜN KAPANIŞINDA
+  hesaplanır (RSI2/IBS/SMA200 için o barın Close/High/Low'u gerekir) ama
+  gerçek giriş en erken ERTESİ GÜNÜN AÇILIŞINDA mümkündür — Donchian'la AYNI
+  yapısal kısıt (bu ölçüm ilk kez burada, her iki strateji için karşılaştırmalı
+  yapıldı): Donchian (BIST, n=1138 ham sinyal) ortalama kayma **+%0.40**
+  (medyan +%0.23), %69.8 ihtimalle fiyat kullanıcı girmeden ÖNCE aleyhe
+  hareket ediyor, stop mesafesine oranla ortalama **+0.065R**; RSI2 (NASDAQ,
+  n=2534) ortalama kayma **+%0.17** (medyan +%0.15), %58.5 aleyhe, ortalama
+  **+0.025R** — RSI2 AYNI sorunu taşıyor ama etkisi Donchian'ın kabaca
+  yarısı (muhtemelen mean-reversion sinyalinin yön belirsizliğinin,
+  devam-eden-momentum sinyaline göre daha dengeli olmasından). Bu, RSI2'ye
+  özgü YENİ bir sorun değil — **zaten CANLI olan Donchian'ın da paylaştığı,
+  şimdiye kadar ölçülmemiş bir modelleme kısıtı** (backtest "kapanışta
+  giriş" varsayıyor, gerçek giriş biraz daha kötü). Bu yüzden RSI2 **BIST
+  Donchian ile AYNI güven seviyesinde SAYILMAZ** — MA-voting/Bollinger-fade ile AYNI muamele:
   `python -m paper_trading.runner --strategies donchian mean_reversion` ile
   İSTEĞE BAĞLI çalıştırılabilir ama **varsayılan/canlı cron listesinde
   DEĞİL** (`.github/workflows/paper_trading.yml` hâlâ sadece

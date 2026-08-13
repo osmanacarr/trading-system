@@ -16,6 +16,12 @@ SINYAL-BAZLI (RSI(2) donus esigini gecince) VEYA ZAMAN-BAZLI (MAX_HOLD_DAYS
 icinde donus olmazsa zorunlu kapanis) - bkz. backtest/engine.py::
 run_mean_reversion_backtest (ma_voting'in sinyal-bazli cikis mantigina en
 yakin, ama vote-buyuklugu YOK, zaman-asimi VAR).
+
+GEC KALMA UYARISI (canliya almadan ONCE olculdu, bkz. config.py "GEC KALMA
+OLCUMU" yorumu): bu sinyal GUNUN KAPANISINDA hesaplanir ama gercek giris en
+erken ERTESI GUNUN ACILISINDA mumkundur - Donchian'la AYNI yapisal kisit,
+ama olculen etkisi Donchian'in KABA OLARAK YARISI (ortalama kayma +%0.17
+vs Donchian +%0.40, aleyhe olma orani %58.5 vs %69.8).
 """
 
 from __future__ import annotations

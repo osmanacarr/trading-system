@@ -132,6 +132,9 @@ def test_compute_symbol_metrics_uses_last_intraday_bar_timestamp_for_session_pro
 
     assert received_timestamps == [intraday_dates[-1]]
     assert result["rvol"] is not None
+    # "Gec kalma" uyarisi alanlari (2026-08-13) - her sembol metriginde bulunmali.
+    assert result["session_elapsed_pct"] == 50.0
+    assert "lateness_warning" in result and result["lateness_warning"]
 
 
 def test_compute_symbol_metrics_empty_intraday_skips_session_progress_call():

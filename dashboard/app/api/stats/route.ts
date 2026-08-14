@@ -1,11 +1,13 @@
-import { readJsonl } from "@/lib/readers";
-import { TRADES_JSONL_PATH } from "@/lib/paths";
+import { fetchRemoteJsonl } from "@/lib/remote-readers";
 import type { TradeRecord } from "@/lib/types";
 import { computeRiskBudget, computeStrategyStats } from "@/lib/derive";
 import { sharpeConfidenceInterval } from "@/lib/stats";
 import { BACKTEST_BASELINE } from "@/lib/backtestBaseline";
 
 export const dynamic = "force-dynamic";
+
+const TRADES_JSONL_REL_PATH = "paper_trading/logs/trades.jsonl";
+const CACHE_TTL_MS = 15_000;
 
 // Sharpe orani icin gunluk equity getirisi degil, R-katlari uzerinden basit
 // bir yaklasim kullanilir (equity.jsonl calistirma-basina bir nokta oldugundan
@@ -21,7 +23,7 @@ function sharpeFromRValues(rValues: number[]): number {
 }
 
 export async function GET() {
-  const trades = readJsonl<TradeRecord>(TRADES_JSONL_PATH);
+  const trades = await fetchRemoteJsonl<TradeRecord>(TRADES_JSONL_REL_PATH, CACHE_TTL_MS);
   const stats = computeStrategyStats(trades);
   const riskBudget = computeRiskBudget(trades);
 

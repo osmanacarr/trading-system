@@ -1,11 +1,20 @@
-import { appendManualEntry, readJsonl } from "@/lib/readers";
-import { MANUAL_LOG_PATH } from "@/lib/paths";
+import { appendManualEntry } from "@/lib/readers";
+import { fetchRemoteJsonl } from "@/lib/remote-readers";
 import type { ManualEntryRecord } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
+// GET: Secenek 2 (runtime-fetch) - GitHub'daki manual_trades.jsonl'i okur.
+// POST (asagida) DEGISMEDI: appendManualEntry hala YEREL dosya sistemine
+// yazmaya calisir ve Vercel'de (salt-okunur fs) beklendigi gibi basarisiz
+// olur (bkz. lib/readers.ts appendManualEntry yorumu) - bu route'un yazma
+// tarafi zaten GitHub'a degil yerel dosyaya yazacak sekilde tasarlanmisti,
+// runtime-fetch migrasyonu SADECE okuma tarafini ilgilendiriyor.
+const MANUAL_LOG_REL_PATH = "paper_trading/logs/manual_trades.jsonl";
+const CACHE_TTL_MS = 15_000;
+
 export async function GET() {
-  const entries = readJsonl<ManualEntryRecord>(MANUAL_LOG_PATH);
+  const entries = await fetchRemoteJsonl<ManualEntryRecord>(MANUAL_LOG_REL_PATH, CACHE_TTL_MS);
   return Response.json({ entries });
 }
 

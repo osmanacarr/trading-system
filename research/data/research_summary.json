@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-16T03:24:55.329382+00:00",
+  "generated_at": "2026-08-17T03:25:48.061473+00:00",
   "factor_ic": [
     {
       "factor_name": "absorption",
@@ -92,8 +92,8 @@
   ],
   "regime": {
     "counts": {
-      "low": 5,
-      "normal": 5,
+      "low": 6,
+      "normal": 4,
       "high": 4
     },
     "majority_label": "low",
@@ -105,32 +105,32 @@
       {
         "factor_a": "cvd_proxy",
         "factor_b": "ema",
-        "correlation": -0.991699
+        "correlation": -0.990893
       },
       {
         "factor_a": "cvd_proxy",
         "factor_b": "macd_histogram",
-        "correlation": 0.885393
+        "correlation": 0.906364
       },
       {
         "factor_a": "cvd_proxy",
         "factor_b": "poc",
-        "correlation": -0.991703
+        "correlation": -0.990943
       },
       {
         "factor_a": "daily_volume_ratio",
         "factor_b": "volume_zscore",
-        "correlation": 0.957357
+        "correlation": 0.958661
       },
       {
         "factor_a": "distance_from_poc",
         "factor_b": "rsi",
-        "correlation": 0.943363
+        "correlation": 0.93872
       },
       {
         "factor_a": "ema",
         "factor_b": "macd_histogram",
-        "correlation": -0.824964
+        "correlation": -0.847781
       },
       {
         "factor_a": "ema",
@@ -140,7 +140,7 @@
       {
         "factor_a": "macd_histogram",
         "factor_b": "poc",
-        "correlation": -0.825073
+        "correlation": -0.848004
       }
     ]
   },

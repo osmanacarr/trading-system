@@ -1,6 +1,55 @@
 {
-  "generated_at": "2026-08-26T01:56:56.727406+00:00",
-  "run_date": "2026-08-26",
+  "generated_at": "2026-08-28T00:45:41.162690+00:00",
+  "run_date": "2026-08-28",
   "risk_warning": "Bu adaylar RISK KATMANI TARAFINDAN REDDEDILDI (portfoy butcesi, korelasyon kumesi veya net yonlu maruziyet siniri) - paper trading'in KENDI sanal defterinde acilmadilar. Kendi gercek hesabinizda acarsaniz, korelasyon ve yon riskini SIZ yonetmelisiniz - bu kisitlar hesabiniza OTOMATIK UYGULANMAZ. 'Kalite' olcusu SADECE stratejinin kendi sinyal gucu olcumudur - gelecekteki performansin GARANTISI DEGILDIR. DENEYSEL etiketli stratejiler (bkz. her kaydin validation_status alani) DOGRULANMIS stratejilerle AYNI guven duzeyinde DEGILDIR.",
-  "entries": []
+  "entries": [
+    {
+      "symbol": "FRIGO.IS",
+      "strategy": "donchian",
+      "validation_status": "dogrulanmis",
+      "direction": 1,
+      "applicable": true,
+      "entry_price": 2.551274952292442,
+      "stop_price": 2.3270168050893707,
+      "signal_date": "2026-08-26",
+      "rejection_reason": "Portfoy tahsisinde diger adaylara oncelik verildi (ayni gun birden fazla sinyal, sinirli butce)",
+      "atr_distance": 0.8918285099538965,
+      "volume_ratio": 2.6802793878393714,
+      "body_ratio": 4.062493946406513,
+      "rsi_oversold_depth": null,
+      "ibs": null
+    },
+    {
+      "symbol": "EGPRO.IS",
+      "strategy": "donchian",
+      "validation_status": "dogrulanmis",
+      "direction": 1,
+      "applicable": true,
+      "entry_price": 39.419701526641845,
+      "stop_price": 36.32135980710236,
+      "signal_date": "2026-08-26",
+      "rejection_reason": "Portfoy tahsisinde diger adaylara oncelik verildi (ayni gun birden fazla sinyal, sinirli butce)",
+      "atr_distance": 0.5422256346293153,
+      "volume_ratio": 2.7687242039479147,
+      "body_ratio": 3.156242437680527,
+      "rsi_oversold_depth": null,
+      "ibs": null
+    },
+    {
+      "symbol": "KNFRT.IS",
+      "strategy": "donchian",
+      "validation_status": "dogrulanmis",
+      "direction": 1,
+      "applicable": true,
+      "entry_price": 13.05652519083023,
+      "stop_price": 11.671234967583572,
+      "signal_date": "2026-08-26",
+      "rejection_reason": "Portfoy tahsisinde diger adaylara oncelik verildi (ayni gun birden fazla sinyal, sinirli butce)",
+      "atr_distance": 0.101062791498632,
+      "volume_ratio": 1.1372861950712285,
+      "body_ratio": 1.7999998728434246,
+      "rsi_oversold_depth": null,
+      "ibs": null
+    }
+  ]
 }

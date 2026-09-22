@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-09-22T07:13:04.091307+00:00",
+  "generated_at": "2026-09-22T07:15:17.671126+00:00",
   "markets": {
     "bist": {
       "market_open": true,
-      "scanned_at": "2026-09-22T07:13:04.091307+00:00",
+      "scanned_at": "2026-09-22T07:15:17.671126+00:00",
       "universe_size": 347,
       "scanned_count": 238,
       "error_count": 109,
@@ -15,7 +15,7 @@
           "daily_change_pct": -0.189853,
           "weekly_change_pct": -0.457906,
           "rvol": null,
-          "volume_zscore": -1.0,
+          "volume_zscore": -0.99,
           "momentum_candle": false,
           "vwap": null,
           "vwap_position_pct": null,
@@ -28,12 +28,15 @@
           "lateness_warning": "Seansin %0'i gecti - VWAP verisi henuz yok, bu barda hareketin ne kadarinin gerceklestigi olculemiyor.",
           "intraday": {
             "times": [
-              "2026-09-22T09:55:00+03:00"
+              "2026-09-22T09:55:00+03:00",
+              "2026-09-22T10:00:00+03:00"
             ],
             "price": [
+              198.0,
               198.0
             ],
             "vwap": [
+              null,
               null
             ]
           }
@@ -58,12 +61,15 @@
           "lateness_warning": "Seansin %0'i gecti - VWAP verisi henuz yok, bu barda hareketin ne kadarinin gerceklestigi olculemiyor.",
           "intraday": {
             "times": [
-              "2026-09-22T09:55:00+03:00"
+              "2026-09-22T09:55:00+03:00",
+              "2026-09-22T10:00:00+03:00"
             ],
             "price": [
+              85.15,
               85.15
             ],
             "vwap": [
+              null,
               null
             ]
           }
@@ -105,7 +111,7 @@
           "daily_change_pct": -0.189823,
           "weekly_change_pct": -0.218857,
           "rvol": null,
-          "volume_zscore": -0.38,
+          "volume_zscore": -0.25,
           "momentum_candle": false,
           "vwap": null,
           "vwap_position_pct": null,
@@ -118,42 +124,15 @@
           "lateness_warning": "Seansin %0'i gecti - VWAP verisi henuz yok, bu barda hareketin ne kadarinin gerceklestigi olculemiyor.",
           "intraday": {
             "times": [
-              "2026-09-22T09:55:00+03:00"
+              "2026-09-22T09:55:00+03:00",
+              "2026-09-22T10:00:00+03:00"
             ],
             "price": [
+              457.75,
               457.75
             ],
             "vwap": [
-              null
-            ]
-          }
-        },
-        {
-          "symbol": "GRNYO.IS",
-          "score": 18.97,
-          "last_price": 8.03,
-          "daily_change_pct": -0.189707,
-          "weekly_change_pct": -0.3576,
-          "rvol": null,
-          "volume_zscore": -1.08,
-          "momentum_candle": false,
-          "vwap": null,
-          "vwap_position_pct": null,
-          "vwap_slope": null,
-          "distance_from_52w_high": -0.619792,
-          "distance_from_52w_low": 0.0,
-          "atr_percentile": 48.4,
-          "session_elapsed_pct": 0.0,
-          "vwap_distance_pct": null,
-          "lateness_warning": "Seansin %0'i gecti - VWAP verisi henuz yok, bu barda hareketin ne kadarinin gerceklestigi olculemiyor.",
-          "intraday": {
-            "times": [
-              "2026-09-22T09:55:00+03:00"
-            ],
-            "price": [
-              8.03
-            ],
-            "vwap": [
+              null,
               null
             ]
           }
@@ -165,26 +144,29 @@
           "daily_change_pct": -0.189694,
           "weekly_change_pct": -0.265023,
           "rvol": null,
-          "volume_zscore": -1.39,
+          "volume_zscore": -1.38,
           "momentum_candle": false,
-          "vwap": null,
-          "vwap_position_pct": null,
+          "vwap": 71.55,
+          "vwap_position_pct": 0.0,
           "vwap_slope": null,
           "distance_from_52w_high": -0.508247,
           "distance_from_52w_low": 2.327907,
           "atr_percentile": 100.0,
           "session_elapsed_pct": 0.0,
-          "vwap_distance_pct": null,
-          "lateness_warning": "Seansin %0'i gecti - VWAP verisi henuz yok, bu barda hareketin ne kadarinin gerceklestigi olculemiyor.",
+          "vwap_distance_pct": 0.0,
+          "lateness_warning": "Seansin %0'i gecti. Fiyat bugunun VWAP'inin %0.0 uzerinde - bugun islem yapan ORTALAMA katilimcidan %0.0 daha pahaliya giriyorsunuz.",
           "intraday": {
             "times": [
-              "2026-09-22T09:55:00+03:00"
+              "2026-09-22T09:55:00+03:00",
+              "2026-09-22T10:00:00+03:00"
             ],
             "price": [
+              71.55,
               71.55
             ],
             "vwap": [
-              null
+              null,
+              71.55
             ]
           }
         },
@@ -195,7 +177,7 @@
           "daily_change_pct": -0.189576,
           "weekly_change_pct": -0.368304,
           "rvol": null,
-          "volume_zscore": -1.68,
+          "volume_zscore": -1.63,
           "momentum_candle": false,
           "vwap": null,
           "vwap_position_pct": null,
@@ -208,12 +190,15 @@
           "lateness_warning": "Seansin %0'i gecti - VWAP verisi henuz yok, bu barda hareketin ne kadarinin gerceklestigi olculemiyor.",
           "intraday": {
             "times": [
-              "2026-09-22T09:55:00+03:00"
+              "2026-09-22T09:55:00+03:00",
+              "2026-09-22T10:00:00+03:00"
             ],
             "price": [
+              14.15,
               14.15
             ],
             "vwap": [
+              null,
               null
             ]
           }
@@ -238,12 +223,15 @@
           "lateness_warning": "Seansin %0'i gecti - VWAP verisi henuz yok, bu barda hareketin ne kadarinin gerceklestigi olculemiyor.",
           "intraday": {
             "times": [
-              "2026-09-22T09:55:00+03:00"
+              "2026-09-22T09:55:00+03:00",
+              "2026-09-22T10:00:00+03:00"
             ],
             "price": [
+              135.9,
               135.9
             ],
             "vwap": [
+              null,
               null
             ]
           }
@@ -268,12 +256,15 @@
           "lateness_warning": "Seansin %0'i gecti - VWAP verisi henuz yok, bu barda hareketin ne kadarinin gerceklestigi olculemiyor.",
           "intraday": {
             "times": [
-              "2026-09-22T09:55:00+03:00"
+              "2026-09-22T09:55:00+03:00",
+              "2026-09-22T10:00:00+03:00"
             ],
             "price": [
+              58.15,
               58.15
             ],
             "vwap": [
+              null,
               null
             ]
           }
@@ -285,7 +276,7 @@
           "daily_change_pct": -0.189507,
           "weekly_change_pct": -0.451449,
           "rvol": null,
-          "volume_zscore": -2.44,
+          "volume_zscore": -2.42,
           "momentum_candle": false,
           "vwap": null,
           "vwap_position_pct": null,
@@ -298,42 +289,15 @@
           "lateness_warning": "Seansin %0'i gecti - VWAP verisi henuz yok, bu barda hareketin ne kadarinin gerceklestigi olculemiyor.",
           "intraday": {
             "times": [
-              "2026-09-22T09:55:00+03:00"
+              "2026-09-22T09:55:00+03:00",
+              "2026-09-22T10:00:00+03:00"
             ],
             "price": [
+              7.57,
               7.57
             ],
             "vwap": [
-              null
-            ]
-          }
-        },
-        {
-          "symbol": "KARTN.IS",
-          "score": 18.95,
-          "last_price": 101.8,
-          "daily_change_pct": -0.18949,
-          "weekly_change_pct": -0.366521,
-          "rvol": null,
-          "volume_zscore": -1.07,
-          "momentum_candle": false,
-          "vwap": null,
-          "vwap_position_pct": null,
-          "vwap_slope": null,
-          "distance_from_52w_high": -0.564585,
-          "distance_from_52w_low": 0.645918,
-          "atr_percentile": 91.3,
-          "session_elapsed_pct": 0.0,
-          "vwap_distance_pct": null,
-          "lateness_warning": "Seansin %0'i gecti - VWAP verisi henuz yok, bu barda hareketin ne kadarinin gerceklestigi olculemiyor.",
-          "intraday": {
-            "times": [
-              "2026-09-22T09:55:00+03:00"
-            ],
-            "price": [
-              101.8
-            ],
-            "vwap": [
+              null,
               null
             ]
           }
@@ -358,12 +322,15 @@
           "lateness_warning": "Seansin %0'i gecti - VWAP verisi henuz yok, bu barda hareketin ne kadarinin gerceklestigi olculemiyor.",
           "intraday": {
             "times": [
-              "2026-09-22T09:55:00+03:00"
+              "2026-09-22T09:55:00+03:00",
+              "2026-09-22T10:00:00+03:00"
             ],
             "price": [
+              11.6,
               11.6
             ],
             "vwap": [
+              null,
               null
             ]
           }
@@ -375,7 +342,7 @@
           "daily_change_pct": -0.18943,
           "weekly_change_pct": -0.40393,
           "rvol": null,
-          "volume_zscore": -1.56,
+          "volume_zscore": -1.55,
           "momentum_candle": false,
           "vwap": null,
           "vwap_position_pct": null,
@@ -388,12 +355,15 @@
           "lateness_warning": "Seansin %0'i gecti - VWAP verisi henuz yok, bu barda hareketin ne kadarinin gerceklestigi olculemiyor.",
           "intraday": {
             "times": [
-              "2026-09-22T09:55:00+03:00"
+              "2026-09-22T09:55:00+03:00",
+              "2026-09-22T10:00:00+03:00"
             ],
             "price": [
+              13.65,
               13.65
             ],
             "vwap": [
+              null,
               null
             ]
           }
@@ -418,12 +388,15 @@
           "lateness_warning": "Seansin %0'i gecti - VWAP verisi henuz yok, bu barda hareketin ne kadarinin gerceklestigi olculemiyor.",
           "intraday": {
             "times": [
-              "2026-09-22T09:55:00+03:00"
+              "2026-09-22T09:55:00+03:00",
+              "2026-09-22T10:00:00+03:00"
             ],
             "price": [
+              10.14,
               10.14
             ],
             "vwap": [
+              null,
               null
             ]
           }
@@ -448,12 +421,15 @@
           "lateness_warning": "Seansin %0'i gecti - VWAP verisi henuz yok, bu barda hareketin ne kadarinin gerceklestigi olculemiyor.",
           "intraday": {
             "times": [
-              "2026-09-22T09:55:00+03:00"
+              "2026-09-22T09:55:00+03:00",
+              "2026-09-22T10:00:00+03:00"
             ],
             "price": [
+              41.22,
               41.22
             ],
             "vwap": [
+              null,
               null
             ]
           }
@@ -495,7 +471,7 @@
           "daily_change_pct": -0.189338,
           "weekly_change_pct": -0.426341,
           "rvol": null,
-          "volume_zscore": -2.48,
+          "volume_zscore": -2.47,
           "momentum_candle": false,
           "vwap": null,
           "vwap_position_pct": null,
@@ -508,12 +484,15 @@
           "lateness_warning": "Seansin %0'i gecti - VWAP verisi henuz yok, bu barda hareketin ne kadarinin gerceklestigi olculemiyor.",
           "intraday": {
             "times": [
-              "2026-09-22T09:55:00+03:00"
+              "2026-09-22T09:55:00+03:00",
+              "2026-09-22T10:00:00+03:00"
             ],
             "price": [
+              35.28,
               35.28
             ],
             "vwap": [
+              null,
               null
             ]
           }
@@ -525,7 +504,7 @@
           "daily_change_pct": -0.189349,
           "weekly_change_pct": -0.330619,
           "rvol": null,
-          "volume_zscore": -2.66,
+          "volume_zscore": -2.64,
           "momentum_candle": false,
           "vwap": null,
           "vwap_position_pct": null,
@@ -538,12 +517,15 @@
           "lateness_warning": "Seansin %0'i gecti - VWAP verisi henuz yok, bu barda hareketin ne kadarinin gerceklestigi olculemiyor.",
           "intraday": {
             "times": [
-              "2026-09-22T09:55:00+03:00"
+              "2026-09-22T09:55:00+03:00",
+              "2026-09-22T10:00:00+03:00"
             ],
             "price": [
+              8.22,
               8.22
             ],
             "vwap": [
+              null,
               null
             ]
           }
@@ -568,12 +550,48 @@
           "lateness_warning": "Seansin %0'i gecti - VWAP verisi henuz yok, bu barda hareketin ne kadarinin gerceklestigi olculemiyor.",
           "intraday": {
             "times": [
-              "2026-09-22T09:55:00+03:00"
+              "2026-09-22T09:55:00+03:00",
+              "2026-09-22T10:00:00+03:00"
             ],
             "price": [
+              9.9,
               9.9
             ],
             "vwap": [
+              null,
+              null
+            ]
+          }
+        },
+        {
+          "symbol": "ECZYT.IS",
+          "score": 18.9,
+          "last_price": 193.0,
+          "daily_change_pct": -0.178374,
+          "weekly_change_pct": -0.360398,
+          "rvol": null,
+          "volume_zscore": 1.06,
+          "momentum_candle": false,
+          "vwap": null,
+          "vwap_position_pct": null,
+          "vwap_slope": null,
+          "distance_from_52w_high": -0.518703,
+          "distance_from_52w_low": 0.0,
+          "atr_percentile": 45.2,
+          "session_elapsed_pct": 0.0,
+          "vwap_distance_pct": null,
+          "lateness_warning": "Seansin %0'i gecti - VWAP verisi henuz yok, bu barda hareketin ne kadarinin gerceklestigi olculemiyor.",
+          "intraday": {
+            "times": [
+              "2026-09-22T09:55:00+03:00",
+              "2026-09-22T10:00:00+03:00"
+            ],
+            "price": [
+              190.9,
+              193.6
+            ],
+            "vwap": [
+              null,
               null
             ]
           }
@@ -607,14 +625,44 @@
               null
             ]
           }
+        },
+        {
+          "symbol": "BRKO.IS",
+          "score": 18.87,
+          "last_price": 6.75,
+          "daily_change_pct": -0.188702,
+          "weekly_change_pct": -0.372677,
+          "rvol": null,
+          "volume_zscore": -1.24,
+          "momentum_candle": false,
+          "vwap": null,
+          "vwap_position_pct": null,
+          "vwap_slope": null,
+          "distance_from_52w_high": -0.601299,
+          "distance_from_52w_low": 0.0,
+          "atr_percentile": 91.3,
+          "session_elapsed_pct": 0.0,
+          "vwap_distance_pct": null,
+          "lateness_warning": "Seansin %0'i gecti - VWAP verisi henuz yok, bu barda hareketin ne kadarinin gerceklestigi olculemiyor.",
+          "intraday": {
+            "times": [
+              "2026-09-22T09:55:00+03:00"
+            ],
+            "price": [
+              6.75
+            ],
+            "vwap": [
+              null
+            ]
+          }
         }
       ],
       "psychology": {
-        "breadth_pct": 20.5,
+        "breadth_pct": 18.8,
         "volatility_regime": "asiri"
       },
       "correlation": {
-        "average_correlation": 0.499,
+        "average_correlation": 0.488,
         "reference_ticker": "XU100.IS"
       }
     },

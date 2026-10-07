@@ -1,31 +1,31 @@
 {
-  "generated_at": "2026-10-07T08:03:20.815481+00:00",
+  "generated_at": "2026-10-07T08:06:24.264224+00:00",
   "markets": {
     "bist": {
       "market_open": true,
-      "scanned_at": "2026-10-07T08:03:20.815481+00:00",
+      "scanned_at": "2026-10-07T08:06:24.264224+00:00",
       "universe_size": 358,
       "scanned_count": 249,
       "error_count": 109,
       "attention_list": [
         {
           "symbol": "KUYAS.IS",
-          "score": 43.34,
-          "last_price": 16.93,
-          "daily_change_pct": -0.1349,
-          "weekly_change_pct": -0.431879,
-          "rvol": 27.68,
-          "volume_zscore": 1.17,
+          "score": 40.49,
+          "last_price": 16.79,
+          "daily_change_pct": -0.142054,
+          "weekly_change_pct": -0.436577,
+          "rvol": 24.09,
+          "volume_zscore": 1.19,
           "momentum_candle": true,
-          "vwap": 16.9259,
-          "vwap_position_pct": 0.000242,
-          "vwap_slope": -0.0099,
-          "distance_from_52w_high": -0.820276,
+          "vwap": 16.937,
+          "vwap_position_pct": -0.008681,
+          "vwap_slope": -0.0109,
+          "distance_from_52w_high": -0.821762,
           "distance_from_52w_low": 0.0,
           "atr_percentile": 59.9,
-          "session_elapsed_pct": 9.2,
-          "vwap_distance_pct": 0.02,
-          "lateness_warning": "Seansin %9'i gecti. Fiyat bugunun VWAP'inin %0.0 uzerinde - bugun islem yapan ORTALAMA katilimcidan %0.0 daha pahaliya giriyorsunuz.",
+          "session_elapsed_pct": 10.2,
+          "vwap_distance_pct": -0.87,
+          "lateness_warning": "Seansin %10'i gecti. Fiyat bugunun VWAP'inin %0.9 altinda - bugun islem yapan ORTALAMA katilimcidan %0.9 daha ucuza giriyorsunuz.",
           "intraday": {
             "times": [
               "2026-10-07T09:55:00+03:00",
@@ -38,7 +38,8 @@
               "2026-10-07T10:30:00+03:00",
               "2026-10-07T10:35:00+03:00",
               "2026-10-07T10:40:00+03:00",
-              "2026-10-07T10:45:00+03:00"
+              "2026-10-07T10:45:00+03:00",
+              "2026-10-07T10:50:00+03:00"
             ],
             "price": [
               15.86,
@@ -51,41 +52,43 @@
               16.84,
               16.89,
               16.67,
-              16.84
+              16.84,
+              16.77
             ],
             "vwap": [
               null,
               15.86,
               15.86,
               15.86,
-              16.601,
-              16.9778,
-              16.9823,
-              16.9557,
-              16.9546,
-              16.9293,
-              16.9259
+              16.5958,
+              17.0053,
+              17.0032,
+              16.9722,
+              16.9697,
+              16.9423,
+              16.9379,
+              16.937
             ]
           }
         },
         {
           "symbol": "DURDO.IS",
-          "score": 33.74,
-          "last_price": 6.56,
-          "daily_change_pct": 0.179856,
-          "weekly_change_pct": 0.490909,
-          "rvol": 15.92,
-          "volume_zscore": 0.83,
+          "score": 32.0,
+          "last_price": 6.55,
+          "daily_change_pct": 0.178058,
+          "weekly_change_pct": 0.488636,
+          "rvol": 14.35,
+          "volume_zscore": 0.85,
           "momentum_candle": false,
-          "vwap": 6.5663,
-          "vwap_position_pct": -0.000961,
-          "vwap_slope": 0.0124,
+          "vwap": 6.5662,
+          "vwap_position_pct": -0.002467,
+          "vwap_slope": 0.0006,
           "distance_from_52w_high": 0.0,
-          "distance_from_52w_low": 0.940828,
+          "distance_from_52w_low": 0.93787,
           "atr_percentile": 100.0,
-          "session_elapsed_pct": 9.2,
-          "vwap_distance_pct": -0.1,
-          "lateness_warning": "Seansin %9'i gecti. Fiyat bugunun VWAP'inin %0.1 altinda - bugun islem yapan ORTALAMA katilimcidan %0.1 daha ucuza giriyorsunuz.",
+          "session_elapsed_pct": 10.2,
+          "vwap_distance_pct": -0.25,
+          "lateness_warning": "Seansin %10'i gecti. Fiyat bugunun VWAP'inin %0.2 altinda - bugun islem yapan ORTALAMA katilimcidan %0.2 daha ucuza giriyorsunuz.",
           "intraday": {
             "times": [
               "2026-10-07T09:55:00+03:00",
@@ -98,7 +101,8 @@
               "2026-10-07T10:30:00+03:00",
               "2026-10-07T10:35:00+03:00",
               "2026-10-07T10:40:00+03:00",
-              "2026-10-07T10:45:00+03:00"
+              "2026-10-07T10:45:00+03:00",
+              "2026-10-07T10:50:00+03:00"
             ],
             "price": [
               6.41,
@@ -111,7 +115,8 @@
               6.69,
               6.69,
               6.52,
-              6.57
+              6.56,
+              6.56
             ],
             "vwap": [
               null,
@@ -124,28 +129,29 @@
               6.5291,
               6.5643,
               6.5647,
-              6.5663
+              6.5662,
+              6.5662
             ]
           }
         },
         {
           "symbol": "GEREL.IS",
-          "score": 26.8,
+          "score": 26.11,
           "last_price": 21.64,
           "daily_change_pct": 0.208939,
           "weekly_change_pct": -0.08769,
-          "rvol": 6.91,
+          "rvol": 6.22,
           "volume_zscore": -0.59,
           "momentum_candle": false,
-          "vwap": 21.0779,
-          "vwap_position_pct": 0.026665,
-          "vwap_slope": 0.0013,
+          "vwap": 21.0781,
+          "vwap_position_pct": 0.026658,
+          "vwap_slope": 0.0003,
           "distance_from_52w_high": -0.537211,
           "distance_from_52w_low": 0.349969,
           "atr_percentile": 82.1,
-          "session_elapsed_pct": 9.2,
+          "session_elapsed_pct": 10.2,
           "vwap_distance_pct": 2.67,
-          "lateness_warning": "Seansin %9'i gecti. Fiyat bugunun VWAP'inin %2.7 uzerinde - bugun islem yapan ORTALAMA katilimcidan %2.7 daha pahaliya giriyorsunuz. GIRIS ICIN GEC KALINMIS OLABILIR.",
+          "lateness_warning": "Seansin %10'i gecti. Fiyat bugunun VWAP'inin %2.7 uzerinde - bugun islem yapan ORTALAMA katilimcidan %2.7 daha pahaliya giriyorsunuz. GIRIS ICIN GEC KALINMIS OLABILIR.",
           "intraday": {
             "times": [
               "2026-10-07T09:55:00+03:00",
@@ -158,12 +164,14 @@
               "2026-10-07T10:30:00+03:00",
               "2026-10-07T10:35:00+03:00",
               "2026-10-07T10:40:00+03:00",
-              "2026-10-07T10:45:00+03:00"
+              "2026-10-07T10:45:00+03:00",
+              "2026-10-07T10:50:00+03:00"
             ],
             "price": [
               20.88,
               21.06,
               21.02,
+              21.64,
               21.64,
               21.64,
               21.64,
@@ -184,28 +192,29 @@
               21.0741,
               21.0772,
               21.0775,
-              21.0779
+              21.0781,
+              21.0781
             ]
           }
         },
         {
           "symbol": "BURVA.IS",
-          "score": 25.46,
+          "score": 24.95,
           "last_price": 537.0,
           "daily_change_pct": 0.209459,
           "weekly_change_pct": 0.38135,
-          "rvol": 5.51,
-          "volume_zscore": -0.67,
+          "rvol": 5.01,
+          "volume_zscore": -0.66,
           "momentum_candle": false,
-          "vwap": 530.8958,
-          "vwap_position_pct": 0.011498,
-          "vwap_slope": 0.0208,
+          "vwap": 530.9555,
+          "vwap_position_pct": 0.011384,
+          "vwap_slope": 0.0368,
           "distance_from_52w_high": -0.585328,
           "distance_from_52w_low": 3.195312,
           "atr_percentile": 46.8,
-          "session_elapsed_pct": 9.2,
-          "vwap_distance_pct": 1.15,
-          "lateness_warning": "Seansin %9'i gecti. Fiyat bugunun VWAP'inin %1.1 uzerinde - bugun islem yapan ORTALAMA katilimcidan %1.1 daha pahaliya giriyorsunuz. GIRIS ICIN GEC KALINMIS OLABILIR.",
+          "session_elapsed_pct": 10.2,
+          "vwap_distance_pct": 1.14,
+          "lateness_warning": "Seansin %10'i gecti. Fiyat bugunun VWAP'inin %1.1 uzerinde - bugun islem yapan ORTALAMA katilimcidan %1.1 daha pahaliya giriyorsunuz. GIRIS ICIN GEC KALINMIS OLABILIR.",
           "intraday": {
             "times": [
               "2026-10-07T09:55:00+03:00",
@@ -217,7 +226,8 @@
               "2026-10-07T10:30:00+03:00",
               "2026-10-07T10:35:00+03:00",
               "2026-10-07T10:40:00+03:00",
-              "2026-10-07T10:45:00+03:00"
+              "2026-10-07T10:45:00+03:00",
+              "2026-10-07T10:50:00+03:00"
             ],
             "price": [
               537.0,
@@ -225,6 +235,7 @@
               537.0,
               536.0,
               531.5,
+              537.0,
               537.0,
               537.0,
               537.0,
@@ -241,28 +252,29 @@
               530.8336,
               530.8451,
               530.8813,
-              530.8958
+              530.9544,
+              530.9555
             ]
           }
         },
         {
           "symbol": "KTLEV.IS",
-          "score": 23.42,
+          "score": 22.53,
           "last_price": 7.03,
           "daily_change_pct": -0.13848,
           "weekly_change_pct": -0.341143,
-          "rvol": 10.58,
-          "volume_zscore": -0.02,
+          "rvol": 9.68,
+          "volume_zscore": -0.0,
           "momentum_candle": false,
-          "vwap": 7.2496,
-          "vwap_position_pct": -0.030286,
-          "vwap_slope": -0.0235,
+          "vwap": 7.2459,
+          "vwap_position_pct": -0.029798,
+          "vwap_slope": -0.0177,
           "distance_from_52w_high": -0.898116,
           "distance_from_52w_low": 0.86719,
           "atr_percentile": 77.0,
-          "session_elapsed_pct": 9.2,
-          "vwap_distance_pct": -3.03,
-          "lateness_warning": "Seansin %9'i gecti. Fiyat bugunun VWAP'inin %3.0 altinda - bugun islem yapan ORTALAMA katilimcidan %3.0 daha ucuza giriyorsunuz. GIRIS ICIN GEC KALINMIS OLABILIR.",
+          "session_elapsed_pct": 10.2,
+          "vwap_distance_pct": -2.98,
+          "lateness_warning": "Seansin %10'i gecti. Fiyat bugunun VWAP'inin %3.0 altinda - bugun islem yapan ORTALAMA katilimcidan %3.0 daha ucuza giriyorsunuz. GIRIS ICIN GEC KALINMIS OLABILIR.",
           "intraday": {
             "times": [
               "2026-10-07T09:55:00+03:00",
@@ -275,7 +287,8 @@
               "2026-10-07T10:30:00+03:00",
               "2026-10-07T10:35:00+03:00",
               "2026-10-07T10:40:00+03:00",
-              "2026-10-07T10:45:00+03:00"
+              "2026-10-07T10:45:00+03:00",
+              "2026-10-07T10:50:00+03:00"
             ],
             "price": [
               7.19,
@@ -288,6 +301,7 @@
               7.19,
               7.02,
               6.98,
+              7.04,
               7.03
             ],
             "vwap": [
@@ -301,88 +315,29 @@
               7.3201,
               7.299,
               7.2611,
-              7.2496
-            ]
-          }
-        },
-        {
-          "symbol": "COSMO.IS",
-          "score": 22.58,
-          "last_price": 105.5,
-          "daily_change_pct": 0.173526,
-          "weekly_change_pct": 0.31875,
-          "rvol": 6.22,
-          "volume_zscore": -0.9,
-          "momentum_candle": false,
-          "vwap": 105.3048,
-          "vwap_position_pct": 0.001854,
-          "vwap_slope": -0.0062,
-          "distance_from_52w_high": -0.653246,
-          "distance_from_52w_low": 0.345663,
-          "atr_percentile": 25.0,
-          "session_elapsed_pct": 9.2,
-          "vwap_distance_pct": 0.19,
-          "lateness_warning": "Seansin %9'i gecti. Fiyat bugunun VWAP'inin %0.2 uzerinde - bugun islem yapan ORTALAMA katilimcidan %0.2 daha pahaliya giriyorsunuz.",
-          "intraday": {
-            "times": [
-              "2026-10-07T09:55:00+03:00",
-              "2026-10-07T10:00:00+03:00",
-              "2026-10-07T10:05:00+03:00",
-              "2026-10-07T10:10:00+03:00",
-              "2026-10-07T10:15:00+03:00",
-              "2026-10-07T10:20:00+03:00",
-              "2026-10-07T10:25:00+03:00",
-              "2026-10-07T10:30:00+03:00",
-              "2026-10-07T10:35:00+03:00",
-              "2026-10-07T10:40:00+03:00",
-              "2026-10-07T10:45:00+03:00"
-            ],
-            "price": [
-              102.0,
-              105.9,
-              102.0,
-              103.0,
-              105.9,
-              107.5,
-              106.0,
-              106.3,
-              105.8,
-              105.6,
-              105.6
-            ],
-            "vwap": [
-              null,
-              103.9,
-              103.6653,
-              103.5804,
-              104.09,
-              105.178,
-              105.2904,
-              105.3232,
-              105.3237,
-              105.3024,
-              105.3048
+              7.2473,
+              7.2459
             ]
           }
         },
         {
           "symbol": "INFO.IS",
-          "score": 21.65,
+          "score": 21.61,
           "last_price": 1.26,
           "daily_change_pct": 0.2,
           "weekly_change_pct": 0.431818,
-          "rvol": 2.65,
+          "rvol": 2.61,
           "volume_zscore": -0.52,
           "momentum_candle": false,
-          "vwap": 1.2515,
-          "vwap_position_pct": 0.006796,
+          "vwap": 1.252,
+          "vwap_position_pct": 0.006377,
           "vwap_slope": 0.0,
           "distance_from_52w_high": -0.70283,
           "distance_from_52w_low": 0.575,
           "atr_percentile": 69.0,
           "session_elapsed_pct": 9.2,
-          "vwap_distance_pct": 0.68,
-          "lateness_warning": "Seansin %9'i gecti. Fiyat bugunun VWAP'inin %0.7 uzerinde - bugun islem yapan ORTALAMA katilimcidan %0.7 daha pahaliya giriyorsunuz.",
+          "vwap_distance_pct": 0.64,
+          "lateness_warning": "Seansin %9'i gecti. Fiyat bugunun VWAP'inin %0.6 uzerinde - bugun islem yapan ORTALAMA katilimcidan %0.6 daha pahaliya giriyorsunuz.",
           "intraday": {
             "times": [
               "2026-10-07T09:55:00+03:00",
@@ -411,14 +366,77 @@
             "vwap": [
               null,
               1.22,
-              1.2512,
-              1.2513,
-              1.2513,
-              1.2513,
-              1.2514,
-              1.2514,
-              1.2514,
-              1.2515
+              1.2517,
+              1.2518,
+              1.2518,
+              1.2519,
+              1.2519,
+              1.2519,
+              1.2519,
+              1.252
+            ]
+          }
+        },
+        {
+          "symbol": "COSMO.IS",
+          "score": 21.25,
+          "last_price": 104.7,
+          "daily_change_pct": 0.164627,
+          "weekly_change_pct": 0.30875,
+          "rvol": 5.78,
+          "volume_zscore": -0.86,
+          "momentum_candle": false,
+          "vwap": 105.3117,
+          "vwap_position_pct": -0.005808,
+          "vwap_slope": -0.004,
+          "distance_from_52w_high": -0.655875,
+          "distance_from_52w_low": 0.335459,
+          "atr_percentile": 25.0,
+          "session_elapsed_pct": 10.2,
+          "vwap_distance_pct": -0.58,
+          "lateness_warning": "Seansin %10'i gecti. Fiyat bugunun VWAP'inin %0.6 altinda - bugun islem yapan ORTALAMA katilimcidan %0.6 daha ucuza giriyorsunuz.",
+          "intraday": {
+            "times": [
+              "2026-10-07T09:55:00+03:00",
+              "2026-10-07T10:00:00+03:00",
+              "2026-10-07T10:05:00+03:00",
+              "2026-10-07T10:10:00+03:00",
+              "2026-10-07T10:15:00+03:00",
+              "2026-10-07T10:20:00+03:00",
+              "2026-10-07T10:25:00+03:00",
+              "2026-10-07T10:30:00+03:00",
+              "2026-10-07T10:35:00+03:00",
+              "2026-10-07T10:40:00+03:00",
+              "2026-10-07T10:45:00+03:00",
+              "2026-10-07T10:50:00+03:00"
+            ],
+            "price": [
+              102.0,
+              105.9,
+              102.0,
+              103.0,
+              105.9,
+              107.5,
+              106.0,
+              106.3,
+              105.8,
+              105.6,
+              105.6,
+              104.7
+            ],
+            "vwap": [
+              null,
+              103.9,
+              103.6653,
+              103.5804,
+              104.09,
+              105.178,
+              105.2904,
+              105.3232,
+              105.3237,
+              105.3024,
+              105.3117,
+              105.3117
             ]
           }
         },
@@ -544,22 +562,22 @@
         },
         {
           "symbol": "MRGYO.IS",
-          "score": 19.71,
+          "score": 19.17,
           "last_price": 1.55,
           "daily_change_pct": 0.148148,
           "weekly_change_pct": 0.47619,
-          "rvol": 5.89,
-          "volume_zscore": -0.56,
+          "rvol": 5.35,
+          "volume_zscore": -0.55,
           "momentum_candle": false,
-          "vwap": 1.5566,
-          "vwap_position_pct": -0.004238,
+          "vwap": 1.5565,
+          "vwap_position_pct": -0.004171,
           "vwap_slope": -0.0002,
           "distance_from_52w_high": -0.548105,
           "distance_from_52w_low": 0.534653,
           "atr_percentile": 78.6,
-          "session_elapsed_pct": 9.2,
+          "session_elapsed_pct": 10.2,
           "vwap_distance_pct": -0.42,
-          "lateness_warning": "Seansin %9'i gecti. Fiyat bugunun VWAP'inin %0.4 altinda - bugun islem yapan ORTALAMA katilimcidan %0.4 daha ucuza giriyorsunuz.",
+          "lateness_warning": "Seansin %10'i gecti. Fiyat bugunun VWAP'inin %0.4 altinda - bugun islem yapan ORTALAMA katilimcidan %0.4 daha ucuza giriyorsunuz.",
           "intraday": {
             "times": [
               "2026-10-07T09:55:00+03:00",
@@ -572,7 +590,8 @@
               "2026-10-07T10:30:00+03:00",
               "2026-10-07T10:35:00+03:00",
               "2026-10-07T10:40:00+03:00",
-              "2026-10-07T10:45:00+03:00"
+              "2026-10-07T10:45:00+03:00",
+              "2026-10-07T10:50:00+03:00"
             ],
             "price": [
               1.55,
@@ -585,7 +604,8 @@
               1.54,
               1.55,
               1.55,
-              1.54
+              1.54,
+              1.55
             ],
             "vwap": [
               null,
@@ -598,7 +618,8 @@
               1.5572,
               1.5569,
               1.5567,
-              1.5566
+              1.5566,
+              1.5565
             ]
           }
         },
@@ -608,7 +629,7 @@
           "last_price": 26.8,
           "daily_change_pct": -0.189353,
           "weekly_change_pct": -0.467726,
-          "rvol": 0.05,
+          "rvol": 0.04,
           "volume_zscore": -0.31,
           "momentum_candle": false,
           "vwap": 26.8,
@@ -617,9 +638,9 @@
           "distance_from_52w_high": -0.877793,
           "distance_from_52w_low": 0.942029,
           "atr_percentile": 79.0,
-          "session_elapsed_pct": 9.2,
+          "session_elapsed_pct": 10.2,
           "vwap_distance_pct": 0.0,
-          "lateness_warning": "Seansin %9'i gecti. Fiyat bugunun VWAP'inin %0.0 uzerinde - bugun islem yapan ORTALAMA katilimcidan %0.0 daha pahaliya giriyorsunuz.",
+          "lateness_warning": "Seansin %10'i gecti. Fiyat bugunun VWAP'inin %0.0 uzerinde - bugun islem yapan ORTALAMA katilimcidan %0.0 daha pahaliya giriyorsunuz.",
           "intraday": {
             "times": [
               "2026-10-07T09:55:00+03:00",
@@ -632,9 +653,11 @@
               "2026-10-07T10:30:00+03:00",
               "2026-10-07T10:35:00+03:00",
               "2026-10-07T10:40:00+03:00",
-              "2026-10-07T10:45:00+03:00"
+              "2026-10-07T10:45:00+03:00",
+              "2026-10-07T10:50:00+03:00"
             ],
             "price": [
+              26.8,
               26.8,
               26.8,
               26.8,
@@ -649,6 +672,7 @@
             ],
             "vwap": [
               null,
+              26.8,
               26.8,
               26.8,
               26.8,
@@ -724,22 +748,22 @@
         },
         {
           "symbol": "KARTN.IS",
-          "score": 17.98,
-          "last_price": 90.45,
-          "daily_change_pct": 0.089759,
-          "weekly_change_pct": 0.026674,
-          "rvol": 10.0,
-          "volume_zscore": -0.04,
+          "score": 17.54,
+          "last_price": 90.75,
+          "daily_change_pct": 0.093373,
+          "weekly_change_pct": 0.030079,
+          "rvol": 9.2,
+          "volume_zscore": -0.01,
           "momentum_candle": false,
-          "vwap": 92.2606,
-          "vwap_position_pct": -0.019625,
-          "vwap_slope": -0.1327,
-          "distance_from_52w_high": -0.613131,
-          "distance_from_52w_low": 0.462409,
+          "vwap": 92.2254,
+          "vwap_position_pct": -0.015998,
+          "vwap_slope": -0.1002,
+          "distance_from_52w_high": -0.611848,
+          "distance_from_52w_low": 0.46726,
           "atr_percentile": 77.8,
-          "session_elapsed_pct": 9.2,
-          "vwap_distance_pct": -1.96,
-          "lateness_warning": "Seansin %9'i gecti. Fiyat bugunun VWAP'inin %2.0 altinda - bugun islem yapan ORTALAMA katilimcidan %2.0 daha ucuza giriyorsunuz. GIRIS ICIN GEC KALINMIS OLABILIR.",
+          "session_elapsed_pct": 10.2,
+          "vwap_distance_pct": -1.6,
+          "lateness_warning": "Seansin %10'i gecti. Fiyat bugunun VWAP'inin %1.6 altinda - bugun islem yapan ORTALAMA katilimcidan %1.6 daha ucuza giriyorsunuz. GIRIS ICIN GEC KALINMIS OLABILIR.",
           "intraday": {
             "times": [
               "2026-10-07T09:55:00+03:00",
@@ -751,7 +775,8 @@
               "2026-10-07T10:30:00+03:00",
               "2026-10-07T10:35:00+03:00",
               "2026-10-07T10:40:00+03:00",
-              "2026-10-07T10:45:00+03:00"
+              "2026-10-07T10:45:00+03:00",
+              "2026-10-07T10:50:00+03:00"
             ],
             "price": [
               94.05,
@@ -763,19 +788,21 @@
               93.6,
               90.4,
               90.0,
-              90.55
+              90.75,
+              90.65
             ],
             "vwap": [
               null,
               91.15,
-              91.645,
-              92.0749,
-              92.4672,
-              92.6096,
-              92.6588,
-              92.5271,
-              92.3454,
-              92.2606
+              91.6458,
+              92.0729,
+              92.4656,
+              92.6082,
+              92.6575,
+              92.5259,
+              92.3443,
+              92.2492,
+              92.2254
             ]
           }
         },
@@ -788,15 +815,15 @@
           "rvol": 6.82,
           "volume_zscore": -0.5,
           "momentum_candle": false,
-          "vwap": 9.4553,
-          "vwap_position_pct": -0.015366,
-          "vwap_slope": -0.0119,
+          "vwap": 9.4583,
+          "vwap_position_pct": -0.015683,
+          "vwap_slope": -0.0101,
           "distance_from_52w_high": -0.559186,
           "distance_from_52w_low": 0.313117,
           "atr_percentile": 27.0,
           "session_elapsed_pct": 9.2,
-          "vwap_distance_pct": -1.54,
-          "lateness_warning": "Seansin %9'i gecti. Fiyat bugunun VWAP'inin %1.5 altinda - bugun islem yapan ORTALAMA katilimcidan %1.5 daha ucuza giriyorsunuz. GIRIS ICIN GEC KALINMIS OLABILIR.",
+          "vwap_distance_pct": -1.57,
+          "lateness_warning": "Seansin %9'i gecti. Fiyat bugunun VWAP'inin %1.6 altinda - bugun islem yapan ORTALAMA katilimcidan %1.6 daha ucuza giriyorsunuz. GIRIS ICIN GEC KALINMIS OLABILIR.",
           "intraday": {
             "times": [
               "2026-10-07T09:55:00+03:00",
@@ -829,10 +856,10 @@
               9.5177,
               9.504,
               9.4957,
-              9.4909,
-              9.4675,
-              9.4622,
-              9.4553
+              9.4886,
+              9.4709,
+              9.4654,
+              9.4583
             ]
           }
         },
@@ -868,22 +895,22 @@
         },
         {
           "symbol": "AKSUE.IS",
-          "score": 14.84,
-          "last_price": 17.8,
-          "daily_change_pct": 0.126582,
-          "weekly_change_pct": 0.07683,
-          "rvol": 3.18,
-          "volume_zscore": -1.46,
+          "score": 14.88,
+          "last_price": 17.84,
+          "daily_change_pct": 0.129114,
+          "weekly_change_pct": 0.07925,
+          "rvol": 2.97,
+          "volume_zscore": -1.42,
           "momentum_candle": false,
-          "vwap": 17.3112,
-          "vwap_position_pct": 0.028238,
-          "vwap_slope": 0.0104,
-          "distance_from_52w_high": -0.631165,
-          "distance_from_52w_low": 0.196236,
-          "atr_percentile": 67.9,
-          "session_elapsed_pct": 9.2,
-          "vwap_distance_pct": 2.82,
-          "lateness_warning": "Seansin %9'i gecti. Fiyat bugunun VWAP'inin %2.8 uzerinde - bugun islem yapan ORTALAMA katilimcidan %2.8 daha pahaliya giriyorsunuz. GIRIS ICIN GEC KALINMIS OLABILIR.",
+          "vwap": 17.3296,
+          "vwap_position_pct": 0.02945,
+          "vwap_slope": 0.015,
+          "distance_from_52w_high": -0.630336,
+          "distance_from_52w_low": 0.198925,
+          "atr_percentile": 68.3,
+          "session_elapsed_pct": 10.2,
+          "vwap_distance_pct": 2.94,
+          "lateness_warning": "Seansin %10'i gecti. Fiyat bugunun VWAP'inin %2.9 uzerinde - bugun islem yapan ORTALAMA katilimcidan %2.9 daha pahaliya giriyorsunuz. GIRIS ICIN GEC KALINMIS OLABILIR.",
           "intraday": {
             "times": [
               "2026-10-07T09:55:00+03:00",
@@ -896,7 +923,8 @@
               "2026-10-07T10:30:00+03:00",
               "2026-10-07T10:35:00+03:00",
               "2026-10-07T10:40:00+03:00",
-              "2026-10-07T10:45:00+03:00"
+              "2026-10-07T10:45:00+03:00",
+              "2026-10-07T10:50:00+03:00"
             ],
             "price": [
               16.93,
@@ -905,84 +933,26 @@
               17.25,
               16.99,
               17.55,
-              17.39,
+              17.38,
               17.48,
               17.42,
               17.51,
-              17.73
+              17.7,
+              17.88
             ],
             "vwap": [
               null,
               17.0567,
-              17.0868,
-              17.173,
-              17.1703,
-              17.1867,
-              17.2593,
-              17.2801,
-              17.284,
-              17.2879,
-              17.3112
-            ]
-          }
-        },
-        {
-          "symbol": "PRKME.IS",
-          "score": 11.16,
-          "last_price": 16.12,
-          "daily_change_pct": 0.052907,
-          "weekly_change_pct": 0.16727,
-          "rvol": 6.87,
-          "volume_zscore": -0.72,
-          "momentum_candle": false,
-          "vwap": 16.0088,
-          "vwap_position_pct": 0.006948,
-          "vwap_slope": 0.0055,
-          "distance_from_52w_high": -0.358791,
-          "distance_from_52w_low": 0.180952,
-          "atr_percentile": 47.2,
-          "session_elapsed_pct": 9.2,
-          "vwap_distance_pct": 0.69,
-          "lateness_warning": "Seansin %9'i gecti. Fiyat bugunun VWAP'inin %0.7 uzerinde - bugun islem yapan ORTALAMA katilimcidan %0.7 daha pahaliya giriyorsunuz.",
-          "intraday": {
-            "times": [
-              "2026-10-07T09:55:00+03:00",
-              "2026-10-07T10:00:00+03:00",
-              "2026-10-07T10:05:00+03:00",
-              "2026-10-07T10:10:00+03:00",
-              "2026-10-07T10:15:00+03:00",
-              "2026-10-07T10:20:00+03:00",
-              "2026-10-07T10:25:00+03:00",
-              "2026-10-07T10:30:00+03:00",
-              "2026-10-07T10:35:00+03:00",
-              "2026-10-07T10:40:00+03:00",
-              "2026-10-07T10:45:00+03:00"
-            ],
-            "price": [
-              16.25,
-              15.88,
-              15.92,
-              15.85,
-              15.92,
-              16.2,
-              16.15,
-              16.03,
-              16.14,
-              16.12,
-              16.13
-            ],
-            "vwap": [
-              null,
-              15.9433,
-              15.9371,
-              15.9296,
-              15.9176,
-              15.9485,
-              15.9805,
-              15.9923,
-              15.9982,
-              16.0021,
-              16.0088
+              17.0873,
+              17.1745,
+              17.1714,
+              17.1878,
+              17.2602,
+              17.2808,
+              17.2847,
+              17.2886,
+              17.3147,
+              17.3296
             ]
           }
         },
@@ -1018,22 +988,22 @@
         },
         {
           "symbol": "SELEC.IS",
-          "score": 10.71,
-          "last_price": 73.7,
-          "daily_change_pct": -0.073539,
-          "weekly_change_pct": -0.278159,
-          "rvol": 4.36,
-          "volume_zscore": -0.21,
+          "score": 10.64,
+          "last_price": 73.5,
+          "daily_change_pct": -0.076053,
+          "weekly_change_pct": -0.280118,
+          "rvol": 4.03,
+          "volume_zscore": -0.2,
           "momentum_candle": false,
-          "vwap": 74.2635,
-          "vwap_position_pct": -0.007588,
-          "vwap_slope": -0.1011,
-          "distance_from_52w_high": -0.81575,
-          "distance_from_52w_low": 0.102151,
+          "vwap": 74.2392,
+          "vwap_position_pct": -0.009957,
+          "vwap_slope": -0.0924,
+          "distance_from_52w_high": -0.81625,
+          "distance_from_52w_low": 0.09916,
           "atr_percentile": 86.5,
-          "session_elapsed_pct": 9.2,
-          "vwap_distance_pct": -0.76,
-          "lateness_warning": "Seansin %9'i gecti. Fiyat bugunun VWAP'inin %0.8 altinda - bugun islem yapan ORTALAMA katilimcidan %0.8 daha ucuza giriyorsunuz.",
+          "session_elapsed_pct": 10.2,
+          "vwap_distance_pct": -1.0,
+          "lateness_warning": "Seansin %10'i gecti. Fiyat bugunun VWAP'inin %1.0 altinda - bugun islem yapan ORTALAMA katilimcidan %1.0 daha ucuza giriyorsunuz.",
           "intraday": {
             "times": [
               "2026-10-07T09:55:00+03:00",
@@ -1046,7 +1016,8 @@
               "2026-10-07T10:30:00+03:00",
               "2026-10-07T10:35:00+03:00",
               "2026-10-07T10:40:00+03:00",
-              "2026-10-07T10:45:00+03:00"
+              "2026-10-07T10:45:00+03:00",
+              "2026-10-07T10:50:00+03:00"
             ],
             "price": [
               74.3,
@@ -1059,41 +1030,43 @@
               73.3,
               73.2,
               72.85,
-              73.65
+              73.65,
+              73.45
             ],
             "vwap": [
               null,
               75.0667,
-              75.231,
-              75.1795,
-              75.119,
-              74.9278,
-              74.676,
-              74.5667,
-              74.519,
-              74.3728,
-              74.2635
+              75.233,
+              75.1805,
+              75.1194,
+              74.927,
+              74.674,
+              74.5644,
+              74.5166,
+              74.3699,
+              74.2474,
+              74.2392
             ]
           }
         },
         {
-          "symbol": "MEPET.IS",
-          "score": 9.94,
-          "last_price": 21.68,
-          "daily_change_pct": -0.065517,
-          "weekly_change_pct": 0.11695,
-          "rvol": 4.39,
-          "volume_zscore": -1.08,
+          "symbol": "PRKME.IS",
+          "score": 10.48,
+          "last_price": 16.12,
+          "daily_change_pct": 0.052907,
+          "weekly_change_pct": 0.16727,
+          "rvol": 6.19,
+          "volume_zscore": -0.69,
           "momentum_candle": false,
-          "vwap": 21.526,
-          "vwap_position_pct": 0.007152,
-          "vwap_slope": -0.0005,
-          "distance_from_52w_high": -0.309554,
-          "distance_from_52w_low": 0.560835,
-          "atr_percentile": 86.5,
-          "session_elapsed_pct": 9.2,
-          "vwap_distance_pct": 0.72,
-          "lateness_warning": "Seansin %9'i gecti. Fiyat bugunun VWAP'inin %0.7 uzerinde - bugun islem yapan ORTALAMA katilimcidan %0.7 daha pahaliya giriyorsunuz.",
+          "vwap": 16.0089,
+          "vwap_position_pct": 0.00694,
+          "vwap_slope": 0.0036,
+          "distance_from_52w_high": -0.358791,
+          "distance_from_52w_low": 0.180952,
+          "atr_percentile": 47.2,
+          "session_elapsed_pct": 10.2,
+          "vwap_distance_pct": 0.69,
+          "lateness_warning": "Seansin %10'i gecti. Fiyat bugunun VWAP'inin %0.7 uzerinde - bugun islem yapan ORTALAMA katilimcidan %0.7 daha pahaliya giriyorsunuz.",
           "intraday": {
             "times": [
               "2026-10-07T09:55:00+03:00",
@@ -1106,39 +1079,105 @@
               "2026-10-07T10:30:00+03:00",
               "2026-10-07T10:35:00+03:00",
               "2026-10-07T10:40:00+03:00",
-              "2026-10-07T10:45:00+03:00"
+              "2026-10-07T10:45:00+03:00",
+              "2026-10-07T10:50:00+03:00"
             ],
             "price": [
-              21.52,
-              21.9,
-              21.7,
-              21.3,
-              21.28,
-              21.68,
-              21.36,
-              21.36,
-              21.34,
-              21.34,
-              21.34
+              16.25,
+              15.88,
+              15.92,
+              15.85,
+              15.92,
+              16.2,
+              16.15,
+              16.03,
+              16.14,
+              16.12,
+              16.13,
+              16.12
             ],
             "vwap": [
               null,
-              21.6933,
-              21.6845,
-              21.6367,
-              21.6001,
-              21.5329,
-              21.5327,
-              21.5275,
-              21.5269,
-              21.5263,
-              21.526
+              15.9433,
+              15.9371,
+              15.9296,
+              15.9176,
+              15.9485,
+              15.9805,
+              15.9923,
+              15.9982,
+              16.0021,
+              16.0089,
+              16.0089
+            ]
+          }
+        },
+        {
+          "symbol": "ETYAT.IS",
+          "score": 9.46,
+          "last_price": 10.28,
+          "daily_change_pct": 0.078699,
+          "weekly_change_pct": -0.018147,
+          "rvol": 2.59,
+          "volume_zscore": -1.72,
+          "momentum_candle": false,
+          "vwap": 10.1879,
+          "vwap_position_pct": 0.009039,
+          "vwap_slope": -0.0006,
+          "distance_from_52w_high": -0.364255,
+          "distance_from_52w_low": 0.526733,
+          "atr_percentile": 95.2,
+          "session_elapsed_pct": 10.2,
+          "vwap_distance_pct": 0.9,
+          "lateness_warning": "Seansin %10'i gecti. Fiyat bugunun VWAP'inin %0.9 uzerinde - bugun islem yapan ORTALAMA katilimcidan %0.9 daha pahaliya giriyorsunuz.",
+          "intraday": {
+            "times": [
+              "2026-10-07T09:55:00+03:00",
+              "2026-10-07T10:00:00+03:00",
+              "2026-10-07T10:05:00+03:00",
+              "2026-10-07T10:10:00+03:00",
+              "2026-10-07T10:15:00+03:00",
+              "2026-10-07T10:20:00+03:00",
+              "2026-10-07T10:25:00+03:00",
+              "2026-10-07T10:30:00+03:00",
+              "2026-10-07T10:35:00+03:00",
+              "2026-10-07T10:40:00+03:00",
+              "2026-10-07T10:45:00+03:00",
+              "2026-10-07T10:50:00+03:00"
+            ],
+            "price": [
+              9.95,
+              9.99,
+              10.3,
+              10.3,
+              10.3,
+              10.3,
+              10.29,
+              10.2,
+              10.19,
+              10.23,
+              10.26,
+              10.28
+            ],
+            "vwap": [
+              null,
+              9.9233,
+              10.0688,
+              10.1756,
+              10.1816,
+              10.1862,
+              10.1908,
+              10.1898,
+              10.1898,
+              10.1859,
+              10.1872,
+              10.1879
             ]
           }
         }
       ],
       "psychology": {
-        "breadth_pct": 32.7,
+        "breadth_pct": 31.4,
         "volatility_regime": "yuksek"
       },
       "correlation": {

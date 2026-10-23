@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-23T04:38:47.478722+00:00",
-  "prices_updated_at": "2026-10-23T19:29:01.747241+00:00",
+  "generated_at": "2026-10-23T19:42:10.329575+00:00",
+  "prices_updated_at": "2026-10-23T19:42:10.329575+00:00",
   "run_date": "2026-10-23",
   "disclaimer": "Bu form karar destegidir, yatirim tavsiyesi degildir. Fiyatlar sinyal aninda hesaplanan degerlerdir, gercek piyasa fiyati farkli olabilir. Emirlerinizi kendi sorumlulugunuzda verin.",
   "entries": [
@@ -515,6 +515,23 @@
       "unrealized_pnl_pct": 9.386032220373856
     },
     {
+      "symbol": "DOCO.IS",
+      "strategy": "donchian",
+      "validation_status": "dogrulanmis",
+      "direction": 1,
+      "applicable": true,
+      "entry_price": 11738.36625,
+      "stop_price": 11049.649903201293,
+      "entry_date": "2026-10-23",
+      "days_open": 0,
+      "current_price": 11732.5,
+      "stop_distance_pct": 5.820158506701108,
+      "is_near_stop": false,
+      "is_new_today": true,
+      "exit_explanation": "Bu pozisyon, fiyat 11049.65 seviyesine (10 gunluk takip stopu, HER GUN guncellenir) geri cekilirse KAPANACAK. Sabit bir cikis tarihi YOK - HER GUN bu formu tekrar kontrol edin.",
+      "unrealized_pnl_pct": -0.04997501249374568
+    },
+    {
       "symbol": "DOGUB.IS",
       "strategy": "donchian",
       "validation_status": "dogrulanmis",
@@ -547,23 +564,6 @@
       "is_new_today": false,
       "exit_explanation": "Bu pozisyon, fiyat 19.80 seviyesine (10 gunluk takip stopu, HER GUN guncellenir) geri cekilirse KAPANACAK. Sabit bir cikis tarihi YOK - HER GUN bu formu tekrar kontrol edin.",
       "unrealized_pnl_pct": 10.788282478493356
-    },
-    {
-      "symbol": "DURDO.IS",
-      "strategy": "donchian",
-      "validation_status": "dogrulanmis",
-      "direction": 1,
-      "applicable": true,
-      "entry_price": 6.113055133581161,
-      "stop_price": 5.604176886256546,
-      "entry_date": "2026-10-06",
-      "days_open": 17,
-      "current_price": 6.010000228881836,
-      "stop_distance_pct": 6.752468006158353,
-      "is_near_stop": false,
-      "is_new_today": false,
-      "exit_explanation": "Bu pozisyon, fiyat 5.60 seviyesine (10 gunluk takip stopu, HER GUN guncellenir) geri cekilirse KAPANACAK. Sabit bir cikis tarihi YOK - HER GUN bu formu tekrar kontrol edin.",
-      "unrealized_pnl_pct": -1.6858167061705138
     },
     {
       "symbol": "EDIP.IS",

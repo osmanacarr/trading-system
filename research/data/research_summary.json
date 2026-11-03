@@ -1,99 +1,99 @@
 {
-  "generated_at": "2026-11-02T09:43:01.636921+00:00",
+  "generated_at": "2026-11-03T09:46:39.261287+00:00",
   "factor_ic": [
     {
       "factor_name": "absorption",
-      "mean_ic": 0.096771,
-      "n_dates": 49,
+      "mean_ic": 0.089429,
+      "n_dates": 50,
       "decayed": true,
-      "first_half_mean_ic": 0.112317,
-      "second_half_mean_ic": 0.081846
+      "first_half_mean_ic": 0.111956,
+      "second_half_mean_ic": 0.066901
     },
     {
       "factor_name": "cvd_divergence",
-      "mean_ic": -0.008425,
-      "n_dates": 49,
+      "mean_ic": -0.008256,
+      "n_dates": 50,
       "decayed": false,
-      "first_half_mean_ic": -0.015767,
+      "first_half_mean_ic": -0.015136,
       "second_half_mean_ic": -0.001376
     },
     {
       "factor_name": "cvd_proxy",
-      "mean_ic": -0.015071,
-      "n_dates": 49,
+      "mean_ic": -0.019033,
+      "n_dates": 50,
       "decayed": true,
-      "first_half_mean_ic": 0.023077,
-      "second_half_mean_ic": -0.051692
+      "first_half_mean_ic": 0.018901,
+      "second_half_mean_ic": -0.056967
     },
     {
       "factor_name": "daily_volume_ratio",
-      "mean_ic": 0.100516,
-      "n_dates": 49,
+      "mean_ic": 0.104352,
+      "n_dates": 50,
       "decayed": false,
-      "first_half_mean_ic": 0.05902,
-      "second_half_mean_ic": 0.140352
+      "first_half_mean_ic": 0.060967,
+      "second_half_mean_ic": 0.147736
     },
     {
       "factor_name": "distance_from_poc",
-      "mean_ic": 0.09094,
-      "n_dates": 49,
+      "mean_ic": 0.080549,
+      "n_dates": 50,
       "decayed": true,
-      "first_half_mean_ic": 0.159295,
-      "second_half_mean_ic": 0.025319
+      "first_half_mean_ic": 0.156352,
+      "second_half_mean_ic": 0.004747
     },
     {
       "factor_name": "ema",
-      "mean_ic": 0.122359,
-      "n_dates": 49,
+      "mean_ic": 0.116088,
+      "n_dates": 50,
       "decayed": true,
-      "first_half_mean_ic": 0.133883,
-      "second_half_mean_ic": 0.111297
+      "first_half_mean_ic": 0.138637,
+      "second_half_mean_ic": 0.093538
     },
     {
       "factor_name": "macd_histogram",
-      "mean_ic": -0.048397,
-      "n_dates": 49,
+      "mean_ic": -0.044659,
+      "n_dates": 50,
       "decayed": false,
-      "first_half_mean_ic": -0.114606,
-      "second_half_mean_ic": 0.015165
+      "first_half_mean_ic": -0.111868,
+      "second_half_mean_ic": 0.022549
     },
     {
       "factor_name": "poc",
-      "mean_ic": 0.113792,
-      "n_dates": 49,
+      "mean_ic": 0.107692,
+      "n_dates": 50,
       "decayed": true,
-      "first_half_mean_ic": 0.119872,
-      "second_half_mean_ic": 0.107956
+      "first_half_mean_ic": 0.123604,
+      "second_half_mean_ic": 0.09178
     },
     {
       "factor_name": "rsi",
-      "mean_ic": 0.005651,
-      "n_dates": 49,
+      "mean_ic": -0.00611,
+      "n_dates": 50,
       "decayed": true,
-      "first_half_mean_ic": 0.021566,
-      "second_half_mean_ic": -0.009626
+      "first_half_mean_ic": 0.017275,
+      "second_half_mean_ic": -0.029495
     },
     {
       "factor_name": "stochastic_k",
-      "mean_ic": -0.050718,
-      "n_dates": 49,
+      "mean_ic": -0.060824,
+      "n_dates": 50,
       "decayed": false,
-      "first_half_mean_ic": -0.155678,
-      "second_half_mean_ic": 0.050044
+      "first_half_mean_ic": -0.152176,
+      "second_half_mean_ic": 0.030528
     },
     {
       "factor_name": "volume_zscore",
-      "mean_ic": 0.118906,
-      "n_dates": 49,
+      "mean_ic": 0.120176,
+      "n_dates": 50,
       "decayed": false,
-      "first_half_mean_ic": 0.09304,
-      "second_half_mean_ic": 0.143736
+      "first_half_mean_ic": 0.093978,
+      "second_half_mean_ic": 0.146374
     }
   ],
   "regime": {
     "counts": {
-      "low": 4,
-      "normal": 7,
+      "low": 1,
+      "normal": 10,
       "high": 3
     },
     "majority_label": "normal",
@@ -103,79 +103,79 @@
     "weights": [
       {
         "factor_name": "absorption",
-        "weight": 0.06774
+        "weight": 0.0626
       },
       {
         "factor_name": "cvd_divergence",
-        "weight": -0.008425
+        "weight": -0.008256
       },
       {
         "factor_name": "cvd_proxy",
-        "weight": -0.01055
+        "weight": -0.013323
       },
       {
         "factor_name": "daily_volume_ratio",
-        "weight": 0.100516
+        "weight": 0.104352
       },
       {
         "factor_name": "distance_from_poc",
-        "weight": 0.063658
+        "weight": 0.056384
       },
       {
         "factor_name": "ema",
-        "weight": 0.085651
+        "weight": 0.081262
       },
       {
         "factor_name": "macd_histogram",
-        "weight": -0.048397
+        "weight": -0.044659
       },
       {
         "factor_name": "poc",
-        "weight": 0.079654
+        "weight": 0.075384
       },
       {
         "factor_name": "rsi",
-        "weight": 0.003956
+        "weight": -0.004277
       },
       {
         "factor_name": "stochastic_k",
-        "weight": -0.050718
+        "weight": -0.060824
       },
       {
         "factor_name": "volume_zscore",
-        "weight": 0.118906
+        "weight": 0.120176
       }
     ],
     "redundant_pairs": [
       {
         "factor_a": "cvd_proxy",
         "factor_b": "ema",
-        "correlation": -0.965688
+        "correlation": -0.9661
       },
       {
         "factor_a": "cvd_proxy",
         "factor_b": "poc",
-        "correlation": -0.965529
+        "correlation": -0.965779
       },
       {
         "factor_a": "daily_volume_ratio",
         "factor_b": "volume_zscore",
-        "correlation": 0.94745
+        "correlation": 0.94702
       },
       {
         "factor_a": "distance_from_poc",
         "factor_b": "rsi",
-        "correlation": 0.878433
+        "correlation": 0.879487
       },
       {
         "factor_a": "ema",
         "factor_b": "poc",
-        "correlation": 0.997482
+        "correlation": 0.997426
       },
       {
         "factor_a": "rsi",
         "factor_b": "stochastic_k",
-        "correlation": 0.82887
+        "correlation": 0.830406
       }
     ]
   },

@@ -1,6 +1,23 @@
 {
-  "generated_at": "2026-11-19T07:12:38.809727+00:00",
+  "generated_at": "2026-11-19T22:54:24.264247+00:00",
   "run_date": "2026-11-19",
   "risk_warning": "Bu adaylar RISK KATMANI TARAFINDAN REDDEDILDI (portfoy butcesi, korelasyon kumesi veya net yonlu maruziyet siniri) - paper trading'in KENDI sanal defterinde acilmadilar. Kendi gercek hesabinizda acarsaniz, korelasyon ve yon riskini SIZ yonetmelisiniz - bu kisitlar hesabiniza OTOMATIK UYGULANMAZ. 'Kalite' olcusu SADECE stratejinin kendi sinyal gucu olcumudur - gelecekteki performansin GARANTISI DEGILDIR. DENEYSEL etiketli stratejiler (bkz. her kaydin validation_status alani) DOGRULANMIS stratejilerle AYNI guven duzeyinde DEGILDIR.",
-  "entries": []
+  "entries": [
+    {
+      "symbol": "AVTUR.IS",
+      "strategy": "donchian",
+      "validation_status": "dogrulanmis",
+      "direction": 1,
+      "applicable": true,
+      "entry_price": 8.594295152664184,
+      "stop_price": 7.5380348574299,
+      "signal_date": "2026-11-18",
+      "rejection_reason": "Korelasyon kumesi zaten dolu (bu kumede baska pozisyon(lar) var)",
+      "atr_distance": 0.05680367444757033,
+      "volume_ratio": 1.714909772320616,
+      "body_ratio": 4.107147114621545,
+      "rsi_oversold_depth": null,
+      "ibs": null
+    }
+  ]
 }

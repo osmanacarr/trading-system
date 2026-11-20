@@ -1,6 +1,55 @@
 {
-  "generated_at": "2026-11-20T07:03:40.930621+00:00",
+  "generated_at": "2026-11-20T22:30:41.234969+00:00",
   "run_date": "2026-11-20",
   "risk_warning": "Bu adaylar RISK KATMANI TARAFINDAN REDDEDILDI (portfoy butcesi, korelasyon kumesi veya net yonlu maruziyet siniri) - paper trading'in KENDI sanal defterinde acilmadilar. Kendi gercek hesabinizda acarsaniz, korelasyon ve yon riskini SIZ yonetmelisiniz - bu kisitlar hesabiniza OTOMATIK UYGULANMAZ. 'Kalite' olcusu SADECE stratejinin kendi sinyal gucu olcumudur - gelecekteki performansin GARANTISI DEGILDIR. DENEYSEL etiketli stratejiler (bkz. her kaydin validation_status alani) DOGRULANMIS stratejilerle AYNI guven duzeyinde DEGILDIR.",
-  "entries": []
+  "entries": [
+    {
+      "symbol": "IHGZT.IS",
+      "strategy": "donchian",
+      "validation_status": "dogrulanmis",
+      "direction": 1,
+      "applicable": true,
+      "entry_price": 0.8904449856877327,
+      "stop_price": 0.8023376144255531,
+      "signal_date": "2026-11-19",
+      "rejection_reason": "Korelasyon kumesi zaten dolu (bu kumede baska pozisyon(lar) var)",
+      "atr_distance": 0.4539910938211987,
+      "volume_ratio": 7.071123540229818,
+      "body_ratio": 3.4999988079073883,
+      "rsi_oversold_depth": null,
+      "ibs": null
+    },
+    {
+      "symbol": "IHEVA.IS",
+      "strategy": "donchian",
+      "validation_status": "dogrulanmis",
+      "direction": 1,
+      "applicable": true,
+      "entry_price": 1.5607799427509308,
+      "stop_price": 1.407504896276647,
+      "signal_date": "2026-11-19",
+      "rejection_reason": "Korelasyon kumesi zaten dolu (bu kumede baska pozisyon(lar) var)",
+      "atr_distance": 0.26096851883674654,
+      "volume_ratio": 8.603643869311647,
+      "body_ratio": 4.9999960263595415,
+      "rsi_oversold_depth": null,
+      "ibs": null
+    },
+    {
+      "symbol": "IHLAS.IS",
+      "strategy": "donchian",
+      "validation_status": "dogrulanmis",
+      "direction": 1,
+      "applicable": true,
+      "entry_price": 0.8504250238537788,
+      "stop_price": 0.7584119717706239,
+      "signal_date": "2026-11-19",
+      "rejection_reason": "Korelasyon kumesi zaten dolu (bu kumede baska pozisyon(lar) var)",
+      "atr_distance": 0.21736155559461873,
+      "volume_ratio": 6.117314131878746,
+      "body_ratio": 2.1428574469625046,
+      "rsi_oversold_depth": null,
+      "ibs": null
+    }
+  ]
 }

@@ -1,6 +1,23 @@
 {
-  "generated_at": "2026-11-24T02:45:38.746335+00:00",
+  "generated_at": "2026-11-24T09:47:06.758799+00:00",
   "run_date": "2026-11-24",
   "risk_warning": "Bu adaylar RISK KATMANI TARAFINDAN REDDEDILDI (portfoy butcesi, korelasyon kumesi veya net yonlu maruziyet siniri) - paper trading'in KENDI sanal defterinde acilmadilar. Kendi gercek hesabinizda acarsaniz, korelasyon ve yon riskini SIZ yonetmelisiniz - bu kisitlar hesabiniza OTOMATIK UYGULANMAZ. 'Kalite' olcusu SADECE stratejinin kendi sinyal gucu olcumudur - gelecekteki performansin GARANTISI DEGILDIR. DENEYSEL etiketli stratejiler (bkz. her kaydin validation_status alani) DOGRULANMIS stratejilerle AYNI guven duzeyinde DEGILDIR.",
-  "entries": []
+  "entries": [
+    {
+      "symbol": "YUNSA.IS",
+      "strategy": "donchian",
+      "validation_status": "dogrulanmis",
+      "direction": 1,
+      "applicable": true,
+      "entry_price": 6.623309885501861,
+      "stop_price": 6.009496703111827,
+      "signal_date": "2026-11-24",
+      "rejection_reason": "Korelasyon kumesi zaten dolu (bu kumede baska pozisyon(lar) var)",
+      "atr_distance": 0.0651663453972715,
+      "volume_ratio": 1.2668137823242445,
+      "body_ratio": 3.137256368590037,
+      "rsi_oversold_depth": null,
+      "ibs": null
+    }
+  ]
 }
